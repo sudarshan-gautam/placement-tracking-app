@@ -84,22 +84,22 @@ export function Header() {
   useEffect(() => {
     if (searchQuery.length > 0) {
       // Simulated search results - in a real app, this would call an API
-      const results: SearchResult[] = [
+      const results = [
         {
           id: 1,
-          type: 'page',
+          type: 'page' as const,
           title: 'Role Competency',
           link: '/competencies'
         },
         {
           id: 2,
-          type: 'session',
+          type: 'session' as const,
           title: 'Recent Teaching Session',
           link: '/sessions'
         },
         {
           id: 3,
-          type: 'competency',
+          type: 'competency' as const,
           title: 'Classroom Management',
           link: '/competencies#classroom-management'
         }
@@ -137,11 +137,11 @@ export function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-14 items-center">
-        <div className="mr-4 flex">
-          <Link href="/" className="mr-6 flex items-center space-x-2">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="text-primary">
+    <header className="sticky top-0 z-50 w-full border-b bg-white">
+      <div className="flex h-14 items-center justify-between px-2">
+        <div className="flex">
+          <Link href="/" className="flex items-center space-x-4">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="text-blue-600">
               <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
               <path d="M2 5m0 2a2 2 0 0 1 2 -2h16a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-16a2 2 0 0 1 -2 -2z" />
               <path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
@@ -152,25 +152,25 @@ export function Header() {
           </Link>
         </div>
 
-        <div className="flex flex-1 items-center justify-end space-x-4">
+        <div className="flex items-center space-x-4">
           {/* Search */}
           <div className="relative" ref={searchRef}>
             <button
               onClick={() => setShowSearch(!showSearch)}
-              className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-9 py-2 w-9 px-0 bg-background"
+              className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-200 disabled:pointer-events-none disabled:opacity-50 hover:bg-gray-100 h-9 w-9"
             >
               <Search className="h-5 w-5" />
             </button>
 
             {showSearch && (
-              <div className="absolute right-0 mt-2 w-96 rounded-md bg-white shadow-lg dark:bg-gray-800">
+              <div className="absolute right-0 mt-2 w-96 rounded-md bg-white shadow-lg">
                 <div className="p-4">
                   <input
                     type="text"
                     placeholder="Search..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full rounded-md border px-3 py-2 dark:bg-gray-700 dark:text-white"
+                    className="w-full rounded-md border border-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     autoFocus
                   />
                   {searchResults.length > 0 && (
@@ -179,7 +179,7 @@ export function Header() {
                         <Link
                           key={result.id}
                           href={result.link}
-                          className="block rounded-md p-2 hover:bg-gray-100 dark:hover:bg-gray-700"
+                          className="block rounded-md p-2 hover:bg-gray-100"
                         >
                           <div className="text-sm font-medium">{result.title}</div>
                           <div className="text-xs text-gray-500">{result.type}</div>
@@ -192,23 +192,11 @@ export function Header() {
             )}
           </div>
 
-          {/* Dark Mode Toggle */}
-          <button
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-9 py-2 w-9 px-0 bg-background"
-          >
-            {theme === 'dark' ? (
-              <Sun className="h-5 w-5" />
-            ) : (
-              <Moon className="h-5 w-5" />
-            )}
-          </button>
-
           {/* Notifications */}
           <div className="relative" ref={notificationRef}>
             <button
               onClick={() => setShowNotifications(!showNotifications)}
-              className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-9 py-2 w-9 px-0 bg-background"
+              className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-200 disabled:pointer-events-none disabled:opacity-50 hover:bg-gray-100 h-9 w-9"
             >
               <Bell className="h-5 w-5" />
               {unreadCount > 0 && (
@@ -219,13 +207,13 @@ export function Header() {
             </button>
 
             {showNotifications && (
-              <div className="absolute right-0 mt-2 w-96 rounded-md bg-white shadow-lg dark:bg-gray-800">
+              <div className="absolute right-0 mt-2 w-96 rounded-md bg-white shadow-lg">
                 <div className="p-4">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold">Notifications</h3>
                     <button
                       onClick={markAllAsRead}
-                      className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400"
+                      className="text-sm text-blue-600 hover:text-blue-800"
                     >
                       Mark all as read
                     </button>
@@ -235,7 +223,7 @@ export function Header() {
                       <div
                         key={notification.id}
                         className={`flex items-start space-x-4 p-3 rounded-md ${
-                          notification.read ? 'opacity-75' : 'bg-gray-50 dark:bg-gray-700'
+                          notification.read ? 'opacity-75' : 'bg-gray-50'
                         }`}
                       >
                         {getNotificationIcon(notification.type)}
@@ -255,42 +243,42 @@ export function Header() {
           <div className="relative" ref={profileRef}>
             <button
               onClick={() => setShowProfile(!showProfile)}
-              className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 bg-background"
+              className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-200 disabled:pointer-events-none disabled:opacity-50 hover:bg-gray-100 h-9 px-2 py-2"
             >
               <span className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center text-white">
                 JD
               </span>
-              <ChevronDown className="ml-2 h-4 w-4" />
+              <ChevronDown className="ml-1 h-4 w-4" />
             </button>
 
             {showProfile && (
-              <div className="absolute right-0 mt-2 w-56 rounded-md bg-white shadow-lg dark:bg-gray-800">
+              <div className="absolute right-0 mt-2 w-56 rounded-md bg-white shadow-lg">
                 <div className="py-1">
                   <Link
                     href="/dashboard"
-                    className="flex items-center px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+                    className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
                   >
                     <LayoutDashboard className="mr-2 h-4 w-4" />
                     Dashboard
                   </Link>
                   <Link
                     href="/settings"
-                    className="flex items-center px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+                    className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
                   >
                     <Settings className="mr-2 h-4 w-4" />
                     Settings
                   </Link>
                   <Link
                     href="/help"
-                    className="flex items-center px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+                    className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
                   >
                     <HelpCircle className="mr-2 h-4 w-4" />
                     Help & Support
                   </Link>
-                  <div className="border-t border-gray-200 dark:border-gray-600"></div>
+                  <div className="border-t border-gray-200"></div>
                   <button
                     onClick={handleLogout}
-                    className="flex w-full items-center px-4 py-2 text-sm text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    className="flex w-full items-center px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
                   >
                     <LogOut className="mr-2 h-4 w-4" />
                     Logout
