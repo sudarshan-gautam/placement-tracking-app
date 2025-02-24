@@ -30,7 +30,8 @@ import {
   CheckCircle,
   Info,
   ExternalLink,
-  Upload
+  Upload,
+  Plus
 } from 'lucide-react';
 import { Competency } from '@/types/competency';
 import { ResearchEvidenceViewer } from '@/components/research-evidence';
@@ -146,7 +147,7 @@ const CompetencyPage = () => {
     name: comp.name,
     researchAlignment: comp.researchAlignment,
     evidenceCount: comp.researchEvidence.length,
-    implementationScore: Math.round(Math.random() * 20 + 70) // Sample implementation score
+    implementationScore: Math.floor((comp.selfScore + comp.supervisorScore) / 2 * 10) // More deterministic score
   }));
 
   const handleViewEvidence = (competency: Competency) => {
@@ -440,7 +441,7 @@ const CompetencyPage = () => {
       )}
 
       {/* Quick Actions */}
-      <div className="fixed bottom-16 left-0 right-0 bg-white border-t border-gray-200 p-4">
+      <div className="fixed bottom-20 left-0 right-0 bg-white border-t border-gray-200 p-4">
         <div className="max-w-4xl mx-auto flex justify-around">
           <button className="flex items-center gap-2 text-blue-600 hover:text-blue-700">
             <TrendingUp className="h-5 w-5" />

@@ -288,7 +288,7 @@ const SessionLibrary = () => {
       </Card>
 
       {/* Filter Bar */}
-      <div className="fixed bottom-16 left-0 right-0 bg-white border-t border-gray-200 p-4">
+      <div className="fixed bottom-20 left-0 right-0 bg-white border-t border-gray-200 p-4">
         <div className="max-w-4xl mx-auto flex justify-between items-center">
           <div className="flex gap-4">
             <select className="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
