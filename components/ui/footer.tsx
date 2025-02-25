@@ -15,7 +15,7 @@ export function Footer() {
         <div className="container mx-auto px-6 py-8 mb-24">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-sm text-gray-900">
-              © {new Date().getFullYear()} Practitioner Passport. All rights reserved by CodeRaider.
+              © {new Date().getFullYear()} Practitioner Passport. All rights reserved by CodeRaider Team - St Mary's University.
             </p>
             <div className="flex gap-8">
               <Link href="/privacy" className="text-sm text-gray-600 hover:text-blue-600 transition-colors">
@@ -153,7 +153,7 @@ export function Footer() {
         <div className="border-t border-gray-800 mt-12 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <p className="text-sm text-gray-400">
-              © {new Date().getFullYear()} Practitioner Passport. All rights reserved by CodeRaider.
+              © {new Date().getFullYear()} Practitioner Passport. All rights reserved by CodeRaiders Team - St Mary's University.
             </p>
             <div className="flex gap-6 mt-4 md:mt-0">
               <Link href="/privacy" className="text-sm text-gray-400 hover:text-blue-500 transition-colors">
