@@ -1,0 +1,173 @@
+PRACTITIONER PASSPORT - SITEMAP STRUCTURE
+
+1. PUBLIC PAGES
+└── / (Landing Page)
+    ├── /auth
+    │   ├── /login
+    │   ├── /register
+    │   ├── /forgot-password
+    │   └── /reset-password
+    ├── /about
+    ├── /features
+    ├── /contact
+    └── /terms-of-service
+
+2. AUTHENTICATED PAGES
+└── /dashboard (Main Dashboard)
+    │
+    ├── /profile
+    │   ├── /personal-info
+    │   ├── /professional-details
+    │   ├── /settings
+    │   │   ├── /account
+    │   │   ├── /notifications
+    │   │   ├── /privacy
+    │   │   └── /preferences
+    │   └── /activity-log
+    │
+    ├── /qualifications
+    │   ├── /overview
+    │   ├── /certificates
+    │   │   ├── /add
+    │   │   └── /[id] (Certificate Details)
+    │   ├── /experience
+    │   │   ├── /add
+    │   │   └── /[id] (Experience Details)
+    │   └── /verification
+    │       ├── /pending
+    │       └── /completed
+    │
+    ├── /competencies
+    │   ├── /overview
+    │   ├── /assessment
+    │   │   ├── /self
+    │   │   └── /supervisor
+    │   ├── /development-plan
+    │   │   ├── /goals
+    │   │   └── /progress
+    │   ├── /evidence
+    │   │   ├── /upload
+    │   │   └── /library
+    │   └── /research
+    │       ├── /alignment
+    │       └── /resources
+    │
+    ├── /sessions
+    │   ├── /overview
+    │   ├── /calendar
+    │   ├── /planning
+    │   │   ├── /new
+    │   │   └── /[id] (Session Details)
+    │   ├── /records
+    │   │   ├── /active
+    │   │   └── /archived
+    │   └── /feedback
+    │       ├── /received
+    │       └── /given
+    │
+    ├── /reports
+    │   ├── /overview
+    │   ├── /competency-analysis
+    │   ├── /session-statistics
+    │   ├── /qualification-status
+    │   └── /custom-reports
+    │
+    ├── /notifications
+    │   ├── /all
+    │   ├── /unread
+    │   ├── /important
+    │   └── /settings
+    │
+    └── /help-support
+        ├── /documentation
+        ├── /tutorials
+        ├── /faqs
+        └── /contact-support
+
+3. ADMIN PAGES
+└── /admin
+    ├── /dashboard
+    ├── /users
+    │   ├── /manage
+    │   └── /roles
+    ├── /verification
+    │   ├── /pending
+    │   └── /processed
+    ├── /reports
+    │   ├── /system
+    │   └── /analytics
+    └── /settings
+        ├── /system
+        └── /configurations
+
+4. SUPERVISOR PAGES
+└── /supervisor
+    ├── /dashboard
+    ├── /practitioners
+    │   └── /[id] (Practitioner Details)
+    ├── /assessments
+    │   ├── /pending
+    │   └── /completed
+    ├── /feedback
+    │   ├── /give
+    │   └── /history
+    └── /reports
+        └── /team-overview
+
+5. SHARED COMPONENTS
+└── Global
+    ├── Header
+    │   ├── Navigation Menu
+    │   ├── Search
+    │   ├── Notifications
+    │   └── User Menu
+    ├── Footer
+    ├── Sidebar
+    └── Quick Actions Menu
+
+6. MODAL COMPONENTS
+└── Modals
+    ├── Add/Edit Forms
+    ├── Confirmation Dialogs
+    ├── Preview Windows
+    └── Quick Action Modals
+
+7. PAGE RELATIONSHIPS
+--------------------
+- All authenticated pages accessible from main navigation
+- Dashboard links to all main sections
+- Profile accessible from all pages via header
+- Notifications accessible globally via header
+- Search results can link to any relevant page
+- Quick actions provide shortcuts to common tasks
+- Breadcrumb navigation shows current location
+- Related content links between relevant sections
+
+8. ACCESS LEVELS
+---------------
+Public:
+- Landing page and marketing pages
+- Authentication pages
+- Public documentation
+
+Practitioner:
+- Personal dashboard
+- Profile management
+- Qualifications
+- Competencies
+- Sessions
+- Basic reports
+
+Supervisor (Additional):
+- Team management
+- Assessment tools
+- Feedback system
+- Team reports
+
+Admin (Full Access):
+- System management
+- User management
+- Configuration
+- Advanced analytics
+
+Note: This sitemap represents the complete structure of the application. Implementation should follow the phased approach outlined in the requirements document. 

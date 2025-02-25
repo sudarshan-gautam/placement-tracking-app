@@ -5,6 +5,7 @@ import { Search, Moon, Sun, Bell, User, Settings, LogOut, ChevronDown,
   LayoutDashboard, HelpCircle, Mail, Shield, BookOpen, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useTheme } from 'next-themes';
+import { usePathname } from 'next/navigation';
 
 interface Notification {
   id: number;
@@ -52,6 +53,7 @@ export function Header() {
   ]);
   const [unreadCount, setUnreadCount] = useState(0);
   const { theme, setTheme } = useTheme();
+  const pathname = usePathname();
   
   const searchRef = useRef<HTMLDivElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
@@ -136,6 +138,44 @@ export function Header() {
     }
   };
 
+  // Show simple header with auth buttons on landing page
+  if (pathname === '/') {
+    return (
+      <header className="sticky top-0 z-50 w-full border-b bg-white">
+        <div className="flex h-14 items-center justify-between px-4">
+          <div className="flex">
+            <Link href="/" className="flex items-center space-x-4">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="text-blue-600">
+                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                <path d="M2 5m0 2a2 2 0 0 1 2 -2h16a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-16a2 2 0 0 1 -2 -2z" />
+                <path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
+                <path d="M9 12h-7" />
+                <path d="M15 12h7" />
+              </svg>
+              <span className="font-semibold text-lg">Practitioner Passport</span>
+            </Link>
+          </div>
+
+          <div className="flex items-center space-x-4">
+            <Link
+              href="/auth/signin"
+              className="text-gray-600 hover:text-blue-600 px-4 py-2 rounded-md text-sm font-medium"
+            >
+              Sign In
+            </Link>
+            <Link
+              href="/auth/signup"
+              className="bg-blue-600 text-white hover:bg-blue-700 px-4 py-2 rounded-md text-sm font-medium"
+            >
+              Sign Up
+            </Link>
+          </div>
+        </div>
+      </header>
+    );
+  }
+
+  // Show full header for authenticated pages
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-white">
       <div className="flex h-14 items-center justify-between px-2">

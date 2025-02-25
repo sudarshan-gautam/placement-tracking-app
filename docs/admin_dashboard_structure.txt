@@ -1,0 +1,145 @@
+PRACTITIONER PASSPORT - ADMIN DASHBOARD STRUCTURE
+
+1. HEADER SECTION (Enhanced)
+--------------------------
+└── Dashboard Header
+    ├── Title and Welcome Message
+    ├── Quick Actions Bar
+    │   ├── Add New User
+    │   ├── Verification Requests
+    │   ├── System Notifications
+    │   └── Settings
+    └── Date/Time Display
+
+2. OVERVIEW METRICS (New)
+-----------------------
+└── Stats Grid (4 columns)
+    ├── Total Users Card
+    │   ├── Count
+    │   └── Growth Indicator
+    ├── Active Sessions Card
+    │   ├── Count
+    │   └── Today's Activity
+    ├── Pending Verifications Card
+    │   ├── Count
+    │   └── Priority Items
+    └── System Health Card
+        ├── Status
+        └── Performance Metrics
+
+3. USER ACTIVITY CHART (Enhanced)
+------------------------------
+└── Activity Visualization
+    ├── Chart Header
+    │   ├── Title
+    │   └── Time Period Selector
+    ├── Multi-line Chart
+    │   ├── User Registrations
+    │   ├── Session Completions
+    │   └── Verification Requests
+    └── Chart Legend
+
+4. VERIFICATION QUEUE (New)
+-------------------------
+└── Pending Verifications
+    ├── Section Header
+    │   ├── Title
+    │   └── Filter Options
+    └── Request List
+        ├── Qualification Verifications
+        ├── Competency Assessments
+        └── Session Validations
+
+5. RECENT ACTIVITIES (Enhanced)
+----------------------------
+└── Activity Feed
+    ├── Section Header
+    │   ├── Title
+    │   └── View Options
+    └── Activity List
+        ├── User Actions
+        ├── System Events
+        └── Admin Actions
+
+6. USER MANAGEMENT (New)
+----------------------
+└── User Overview
+    ├── Section Header
+    │   ├── Title
+    │   ├── Search Bar
+    │   └── Filter Options
+    └── User Grid
+        ├── Recent Registrations
+        ├── Active Users
+        └── Flagged Accounts
+
+7. SYSTEM HEALTH (New)
+--------------------
+└── System Metrics
+    ├── Performance Indicators
+    │   ├── Response Time
+    │   ├── Error Rate
+    │   └── Server Load
+    └── Recent Issues
+        ├── Error Logs
+        ├── Warning Alerts
+        └── Resolution Status
+
+8. QUICK ACTIONS PANEL (New)
+--------------------------
+└── Action Grid
+    ├── User Management
+    │   ├── Add User
+    │   ├── Modify Roles
+    │   └── Reset Credentials
+    ├── Content Management
+    │   ├── Update Resources
+    │   ├── Manage Templates
+    │   └── Edit Guidelines
+    └── System Tools
+        ├── Backup Data
+        ├── Clear Cache
+        └── Generate Reports
+
+9. NAVIGATION MENU (Enhanced)
+--------------------------
+└── Bottom Navigation
+    ├── Dashboard Home
+    ├── User Management
+    ├── Verifications
+    ├── Reports
+    └── Settings
+
+LAYOUT SPECIFICATIONS
+-------------------
+1. Component Organization
+   - Fixed header with quick actions
+   - Scrollable main content
+   - Sticky navigation menu
+   - Responsive grid system
+
+2. Admin-Specific Features
+   - Enhanced data visualization
+   - Bulk action capabilities
+   - Advanced filtering
+   - Admin-only controls
+
+3. Interaction Patterns
+   - One-click access to common tasks
+   - Drag-and-drop functionality
+   - Batch processing
+   - Quick edit capabilities
+
+4. Data Display
+   - Real-time updates
+   - Sortable tables
+   - Expandable rows
+   - Status indicators
+
+5. Responsive Behavior
+   - Collapsible sections
+   - Priority content ordering
+   - Adaptive layouts
+   - Touch-friendly controls
+
+Note: This structure enhances the existing dashboard with admin-specific features while maintaining the core functionality and familiar layout patterns. 
