@@ -172,12 +172,6 @@ export default function LandingPage() {
                   Get Started
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
-                <Link 
-                  href="/about" 
-                  className="inline-flex items-center justify-center px-6 py-3 border border-gray-300 rounded-md shadow-sm text-base font-medium text-gray-700 bg-white hover:bg-gray-50"
-                >
-                  Learn More
-                </Link>
               </div>
               <div className="mt-8">
                 <p className="text-sm text-gray-600">
