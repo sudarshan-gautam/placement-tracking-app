@@ -10,8 +10,8 @@ export function BottomNav() {
   const pathname = usePathname();
   const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
   
-  // Don't show bottom nav on landing page
-  if (pathname === '/') return null;
+  // Don't show bottom nav on landing page or auth pages
+  if (pathname === '/' || pathname.startsWith('/auth')) return null;
 
   return (
     <>
