@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { LineChart, ResponsiveContainer, Line, XAxis, YAxis, Tooltip } from 'recharts';
 import { User, Calendar, Award, BookOpen } from 'lucide-react';
+import { ClientOnly } from '@/components/ui/client-only';
 
 const DashboardPage = () => {
   // Sample data for the activity chart
@@ -100,26 +101,28 @@ const DashboardPage = () => {
       </Card>
 
       {/* Navigation Menu */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4">
-        <div className="flex justify-around max-w-4xl mx-auto">
-          <Link href="/dashboard" className="flex flex-col items-center text-blue-600">
-            <User className="h-6 w-6" />
-            <span className="text-xs">Home</span>
-          </Link>
-          <Link href="/qualifications" className="flex flex-col items-center text-gray-600 hover:text-blue-600">
-            <Award className="h-6 w-6" />
-            <span className="text-xs">Qualifications</span>
-          </Link>
-          <Link href="/competencies" className="flex flex-col items-center text-gray-600 hover:text-blue-600">
-            <BookOpen className="h-6 w-6" />
-            <span className="text-xs">Competencies</span>
-          </Link>
-          <Link href="/sessions" className="flex flex-col items-center text-gray-600 hover:text-blue-600">
-            <Calendar className="h-6 w-6" />
-            <span className="text-xs">Sessions</span>
-          </Link>
-        </div>
-      </nav>
+      <ClientOnly>
+        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4">
+          <div className="flex justify-around max-w-4xl mx-auto">
+            <Link href="/dashboard" className="flex flex-col items-center text-blue-600">
+              <User className="h-6 w-6" />
+              <span className="text-xs">Home</span>
+            </Link>
+            <Link href="/qualifications" className="flex flex-col items-center text-gray-600 hover:text-blue-600">
+              <Award className="h-6 w-6" />
+              <span className="text-xs">Qualifications</span>
+            </Link>
+            <Link href="/competencies" className="flex flex-col items-center text-gray-600 hover:text-blue-600">
+              <BookOpen className="h-6 w-6" />
+              <span className="text-xs">Competencies</span>
+            </Link>
+            <Link href="/sessions" className="flex flex-col items-center text-gray-600 hover:text-blue-600">
+              <Calendar className="h-6 w-6" />
+              <span className="text-xs">Sessions</span>
+            </Link>
+          </div>
+        </nav>
+      </ClientOnly>
     </div>
   );
 };

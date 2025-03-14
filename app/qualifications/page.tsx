@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Award, Upload, Check, Clock, AlertCircle, User, Calendar, BookOpen } from 'lucide-react';
 import { Qualification, QualificationStatus } from '@/types/qualification';
 import { CertificateUpload } from '@/components/certificate-upload';
+import { ClientOnly } from '@/components/ui/client-only';
 
 const QualificationsPage = () => {
   const [qualifications, setQualifications] = useState<Qualification[]>([
@@ -250,26 +251,28 @@ const QualificationsPage = () => {
       </div>
 
       {/* Navigation Menu */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4">
-        <div className="flex justify-around max-w-4xl mx-auto">
-          <Link href="/dashboard" className="flex flex-col items-center text-gray-600 hover:text-blue-600">
-            <User className="h-6 w-6" />
-            <span className="text-xs">Home</span>
-          </Link>
-          <Link href="/qualifications" className="flex flex-col items-center text-blue-600">
-            <Award className="h-6 w-6" />
-            <span className="text-xs">Qualifications</span>
-          </Link>
-          <Link href="/competencies" className="flex flex-col items-center text-gray-600 hover:text-blue-600">
-            <BookOpen className="h-6 w-6" />
-            <span className="text-xs">Competencies</span>
-          </Link>
-          <Link href="/sessions" className="flex flex-col items-center text-gray-600 hover:text-blue-600">
-            <Calendar className="h-6 w-6" />
-            <span className="text-xs">Sessions</span>
-          </Link>
-        </div>
-      </nav>
+      <ClientOnly>
+        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4">
+          <div className="flex justify-around max-w-4xl mx-auto">
+            <Link href="/dashboard" className="flex flex-col items-center text-gray-600 hover:text-blue-600">
+              <User className="h-6 w-6" />
+              <span className="text-xs">Home</span>
+            </Link>
+            <Link href="/qualifications" className="flex flex-col items-center text-blue-600">
+              <Award className="h-6 w-6" />
+              <span className="text-xs">Qualifications</span>
+            </Link>
+            <Link href="/competencies" className="flex flex-col items-center text-gray-600 hover:text-blue-600">
+              <BookOpen className="h-6 w-6" />
+              <span className="text-xs">Competencies</span>
+            </Link>
+            <Link href="/sessions" className="flex flex-col items-center text-gray-600 hover:text-blue-600">
+              <Calendar className="h-6 w-6" />
+              <span className="text-xs">Sessions</span>
+            </Link>
+          </div>
+        </nav>
+      </ClientOnly>
     </div>
   );
 };

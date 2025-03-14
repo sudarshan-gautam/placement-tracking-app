@@ -18,6 +18,8 @@ import {
   Star,
   Shield
 } from 'lucide-react';
+import { navigateToSignUp, navigateWithReload } from '@/lib/navigation';
+import { ClientOnly } from '@/components/ui/client-only';
 
 // Feature data
 const features = [
@@ -151,6 +153,11 @@ const institutions = [
 ];
 
 export default function LandingPage() {
+  const handleNavigation = (e: React.MouseEvent, path: string) => {
+    e.preventDefault();
+    navigateWithReload(path);
+  };
+
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
@@ -164,15 +171,21 @@ export default function LandingPage() {
               <p className="text-xl text-gray-600 mb-8">
                 A comprehensive platform for educational practitioners to manage qualifications, track competencies, and grow professionally.
               </p>
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Link 
-                  href="/auth/signup" 
-                  className="inline-flex items-center justify-center px-6 py-3 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-blue-600 hover:bg-blue-700"
-                >
-                  Get Started
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Link>
-              </div>
+              <ClientOnly>
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <a 
+                    href="/auth/signup" 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigateToSignUp();
+                    }}
+                    className="inline-flex items-center justify-center px-6 py-3 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-blue-600 hover:bg-blue-700"
+                  >
+                    Get Started
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </a>
+                </div>
+              </ClientOnly>
               <div className="mt-8">
                 <p className="text-sm text-gray-600">
                   Join thousands of educational practitioners on their professional development journey
@@ -388,21 +401,25 @@ export default function LandingPage() {
           <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
             Join thousands of educational practitioners who are already tracking and advancing their professional development.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link 
-              href="/auth/register" 
-              className="inline-flex items-center justify-center px-6 py-3 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-blue-600 hover:bg-blue-700"
-            >
-              Get Started Now
-              <ArrowRight className="ml-2 h-5 w-5" />
-            </Link>
-            <Link 
-              href="/contact" 
-              className="inline-flex items-center justify-center px-6 py-3 border border-gray-300 rounded-md shadow-sm text-base font-medium text-gray-700 bg-white hover:bg-gray-50"
-            >
-              Contact Sales
-            </Link>
-          </div>
+          <ClientOnly>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <a 
+                href="/auth/register" 
+                onClick={(e) => handleNavigation(e, '/auth/signup')}
+                className="inline-flex items-center justify-center px-6 py-3 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-blue-600 hover:bg-blue-700"
+              >
+                Get Started Now
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </a>
+              <a 
+                href="/contact" 
+                onClick={(e) => handleNavigation(e, '/contact')}
+                className="inline-flex items-center justify-center px-6 py-3 border border-gray-300 rounded-md shadow-sm text-base font-medium text-gray-700 bg-white hover:bg-gray-50"
+              >
+                Contact Sales
+              </a>
+            </div>
+          </ClientOnly>
         </div>
       </section>
     </div>

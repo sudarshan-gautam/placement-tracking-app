@@ -4,6 +4,7 @@ import './globals.css'
 import { Header } from '@/components/ui/header'
 import { Footer } from '@/components/ui/footer'
 import { BottomNav } from '@/components/ui/bottom-nav'
+import { ThemeProvider } from 'next-themes'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -18,16 +19,18 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <div className="min-h-screen bg-white flex flex-col">
-          <Header />
-          <main className="flex-grow pb-32">
-            {children}
-          </main>
-          <Footer />
-        </div>
-        <BottomNav />
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+          <div className="min-h-screen bg-white flex flex-col">
+            <Header />
+            <main className="flex-grow pb-32">
+              {children}
+            </main>
+            <Footer />
+          </div>
+          <BottomNav />
+        </ThemeProvider>
       </body>
     </html>
   )

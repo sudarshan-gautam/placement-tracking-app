@@ -6,6 +6,8 @@ import { Search, Moon, Sun, Bell, User, Settings, LogOut, ChevronDown,
 import Link from 'next/link';
 import { useTheme } from 'next-themes';
 import { usePathname } from 'next/navigation';
+import { navigateToSignIn, navigateToSignUp, navigateToHome, navigateWithReload } from '@/lib/navigation';
+import { ClientOnly } from './client-only';
 
 interface Notification {
   id: number;
@@ -121,6 +123,8 @@ export function Header() {
   const handleLogout = () => {
     // Implement logout logic here
     console.log('Logging out...');
+    // Navigate to home after logout
+    navigateToHome();
   };
 
   const getNotificationIcon = (type: string) => {
@@ -138,14 +142,23 @@ export function Header() {
     }
   };
 
+  const handleNavigation = (e: React.MouseEvent, path: string) => {
+    e.preventDefault();
+    navigateWithReload(path);
+  };
+
   // Show simple header with auth buttons on landing page
   if (pathname === '/') {
     return (
       <header className="sticky top-0 z-50 w-full border-b bg-white">
         <div className="flex h-14 items-center justify-between px-4">
           <div className="flex">
-            <Link href="/" className="flex items-center space-x-4">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="text-blue-600">
+            <a 
+              href="/"
+              onClick={(e) => handleNavigation(e, '/')}
+              className="flex items-center space-x-4"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600">
                 <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
                 <path d="M2 5m0 2a2 2 0 0 1 2 -2h16a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-16a2 2 0 0 1 -2 -2z" />
                 <path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
@@ -153,23 +166,33 @@ export function Header() {
                 <path d="M15 12h7" />
               </svg>
               <span className="font-semibold text-lg">Practitioner Passport</span>
-            </Link>
+            </a>
           </div>
 
-          <div className="flex items-center space-x-4">
-            <Link
-              href="/auth/signin"
-              className="text-gray-600 hover:text-blue-600 px-4 py-2 rounded-md text-sm font-medium"
-            >
-              Sign In
-            </Link>
-            <Link
-              href="/auth/signup"
-              className="bg-blue-600 text-white hover:bg-blue-700 px-4 py-2 rounded-md text-sm font-medium"
-            >
-              Sign Up
-            </Link>
-          </div>
+          <ClientOnly>
+            <div className="flex items-center space-x-4">
+              <a
+                href="/auth/signin"
+                onClick={(e) => {
+                  e.preventDefault();
+                  navigateToSignIn();
+                }}
+                className="text-gray-600 hover:text-blue-600 px-4 py-2 rounded-md text-sm font-medium"
+              >
+                Sign In
+              </a>
+              <a
+                href="/auth/signup"
+                onClick={(e) => {
+                  e.preventDefault();
+                  navigateToSignUp();
+                }}
+                className="bg-blue-600 text-white hover:bg-blue-700 px-4 py-2 rounded-md text-sm font-medium"
+              >
+                Sign Up
+              </a>
+            </div>
+          </ClientOnly>
         </div>
       </header>
     );
@@ -180,8 +203,12 @@ export function Header() {
     <header className="sticky top-0 z-50 w-full border-b bg-white">
       <div className="flex h-14 items-center justify-between px-2">
         <div className="flex">
-          <Link href="/" className="flex items-center space-x-4">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="text-blue-600">
+          <a 
+            href="/"
+            onClick={(e) => handleNavigation(e, '/')}
+            className="flex items-center space-x-4"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600">
               <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
               <path d="M2 5m0 2a2 2 0 0 1 2 -2h16a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-16a2 2 0 0 1 -2 -2z" />
               <path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
@@ -189,145 +216,151 @@ export function Header() {
               <path d="M15 12h7" />
             </svg>
             <span className="font-semibold text-lg">Practitioner Passport</span>
-          </Link>
+          </a>
         </div>
 
-        <div className="flex items-center space-x-4">
-          {/* Search */}
-          <div className="relative" ref={searchRef}>
-            <button
-              onClick={() => setShowSearch(!showSearch)}
-              className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-200 disabled:pointer-events-none disabled:opacity-50 hover:bg-gray-100 h-9 w-9"
-            >
-              <Search className="h-5 w-5" />
-            </button>
+        <ClientOnly>
+          <div className="flex items-center space-x-4">
+            {/* Search */}
+            <div className="relative" ref={searchRef}>
+              <button
+                onClick={() => setShowSearch(!showSearch)}
+                className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-200 disabled:pointer-events-none disabled:opacity-50 hover:bg-gray-100 h-9 w-9"
+              >
+                <Search className="h-5 w-5" />
+              </button>
 
-            {showSearch && (
-              <div className="absolute right-0 mt-2 w-96 rounded-md bg-white shadow-lg">
-                <div className="p-4">
-                  <input
-                    type="text"
-                    placeholder="Search..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full rounded-md border border-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    autoFocus
-                  />
-                  {searchResults.length > 0 && (
-                    <div className="mt-4 space-y-2">
-                      {searchResults.map((result) => (
-                        <Link
-                          key={result.id}
-                          href={result.link}
-                          className="block rounded-md p-2 hover:bg-gray-100"
+              {showSearch && (
+                <div className="absolute right-0 mt-2 w-96 rounded-md bg-white shadow-lg">
+                  <div className="p-4">
+                    <input
+                      type="text"
+                      placeholder="Search..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full rounded-md border border-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      autoFocus
+                    />
+                    {searchResults.length > 0 && (
+                      <div className="mt-4 space-y-2">
+                        {searchResults.map((result) => (
+                          <a
+                            key={result.id}
+                            href={result.link}
+                            onClick={(e) => handleNavigation(e, result.link)}
+                            className="block rounded-md p-2 hover:bg-gray-100"
+                          >
+                            <div className="text-sm font-medium">{result.title}</div>
+                            <div className="text-xs text-gray-500">{result.type}</div>
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Notifications */}
+            <div className="relative" ref={notificationRef}>
+              <button
+                onClick={() => setShowNotifications(!showNotifications)}
+                className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-200 disabled:pointer-events-none disabled:opacity-50 hover:bg-gray-100 h-9 w-9"
+              >
+                <Bell className="h-5 w-5" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-[10px] font-medium text-white flex items-center justify-center">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+
+              {showNotifications && (
+                <div className="absolute right-0 mt-2 w-96 rounded-md bg-white shadow-lg">
+                  <div className="p-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold">Notifications</h3>
+                      <button
+                        onClick={markAllAsRead}
+                        className="text-sm text-blue-600 hover:text-blue-800"
+                      >
+                        Mark all as read
+                      </button>
+                    </div>
+                    <div className="space-y-4">
+                      {notifications.map((notification) => (
+                        <div
+                          key={notification.id}
+                          className={`flex items-start space-x-4 p-3 rounded-md ${
+                            notification.read ? 'opacity-75' : 'bg-gray-50'
+                          }`}
                         >
-                          <div className="text-sm font-medium">{result.title}</div>
-                          <div className="text-xs text-gray-500">{result.type}</div>
-                        </Link>
+                          {getNotificationIcon(notification.type)}
+                          <div className="flex-1">
+                            <p className="text-sm">{notification.message}</p>
+                            <p className="text-xs text-gray-500 mt-1">{notification.time}</p>
+                          </div>
+                        </div>
                       ))}
                     </div>
-                  )}
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-
-          {/* Notifications */}
-          <div className="relative" ref={notificationRef}>
-            <button
-              onClick={() => setShowNotifications(!showNotifications)}
-              className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-200 disabled:pointer-events-none disabled:opacity-50 hover:bg-gray-100 h-9 w-9"
-            >
-              <Bell className="h-5 w-5" />
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-[10px] font-medium text-white flex items-center justify-center">
-                  {unreadCount}
-                </span>
               )}
-            </button>
+            </div>
 
-            {showNotifications && (
-              <div className="absolute right-0 mt-2 w-96 rounded-md bg-white shadow-lg">
-                <div className="p-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold">Notifications</h3>
-                    <button
-                      onClick={markAllAsRead}
-                      className="text-sm text-blue-600 hover:text-blue-800"
+            {/* Profile */}
+            <div className="relative" ref={profileRef}>
+              <button
+                onClick={() => setShowProfile(!showProfile)}
+                className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-200 disabled:pointer-events-none disabled:opacity-50 hover:bg-gray-100 h-9 px-2 py-2"
+              >
+                <span className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center text-white">
+                  JD
+                </span>
+                <ChevronDown className="ml-1 h-4 w-4" />
+              </button>
+
+              {showProfile && (
+                <div className="absolute right-0 mt-2 w-56 rounded-md bg-white shadow-lg">
+                  <div className="py-1">
+                    <a
+                      href="/dashboard"
+                      onClick={(e) => handleNavigation(e, '/dashboard')}
+                      className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
                     >
-                      Mark all as read
+                      <LayoutDashboard className="mr-2 h-4 w-4" />
+                      Dashboard
+                    </a>
+                    <a
+                      href="/settings"
+                      onClick={(e) => handleNavigation(e, '/settings')}
+                      className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
+                    >
+                      <Settings className="mr-2 h-4 w-4" />
+                      Settings
+                    </a>
+                    <a
+                      href="/help"
+                      onClick={(e) => handleNavigation(e, '/help')}
+                      className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
+                    >
+                      <HelpCircle className="mr-2 h-4 w-4" />
+                      Help & Support
+                    </a>
+                    <div className="border-t border-gray-200"></div>
+                    <button
+                      onClick={handleLogout}
+                      className="flex w-full items-center px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+                    >
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Logout
                     </button>
                   </div>
-                  <div className="space-y-4">
-                    {notifications.map((notification) => (
-                      <div
-                        key={notification.id}
-                        className={`flex items-start space-x-4 p-3 rounded-md ${
-                          notification.read ? 'opacity-75' : 'bg-gray-50'
-                        }`}
-                      >
-                        {getNotificationIcon(notification.type)}
-                        <div className="flex-1">
-                          <p className="text-sm">{notification.message}</p>
-                          <p className="text-xs text-gray-500 mt-1">{notification.time}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
-
-          {/* Profile */}
-          <div className="relative" ref={profileRef}>
-            <button
-              onClick={() => setShowProfile(!showProfile)}
-              className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-200 disabled:pointer-events-none disabled:opacity-50 hover:bg-gray-100 h-9 px-2 py-2"
-            >
-              <span className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center text-white">
-                JD
-              </span>
-              <ChevronDown className="ml-1 h-4 w-4" />
-            </button>
-
-            {showProfile && (
-              <div className="absolute right-0 mt-2 w-56 rounded-md bg-white shadow-lg">
-                <div className="py-1">
-                  <Link
-                    href="/dashboard"
-                    className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
-                  >
-                    <LayoutDashboard className="mr-2 h-4 w-4" />
-                    Dashboard
-                  </Link>
-                  <Link
-                    href="/settings"
-                    className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
-                  >
-                    <Settings className="mr-2 h-4 w-4" />
-                    Settings
-                  </Link>
-                  <Link
-                    href="/help"
-                    className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
-                  >
-                    <HelpCircle className="mr-2 h-4 w-4" />
-                    Help & Support
-                  </Link>
-                  <div className="border-t border-gray-200"></div>
-                  <button
-                    onClick={handleLogout}
-                    className="flex w-full items-center px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
-                  >
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Logout
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+        </ClientOnly>
       </div>
     </header>
   );

@@ -10,21 +10,16 @@ export const metadata: Metadata = {
   description: 'Sign in or create an account for Practitioner Passport',
 };
 
-// This tells Next.js that this layout should not inherit from the root layout
-export const dynamic = 'force-dynamic';
-
 export default function AuthLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
-          {children}
-        </ThemeProvider>
-      </body>
-    </html>
+    <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+      <div className={`min-h-screen bg-gray-50 ${inter.className}`}>
+        {children}
+      </div>
+    </ThemeProvider>
   );
 } 
