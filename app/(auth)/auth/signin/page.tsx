@@ -61,8 +61,14 @@ export default function SignIn() {
     }
   };
 
+  const handleBackToHome = (e: React.MouseEvent) => {
+    e.preventDefault();
+    // Navigate to home page
+    router.push('/');
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">
+    <div className="flex flex-col md:flex-row h-full">
       {/* Left Section - Form */}
       <div className="flex-1 flex flex-col justify-center px-4 py-12 sm:px-6 lg:px-20 xl:px-24">
         <div className="mx-auto w-full max-w-sm lg:max-w-md">

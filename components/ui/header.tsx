@@ -157,6 +157,11 @@ export function Header() {
     }
   };
 
+  const handleNavigation = (e: React.MouseEvent, path: string) => {
+    e.preventDefault();
+    router.push(path);
+  };
+
   // Show simple header with auth buttons on landing page
   if (pathname === '/') {
     return (
@@ -310,7 +315,6 @@ export function Header() {
                   </span>
                 )}
               </button>
-              
               {showNotifications && (
                 <div className="absolute right-0 mt-2 w-96 rounded-md bg-white shadow-lg">
                   <div className="p-4">
