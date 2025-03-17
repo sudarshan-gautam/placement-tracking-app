@@ -1,47 +1,44 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { LineChart, ResponsiveContainer, Line, XAxis, YAxis, Tooltip } from 'recharts';
 import { User, Calendar, Award, BookOpen } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
-import { Loading } from '@/components/ui/loading';
 
 const DashboardPage = () => {
   const { user, loading, isAuthenticated } = useAuth();
   const router = useRouter();
-  const [isRedirecting, setIsRedirecting] = useState(false);
-  const [isPageLoaded, setIsPageLoaded] = useState(false);
-  
-  // Set page as loaded after initial render
-  useEffect(() => {
-    setIsPageLoaded(true);
-  }, []);
   
   // Redirect if not authenticated or if user is admin
   useEffect(() => {
-    if (isPageLoaded && !loading) {
+    if (!loading) {
       if (!isAuthenticated) {
-        setIsRedirecting(true);
-        router.replace('/auth/signin');
+        router.push('/auth/signin');
       } else if (user && user.role === 'admin') {
         // Redirect admin users to admin dashboard
-        setIsRedirecting(true);
-        router.replace('/admin');
+        router.push('/admin');
       }
     }
-  }, [loading, isAuthenticated, user, router, isPageLoaded]);
+  }, [loading, isAuthenticated, user, router]);
   
-  // Show loading state while checking authentication or redirecting
-  if (!isPageLoaded || loading || isRedirecting) {
-    return <Loading message="Loading your dashboard..." />;
+  // Show loading state while checking authentication
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading your dashboard...</p>
+        </div>
+      </div>
+    );
   }
   
   // If not authenticated or user is admin, don't render anything (will be redirected)
   if (!isAuthenticated || (user && user.role === 'admin')) {
-    return <Loading message="Redirecting..." />;
+    return null;
   }
   
   // Sample data for the activity chart

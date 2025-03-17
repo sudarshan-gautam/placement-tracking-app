@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, UserRole } from './db';
 
 interface AuthContextType {
@@ -17,50 +17,24 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isInitialized, setIsInitialized] = useState(false);
 
-  // Initialize auth state from localStorage
   useEffect(() => {
-    const initAuth = async () => {
-      setLoading(true);
+    // Check if user is stored in localStorage on initial load
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
       try {
-        const storedUser = localStorage.getItem('user');
-        if (storedUser) {
-          const parsedUser = JSON.parse(storedUser);
-          setUser(parsedUser);
-        }
+        setUser(JSON.parse(storedUser));
       } catch (error) {
         console.error('Failed to parse stored user:', error);
         localStorage.removeItem('user');
-        setUser(null);
-      } finally {
-        setLoading(false);
-        setIsInitialized(true);
       }
-    };
-    
-    initAuth();
+    }
+    setLoading(false);
   }, []);
 
-  // Sync localStorage with state changes
-  useEffect(() => {
-    if (!isInitialized) return;
-    
+  const login = async (email: string, password: string): Promise<{ success: boolean; userData?: User }> => {
     try {
-      if (user) {
-        localStorage.setItem('user', JSON.stringify(user));
-      } else {
-        localStorage.removeItem('user');
-      }
-    } catch (error) {
-      console.error('Error syncing auth state with localStorage:', error);
-    }
-  }, [user, isInitialized]);
-
-  const login = useCallback(async (email: string, password: string): Promise<{ success: boolean; userData?: User }> => {
-    setLoading(true);
-    
-    try {
+      setLoading(true);
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
@@ -70,44 +44,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (!response.ok) {
+        setLoading(false);
         return { success: false };
       }
 
       const data = await response.json();
       const userData = data.user;
       
-      // Update state
-      setUser(userData);
+      // Store user data in localStorage first
+      localStorage.setItem('user', JSON.stringify(userData));
       
-      // Return success with user data
-      return { success: true, userData };
+      // Set user state and ensure it's completed before returning
+      return new Promise((resolve) => {
+        setUser(userData);
+        // Small timeout to ensure state is updated before navigation
+        setTimeout(() => {
+          setLoading(false);
+          resolve({ success: true, userData });
+        }, 200);
+      });
     } catch (error) {
       console.error('Login error:', error);
+      setLoading(false);
       return { success: false };
-    } finally {
-      // Ensure loading state is updated
-      setLoading(false);
     }
-  }, []);
+  };
 
-  const logout = useCallback(async (): Promise<void> => {
-    setLoading(true);
-    
-    try {
-      // Clear user state
-      setUser(null);
-      
-      // Return a resolved promise
-      return Promise.resolve();
-    } catch (error) {
-      console.error('Logout error:', error);
-      return Promise.reject(error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const logout = () => {
+    // First clear the user state
+    setUser(null);
+    // Then remove from localStorage
+    localStorage.removeItem('user');
+    // Return a promise to ensure state is cleared before navigation
+    return new Promise<void>((resolve) => {
+      setTimeout(() => {
+        resolve();
+      }, 100);
+    });
+  };
 
-  const hasRole = useCallback((role: UserRole | UserRole[]): boolean => {
+  const hasRole = (role: UserRole | UserRole[]): boolean => {
     if (!user) return false;
     
     if (Array.isArray(role)) {
@@ -115,19 +91,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     
     return user.role === role;
-  }, [user]);
-
-  const contextValue = {
-    user,
-    loading,
-    login,
-    logout,
-    isAuthenticated: !!user,
-    hasRole,
   };
 
   return (
-    <AuthContext.Provider value={contextValue}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        login,
+        logout,
+        isAuthenticated: !!user,
+        hasRole,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

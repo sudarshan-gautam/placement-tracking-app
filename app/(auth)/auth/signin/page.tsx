@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, Eye, EyeOff, Mail, Lock, CheckCircle } from 'lucide-react';
 import Image from 'next/image';
 import { useAuth } from '@/lib/auth-context';
-import { Loading } from '@/components/ui/loading';
 
 export default function SignIn() {
   const [email, setEmail] = useState('');
@@ -15,36 +14,25 @@ export default function SignIn() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isRedirecting, setIsRedirecting] = useState(false);
-  const [isPageLoaded, setIsPageLoaded] = useState(false);
   
-  const { login, user, isAuthenticated, loading } = useAuth();
+  const { login, user, isAuthenticated } = useAuth();
   const router = useRouter();
-  
-  // Set page as loaded after initial render
-  useEffect(() => {
-    setIsPageLoaded(true);
-  }, []);
   
   // Check if user is already authenticated and redirect based on role
   useEffect(() => {
-    if (isPageLoaded && !loading && isAuthenticated && user && !isRedirecting) {
-      setIsRedirecting(true);
+    if (isAuthenticated && user) {
       // Redirect admin users to admin dashboard
       if (user.role === 'admin') {
-        router.replace('/admin');
+        router.push('/admin');
       } else {
         // Redirect other users to regular dashboard
-        router.replace('/dashboard');
+        router.push('/dashboard');
       }
     }
-  }, [isAuthenticated, user, router, loading, isRedirecting, isPageLoaded]);
+  }, [isAuthenticated, user, router]);
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (isLoading || isRedirecting) return;
-    
     setError('');
     setIsLoading(true);
     
@@ -52,15 +40,18 @@ export default function SignIn() {
       const { success, userData } = await login(email, password);
       
       if (success && userData) {
-        setIsRedirecting(true);
-        // Check user role and redirect accordingly
-        if (userData.role === 'admin') {
-          router.replace('/admin');
-        } else {
-          router.replace('/dashboard');
-        }
+        // Use the userData directly from the login response
+        // Add a small delay before navigation to ensure state is updated
+        setTimeout(() => {
+          // Check user role and redirect accordingly
+          if (userData.role === 'admin') {
+            router.push('/admin');
+          } else {
+            router.push('/dashboard');
+          }
+        }, 300);
       } else {
-        setError('Invalid email or password. Please try again.');
+        setError('Invalid email or password');
         setIsLoading(false);
       }
     } catch (error) {
@@ -69,11 +60,6 @@ export default function SignIn() {
       setIsLoading(false);
     }
   };
-
-  // If already authenticated and redirecting, show loading state
-  if (!isPageLoaded || (loading || isRedirecting) && isAuthenticated) {
-    return <Loading message="Redirecting to your dashboard..." />;
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">

@@ -70,19 +70,9 @@ export function Header() {
 
   // Handle logout with proper navigation
   const handleLogout = async () => {
-    try {
-      // First set local state to prevent UI issues
-      const isAdmin = user?.role === 'admin';
-      
-      // Perform logout
-      await logout();
-      
-      // Only navigate after logout is complete
-      // Use replace instead of push to prevent back button issues
-      router.replace('/');
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
+    await logout();
+    // Navigate to home page after logout
+    router.push('/');
   };
 
   // Handle click outside to close dropdowns
@@ -175,7 +165,7 @@ export function Header() {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
               <Link href="/" className="flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600">
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600">
                   <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
                   <path d="M2 5m0 2a2 2 0 0 1 2 -2h16a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-16a2 2 0 0 1 -2 -2z" />
                   <path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
@@ -186,7 +176,7 @@ export function Header() {
               </Link>
             </div>
             
-            <div className="flex items-center space-x-4 justify-end">
+            <div className="flex items-center space-x-3 justify-end">
               {isAuthenticated ? (
                 <>
                   <Link
@@ -233,7 +223,7 @@ export function Header() {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
               <Link href="/" className="flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600">
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600">
                   <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
                   <path d="M2 5m0 2a2 2 0 0 1 2 -2h16a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-16a2 2 0 0 1 -2 -2z" />
                   <path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
@@ -256,7 +246,7 @@ export function Header() {
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center">
             <Link href="/" className="flex items-center">
-              <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600">
+              <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600">
                 <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
                 <path d="M2 5m0 2a2 2 0 0 1 2 -2h16a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-16a2 2 0 0 1 -2 -2z" />
                 <path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
@@ -267,7 +257,7 @@ export function Header() {
             </Link>
           </div>
           
-          <div className="hidden md:flex items-center space-x-4 justify-end">
+          <div className="hidden md:flex items-center space-x-3 justify-end">
             {/* Search */}
             <div className="relative" ref={searchRef}>
               <button
@@ -278,7 +268,7 @@ export function Header() {
               </button>
 
               {showSearch && (
-                <div className="absolute right-0 mt-2 w-96 rounded-md bg-white shadow-lg z-50">
+                <div className="absolute right-0 mt-2 w-96 rounded-md bg-white shadow-lg">
                   <div className="p-4">
                     <input
                       type="text"
@@ -434,7 +424,6 @@ export function Header() {
                   ? 'bg-blue-50 border-blue-500 text-blue-700'
                   : 'border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800'
               }`}
-              onClick={() => setIsMenuOpen(false)}
             >
               Dashboard
             </Link>
@@ -446,7 +435,6 @@ export function Header() {
                   ? 'bg-blue-50 border-blue-500 text-blue-700'
                   : 'border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800'
               }`}
-              onClick={() => setIsMenuOpen(false)}
             >
               Competencies
             </Link>
@@ -458,7 +446,6 @@ export function Header() {
                   ? 'bg-blue-50 border-blue-500 text-blue-700'
                   : 'border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800'
               }`}
-              onClick={() => setIsMenuOpen(false)}
             >
               Qualifications
             </Link>
@@ -470,7 +457,6 @@ export function Header() {
                   ? 'bg-blue-50 border-blue-500 text-blue-700'
                   : 'border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800'
               }`}
-              onClick={() => setIsMenuOpen(false)}
             >
               Jobs
             </Link>
@@ -482,7 +468,6 @@ export function Header() {
                   ? 'bg-blue-50 border-blue-500 text-blue-700'
                   : 'border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800'
               }`}
-              onClick={() => setIsMenuOpen(false)}
             >
               Activities
             </Link>
@@ -494,7 +479,6 @@ export function Header() {
                   ? 'bg-blue-50 border-blue-500 text-blue-700'
                   : 'border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800'
               }`}
-              onClick={() => setIsMenuOpen(false)}
             >
               Profile
             </Link>
@@ -508,7 +492,6 @@ export function Header() {
                     ? 'bg-blue-50 border-blue-500 text-blue-700'
                     : 'border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800'
                 }`}
-                onClick={() => setIsMenuOpen(false)}
               >
                 Admin
               </Link>
@@ -529,15 +512,7 @@ export function Header() {
             </div>
             <div className="mt-3 space-y-1">
               <button
-                onClick={async () => {
-                  setIsMenuOpen(false);
-                  try {
-                    await logout();
-                    router.replace('/');
-                  } catch (error) {
-                    console.error('Logout error:', error);
-                  }
-                }}
+                onClick={handleLogout}
                 className="block w-full text-left px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100"
               >
                 Sign out
