@@ -166,9 +166,9 @@ export function Header() {
   if (pathname === '/') {
     return (
       <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
+        <div className="w-full">
+          <div className="flex justify-between items-center h-16 px-4">
+            <div className="flex items-center ml-1">
               <Link href="/" className="flex items-center">
                 <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600">
                   <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
@@ -224,9 +224,9 @@ export function Header() {
   if (pathname.startsWith('/auth/')) {
     return (
       <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
+        <div className="w-full">
+          <div className="flex justify-between items-center h-16 px-4">
+            <div className="flex items-center ml-0">
               <Link href="/" className="flex items-center">
                 <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600">
                   <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
@@ -247,9 +247,9 @@ export function Header() {
   // For dashboard and other authenticated pages
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="flex justify-between items-center h-16">
-          <div className="flex items-center">
+      <div className="w-full">
+        <div className="flex justify-between items-center h-16 px-4">
+          <div className="flex items-center ml-2">
             <Link href="/" className="flex items-center">
               <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600">
                 <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
