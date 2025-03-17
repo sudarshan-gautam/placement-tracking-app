@@ -1,7 +1,8 @@
 'use client';
 
 import React from 'react';
-import { Plus, Award, BookOpen, Calendar, BarChart2, FileText, Edit, X } from 'lucide-react';
+import { Plus, Award, BookOpen, Calendar, BarChart2, FileText, Edit, X, User, Settings, Shield, ClipboardCheck, Server, Briefcase } from 'lucide-react';
+import { useAuth } from '@/lib/auth-context';
 
 interface QuickActionsModalProps {
   isOpen: boolean;
@@ -9,37 +10,114 @@ interface QuickActionsModalProps {
 }
 
 export function QuickActionsModal({ isOpen, onClose }: QuickActionsModalProps) {
+  const { user } = useAuth();
+  
   if (!isOpen) return null;
 
-  const actions = [
+  // Admin-specific actions
+  const adminActions = [
     {
-      href: '/sessions/new',
-      icon: Plus,
-      label: 'New Session',
+      href: '/admin/users/new',
+      icon: User,
+      label: 'Add User',
       bgColor: 'bg-blue-600 hover:bg-blue-700'
     },
     {
-      href: '/qualifications',
-      icon: Award,
-      label: 'Add Qualification',
+      href: '/admin/roles',
+      icon: Shield,
+      label: 'Modify Roles',
       bgColor: 'bg-green-600 hover:bg-green-700'
     },
     {
-      href: '/competencies',
-      icon: BookOpen,
-      label: 'View Competencies',
+      href: '/admin/verifications',
+      icon: ClipboardCheck,
+      label: 'Verifications',
       bgColor: 'bg-purple-600 hover:bg-purple-700'
     },
     {
-      href: '/action-plan',
-      icon: Calendar,
-      label: 'Action Plan',
+      href: '/admin/reports',
+      icon: BarChart2,
+      label: 'Generate Reports',
       bgColor: 'bg-orange-600 hover:bg-orange-700'
     },
     {
-      href: '/overview',
+      href: '/admin/settings',
+      icon: Settings,
+      label: 'System Settings',
+      bgColor: 'bg-indigo-600 hover:bg-indigo-700'
+    },
+    {
+      href: '/admin/backup',
+      icon: Server,
+      label: 'Backup Data',
+      bgColor: 'bg-teal-600 hover:bg-teal-700'
+    }
+  ];
+
+  // Mentor-specific actions
+  const mentorActions = [
+    {
+      href: '/activities/new',
+      icon: Plus,
+      label: 'New Activity',
+      bgColor: 'bg-blue-600 hover:bg-blue-700'
+    },
+    {
+      href: '/students',
+      icon: User,
+      label: 'View Students',
+      bgColor: 'bg-green-600 hover:bg-green-700'
+    },
+    {
+      href: '/activities',
+      icon: FileText,
+      label: 'View Activities',
+      bgColor: 'bg-purple-600 hover:bg-purple-700'
+    },
+    {
+      href: '/reports',
       icon: BarChart2,
-      label: 'View Analytics',
+      label: 'View Reports',
+      bgColor: 'bg-orange-600 hover:bg-orange-700'
+    },
+    {
+      href: '/profile',
+      icon: User,
+      label: 'Edit Profile',
+      bgColor: 'bg-indigo-600 hover:bg-indigo-700'
+    }
+  ];
+
+  // Student actions
+  const studentActions = [
+    {
+      href: '/activities/new',
+      icon: Plus,
+      label: 'New Activity',
+      bgColor: 'bg-blue-600 hover:bg-blue-700'
+    },
+    {
+      href: '/profile',
+      icon: User,
+      label: 'Edit Profile',
+      bgColor: 'bg-green-600 hover:bg-green-700'
+    },
+    {
+      href: '/jobs',
+      icon: Briefcase,
+      label: 'Browse Jobs',
+      bgColor: 'bg-purple-600 hover:bg-purple-700'
+    },
+    {
+      href: '/activities',
+      icon: FileText,
+      label: 'View Activities',
+      bgColor: 'bg-orange-600 hover:bg-orange-700'
+    },
+    {
+      href: '/reports',
+      icon: BarChart2,
+      label: 'View Reports',
       bgColor: 'bg-indigo-600 hover:bg-indigo-700'
     },
     {
@@ -47,14 +125,15 @@ export function QuickActionsModal({ isOpen, onClose }: QuickActionsModalProps) {
       icon: FileText,
       label: 'Generate CV',
       bgColor: 'bg-teal-600 hover:bg-teal-700'
-    },
-    {
-      href: '/documents/statements',
-      icon: Edit,
-      label: 'Generate Statements',
-      bgColor: 'bg-rose-600 hover:bg-rose-700'
     }
   ];
+
+  // Select actions based on user role
+  const actions = user?.role === 'admin' 
+    ? adminActions 
+    : user?.role === 'mentor' 
+      ? mentorActions 
+      : studentActions;
 
   const handleActionClick = (e: React.MouseEvent, href: string) => {
     e.preventDefault();

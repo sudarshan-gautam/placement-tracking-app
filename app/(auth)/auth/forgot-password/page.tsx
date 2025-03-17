@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Mail, Lock, Eye, EyeOff, CheckCircle } from 'lucide-react';
 
 export default function ForgotPassword() {
+  const [isClient, setIsClient] = useState(false);
   const [step, setStep] = useState(1);
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
@@ -13,6 +14,10 @@ export default function ForgotPassword() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (step < 3) {
@@ -25,16 +30,34 @@ export default function ForgotPassword() {
     }
   };
 
+  const handleBackToSignIn = (e: React.MouseEvent) => {
+    e.preventDefault();
+    // Use window.location.href to force a full page reload
+    window.location.href = '/auth/signin';
+  };
+
+  if (!isClient) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">
+        <div className="flex-1" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">
       {/* Left Section - Form */}
       <div className="flex-1 flex flex-col justify-center px-4 py-12 sm:px-6 lg:px-20 xl:px-24">
         <div className="mx-auto w-full max-w-sm lg:max-w-md">
           <div className="mb-8">
-            <Link href="/auth/signin" className="flex items-center text-blue-600 mb-6">
+            <a 
+              href="/auth/signin"
+              onClick={handleBackToSignIn}
+              className="flex items-center text-blue-600 mb-6"
+            >
               <ArrowLeft className="mr-2 h-5 w-5" />
               Back to sign in
-            </Link>
+            </a>
             <div className="flex items-center mb-6">
               <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600 mr-3">
                 <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
@@ -227,9 +250,13 @@ export default function ForgotPassword() {
             <div className="mt-6 text-center">
               <p className="text-sm text-gray-600">
                 Remember your password?{' '}
-                <Link href="/auth/signin" className="font-medium text-blue-600 hover:text-blue-500">
+                <a 
+                  href="/auth/signin"
+                  onClick={handleBackToSignIn}
+                  className="font-medium text-blue-600 hover:text-blue-500"
+                >
                   Sign in
-                </Link>
+                </a>
               </p>
             </div>
           </div>

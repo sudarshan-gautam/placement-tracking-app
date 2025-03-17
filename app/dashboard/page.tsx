@@ -1,12 +1,49 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { LineChart, ResponsiveContainer, Line, XAxis, YAxis, Tooltip } from 'recharts';
 import { User, Calendar, Award, BookOpen } from 'lucide-react';
+import { useAuth } from '@/lib/auth-context';
+import { Loading } from '@/components/ui/loading';
 
 const DashboardPage = () => {
+  const { user, loading, isAuthenticated } = useAuth();
+  const router = useRouter();
+  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [isPageLoaded, setIsPageLoaded] = useState(false);
+  
+  // Set page as loaded after initial render
+  useEffect(() => {
+    setIsPageLoaded(true);
+  }, []);
+  
+  // Redirect if not authenticated or if user is admin
+  useEffect(() => {
+    if (isPageLoaded && !loading) {
+      if (!isAuthenticated) {
+        setIsRedirecting(true);
+        router.replace('/auth/signin');
+      } else if (user && user.role === 'admin') {
+        // Redirect admin users to admin dashboard
+        setIsRedirecting(true);
+        router.replace('/admin');
+      }
+    }
+  }, [loading, isAuthenticated, user, router, isPageLoaded]);
+  
+  // Show loading state while checking authentication or redirecting
+  if (!isPageLoaded || loading || isRedirecting) {
+    return <Loading message="Loading your dashboard..." />;
+  }
+  
+  // If not authenticated or user is admin, don't render anything (will be redirected)
+  if (!isAuthenticated || (user && user.role === 'admin')) {
+    return <Loading message="Redirecting..." />;
+  }
+  
   // Sample data for the activity chart
   const activityData = [
     { name: 'Week 1', sessions: 3 },
@@ -27,7 +64,16 @@ const DashboardPage = () => {
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Practitioner Passport</h1>
-        <p className="text-gray-600">Welcome back, John Doe</p>
+        <p className="text-gray-600">Welcome back, {user?.name || 'User'}</p>
+        
+        {/* Admin link - only visible to admin users */}
+        {user?.role === 'admin' && (
+          <div className="mt-2">
+            <Link href="/admin" className="text-blue-600 hover:text-blue-800 font-medium">
+              Go to Admin Dashboard
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* User Information Card */}

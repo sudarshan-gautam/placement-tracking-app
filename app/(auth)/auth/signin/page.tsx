@@ -1,29 +1,79 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { ArrowLeft, Eye, EyeOff, Mail, Lock, CheckCircle } from 'lucide-react';
 import Image from 'next/image';
+import { useAuth } from '@/lib/auth-context';
+import { Loading } from '@/components/ui/loading';
 
 export default function SignIn() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [isPageLoaded, setIsPageLoaded] = useState(false);
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const { login, user, isAuthenticated, loading } = useAuth();
+  const router = useRouter();
+  
+  // Set page as loaded after initial render
+  useEffect(() => {
+    setIsPageLoaded(true);
+  }, []);
+  
+  // Check if user is already authenticated and redirect based on role
+  useEffect(() => {
+    if (isPageLoaded && !loading && isAuthenticated && user && !isRedirecting) {
+      setIsRedirecting(true);
+      // Redirect admin users to admin dashboard
+      if (user.role === 'admin') {
+        router.replace('/admin');
+      } else {
+        // Redirect other users to regular dashboard
+        router.replace('/dashboard');
+      }
+    }
+  }, [isAuthenticated, user, router, loading, isRedirecting, isPageLoaded]);
+  
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // This would be replaced with actual authentication logic
-    console.log('Login attempt with:', { email, password, rememberMe });
-    // For now, redirect to dashboard
-    window.location.href = '/dashboard';
+    
+    if (isLoading || isRedirecting) return;
+    
+    setError('');
+    setIsLoading(true);
+    
+    try {
+      const { success, userData } = await login(email, password);
+      
+      if (success && userData) {
+        setIsRedirecting(true);
+        // Check user role and redirect accordingly
+        if (userData.role === 'admin') {
+          router.replace('/admin');
+        } else {
+          router.replace('/dashboard');
+        }
+      } else {
+        setError('Invalid email or password. Please try again.');
+        setIsLoading(false);
+      }
+    } catch (error) {
+      setError('An error occurred during login. Please try again.');
+      console.error('Login error:', error);
+      setIsLoading(false);
+    }
   };
 
-  const handleBackToHome = (e: React.MouseEvent) => {
-    e.preventDefault();
-    // Use window.location.href to force a full page reload
-    window.location.href = '/';
-  };
+  // If already authenticated and redirecting, show loading state
+  if (!isPageLoaded || (loading || isRedirecting) && isAuthenticated) {
+    return <Loading message="Redirecting to your dashboard..." />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">
@@ -31,14 +81,13 @@ export default function SignIn() {
       <div className="flex-1 flex flex-col justify-center px-4 py-12 sm:px-6 lg:px-20 xl:px-24">
         <div className="mx-auto w-full max-w-sm lg:max-w-md">
           <div className="mb-8">
-            <a 
+            <Link 
               href="/"
-              onClick={handleBackToHome}
               className="flex items-center text-blue-600 mb-6"
             >
               <ArrowLeft className="mr-2 h-5 w-5" />
               Back to home
-            </a>
+            </Link>
             <div className="flex items-center mb-6">
               <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600 mr-3">
                 <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
@@ -54,6 +103,12 @@ export default function SignIn() {
               Sign in to your account to continue your professional development journey
             </p>
           </div>
+
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-md">
+              {error}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
@@ -123,7 +178,7 @@ export default function SignIn() {
                   onChange={(e) => setRememberMe(e.target.checked)}
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 />
-                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
+                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
                   Remember me
                 </label>
               </div>
@@ -138,9 +193,22 @@ export default function SignIn() {
             <div>
               <button
                 type="submit"
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                disabled={isLoading}
+                className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+                  isLoading ? 'opacity-70 cursor-not-allowed' : ''
+                }`}
               >
-                Sign in
+                {isLoading ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Signing in...
+                  </>
+                ) : (
+                  'Sign in'
+                )}
               </button>
             </div>
           </form>
@@ -148,64 +216,46 @@ export default function SignIn() {
           <div className="mt-6">
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300" />
+                <div className="w-full border-t border-gray-300"></div>
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-gray-50 text-gray-500">Or</span>
+                <span className="px-2 bg-gray-50 text-gray-500">
+                  Don't have an account?
+                </span>
               </div>
             </div>
 
             <div className="mt-6">
-              <div className="mt-1 text-center">
-                <p className="text-sm text-gray-600">
-                  Don't have an account?{' '}
-                  <Link href="/auth/signup" className="font-medium text-blue-600 hover:text-blue-500">
-                    Sign up
-                  </Link>
-                </p>
-              </div>
-              
-              <div className="mt-6">
-                <button
-                  type="button"
-                  className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  Sign in with your institution
-                </button>
-              </div>
+              <Link
+                href="/auth/signup"
+                className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                Create an account
+              </Link>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Right Section - Image and Features */}
-      <div className="hidden md:flex md:w-2/5 bg-blue-600 flex-col justify-center p-12 relative">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-blue-700 opacity-90"></div>
-        <div className="relative z-10 text-white">
-          <h2 className="text-2xl font-bold mb-6">Advance Your Professional Journey</h2>
-          
-          <div className="space-y-6">
-            <div className="flex items-start">
-              <CheckCircle className="h-6 w-6 mr-3 text-blue-200" />
-              <div>
-                <h3 className="font-semibold">Track Your Progress</h3>
-                <p className="text-sm text-blue-100 mt-1">Monitor your professional development with intuitive tools</p>
+      {/* Right Section - Image */}
+      <div className="hidden md:block md:flex-1 relative">
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-indigo-600 opacity-90"></div>
+        <div className="absolute inset-0 flex flex-col justify-center items-center text-white p-12">
+          <div className="max-w-md text-center">
+            <h2 className="text-3xl font-bold mb-4">Track Your Professional Journey</h2>
+            <p className="text-lg mb-8">
+              Document your progress, showcase your skills, and plan your career development all in one place.
+            </p>
+            <div className="flex justify-center space-x-4">
+              <div className="bg-white bg-opacity-10 p-4 rounded-lg">
+                <CheckCircle className="h-8 w-8 mb-2 mx-auto text-green-300" />
+                <h3 className="font-semibold mb-1">Track Competencies</h3>
+                <p className="text-sm text-gray-100">Monitor your progress across key professional competencies</p>
               </div>
-            </div>
-            
-            <div className="flex items-start">
-              <CheckCircle className="h-6 w-6 mr-3 text-blue-200" />
-              <div>
-                <h3 className="font-semibold">Build Your Portfolio</h3>
-                <p className="text-sm text-blue-100 mt-1">Showcase your qualifications and achievements</p>
-              </div>
-            </div>
-            
-            <div className="flex items-start">
-              <CheckCircle className="h-6 w-6 mr-3 text-blue-200" />
-              <div>
-                <h3 className="font-semibold">Grow Professionally</h3>
-                <p className="text-sm text-blue-100 mt-1">Access resources and opportunities for advancement</p>
+              <div className="bg-white bg-opacity-10 p-4 rounded-lg">
+                <CheckCircle className="h-8 w-8 mb-2 mx-auto text-green-300" />
+                <h3 className="font-semibold mb-1">Store Documents</h3>
+                <p className="text-sm text-gray-100">Securely store and access all your professional documents</p>
               </div>
             </div>
           </div>

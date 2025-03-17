@@ -4,14 +4,19 @@ import React from 'react';
 import Link from 'next/link';
 import { Facebook, Twitter, Linkedin, Mail, Phone, MapPin } from 'lucide-react';
 import { usePathname } from 'next/navigation';
+import { cn } from '@/lib/utils';
 
-export function Footer() {
+interface FooterProps {
+  className?: string;
+}
+
+export function Footer({ className }: FooterProps = {}) {
   const pathname = usePathname();
   
   // Show simple footer on all pages except landing page
   if (pathname !== '/') {
     return (
-      <footer className="bg-white border-t border-gray-200">
+      <footer className={cn("bg-white border-t border-gray-200", className)}>
         <div className="container mx-auto px-6 py-8 mb-24">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-sm text-gray-900">
@@ -36,7 +41,7 @@ export function Footer() {
 
   // Full footer for landing page
   return (
-    <footer className="bg-gray-900 text-gray-300">
+    <footer className={cn("bg-gray-900 text-gray-300", className)}>
       <div className="container mx-auto px-4 py-12">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Company Info */}

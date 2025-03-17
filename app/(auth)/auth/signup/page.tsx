@@ -1,10 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { ArrowLeft, User, Mail, Calendar, Building, Briefcase, Lock, Eye, EyeOff, CheckCircle } from 'lucide-react';
+import { useAuth } from '@/lib/auth-context';
 
 export default function SignUp() {
+  const router = useRouter();
+  const { isAuthenticated, user, login } = useAuth();
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     fullName: '',
@@ -19,6 +23,15 @@ export default function SignUp() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  
+  // Check if user is already authenticated and redirect if needed
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      router.push('/dashboard');
+    }
+  }, [isAuthenticated, user, router]);
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target as HTMLInputElement;
@@ -30,15 +43,36 @@ export default function SignUp() {
     });
   };
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (step < 3) {
       setStep(step + 1);
     } else {
-      // This would be replaced with actual registration logic
-      console.log('Registration data:', formData);
-      // For now, redirect to dashboard
-      window.location.href = '/dashboard';
+      setLoading(true);
+      setError('');
+      
+      try {
+        // This would be replaced with actual registration logic
+        console.log('Registration data:', formData);
+        
+        // For demonstration purposes, simulate a successful registration
+        // and then log the user in with the provided credentials
+        const { success, userData } = await login(formData.email, formData.password);
+        
+        if (success && userData) {
+          // Wait a moment to ensure state is updated before navigation
+          setTimeout(() => {
+            router.push('/dashboard');
+          }, 300);
+        } else {
+          setError('Registration successful but login failed. Please try logging in manually.');
+        }
+      } catch (err) {
+        setError('Registration failed. Please try again.');
+        console.error('Registration error:', err);
+      } finally {
+        setLoading(false);
+      }
     }
   };
   
@@ -54,7 +88,10 @@ export default function SignUp() {
       <div className="flex-1 flex flex-col justify-center px-4 py-12 sm:px-6 lg:px-20 xl:px-24">
         <div className="mx-auto w-full max-w-sm lg:max-w-md">
           <div className="mb-8">
-            <Link href="/" className="flex items-center text-blue-600 mb-6">
+            <Link 
+              href="/"
+              className="flex items-center text-blue-600 mb-6"
+            >
               <ArrowLeft className="mr-2 h-5 w-5" />
               Back to home
             </Link>
@@ -356,7 +393,10 @@ export default function SignUp() {
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">
               Already have an account?{' '}
-              <Link href="/auth/signin" className="font-medium text-blue-600 hover:text-blue-500">
+              <Link 
+                href="/auth/signin"
+                className="font-medium text-blue-600 hover:text-blue-500"
+              >
                 Sign in
               </Link>
             </p>

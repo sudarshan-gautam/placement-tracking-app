@@ -2,10 +2,11 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Moon, Sun, Bell, User, Settings, LogOut, ChevronDown, 
-  LayoutDashboard, HelpCircle, Mail, Shield, BookOpen, AlertCircle } from 'lucide-react';
+  LayoutDashboard, HelpCircle, Mail, Shield, BookOpen, AlertCircle, Menu, X } from 'lucide-react';
 import Link from 'next/link';
 import { useTheme } from 'next-themes';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/auth-context';
 
 interface Notification {
   id: number;
@@ -23,11 +24,11 @@ interface SearchResult {
 }
 
 export function Header() {
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [showProfile, setShowProfile] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([
     {
       id: 1,
@@ -54,10 +55,35 @@ export function Header() {
   const [unreadCount, setUnreadCount] = useState(0);
   const { theme, setTheme } = useTheme();
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, logout, isAuthenticated } = useAuth();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   
   const searchRef = useRef<HTMLDivElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
+
+  // Close mobile menu when pathname changes
+  useEffect(() => {
+    setIsMenuOpen(false);
+  }, [pathname]);
+
+  // Handle logout with proper navigation
+  const handleLogout = async () => {
+    try {
+      // First set local state to prevent UI issues
+      const isAdmin = user?.role === 'admin';
+      
+      // Perform logout
+      await logout();
+      
+      // Only navigate after logout is complete
+      // Use replace instead of push to prevent back button issues
+      router.replace('/');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
 
   // Handle click outside to close dropdowns
   useEffect(() => {
@@ -114,13 +140,16 @@ export function Header() {
     }
   }, [searchQuery]);
 
-  const markAllAsRead = () => {
-    setNotifications(notifications.map(n => ({ ...n, read: true })));
+  const toggleMenu = () => {
+    setIsMenuOpen(!isMenuOpen);
   };
 
-  const handleLogout = () => {
-    // Implement logout logic here
-    console.log('Logging out...');
+  const isActive = (path: string) => {
+    return pathname === path;
+  };
+
+  const markAllAsRead = () => {
+    setNotifications(notifications.map(n => ({ ...n, read: true })));
   };
 
   const getNotificationIcon = (type: string) => {
@@ -141,194 +170,382 @@ export function Header() {
   // Show simple header with auth buttons on landing page
   if (pathname === '/') {
     return (
-      <header className="sticky top-0 z-50 w-full border-b bg-white">
-        <div className="flex h-14 items-center justify-between px-4">
-          <div className="flex">
-            <Link href="/" className="flex items-center space-x-4">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="text-blue-600">
-                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                <path d="M2 5m0 2a2 2 0 0 1 2 -2h16a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-16a2 2 0 0 1 -2 -2z" />
-                <path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
-                <path d="M9 12h-7" />
-                <path d="M15 12h7" />
-              </svg>
-              <span className="font-semibold text-lg">Practitioner Passport</span>
-            </Link>
-          </div>
-
-          <div className="flex items-center space-x-4">
-            <Link
-              href="/auth/signin"
-              className="text-gray-600 hover:text-blue-600 px-4 py-2 rounded-md text-sm font-medium"
-            >
-              Sign In
-            </Link>
-            <Link
-              href="/auth/signup"
-              className="bg-blue-600 text-white hover:bg-blue-700 px-4 py-2 rounded-md text-sm font-medium"
-            >
-              Sign Up
-            </Link>
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center">
+              <Link href="/" className="flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600">
+                  <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                  <path d="M2 5m0 2a2 2 0 0 1 2 -2h16a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-16a2 2 0 0 1 -2 -2z" />
+                  <path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
+                  <path d="M9 12h-7" />
+                  <path d="M15 12h7" />
+                </svg>
+                <span className="ml-2 text-lg font-bold text-gray-900">Practitioner Passport</span>
+              </Link>
+            </div>
+            
+            <div className="flex items-center space-x-4 justify-end">
+              {isAuthenticated ? (
+                <>
+                  <Link
+                    href="/dashboard"
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    Dashboard
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    Sign out
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link
+                    href="/auth/signin"
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    Sign in
+                  </Link>
+                  <Link
+                    href="/auth/signup"
+                    className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700"
+                  >
+                    Sign up
+                  </Link>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </header>
     );
   }
 
-  // Show full header for authenticated pages
-  return (
-    <header className="sticky top-0 z-50 w-full border-b bg-white">
-      <div className="flex h-14 items-center justify-between px-2">
-        <div className="flex">
-          <Link href="/" className="flex items-center space-x-4">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="text-blue-600">
-              <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-              <path d="M2 5m0 2a2 2 0 0 1 2 -2h16a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-16a2 2 0 0 1 -2 -2z" />
-              <path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
-              <path d="M9 12h-7" />
-              <path d="M15 12h7" />
-            </svg>
-            <span className="font-semibold text-lg">Practitioner Passport</span>
-          </Link>
+  // For auth pages, show minimal header
+  if (pathname.startsWith('/auth/')) {
+    return (
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center">
+              <Link href="/" className="flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600">
+                  <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                  <path d="M2 5m0 2a2 2 0 0 1 2 -2h16a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-16a2 2 0 0 1 -2 -2z" />
+                  <path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
+                  <path d="M9 12h-7" />
+                  <path d="M15 12h7" />
+                </svg>
+                <span className="ml-2 text-lg font-bold text-gray-900">Practitioner Passport</span>
+              </Link>
+            </div>
+          </div>
         </div>
+      </header>
+    );
+  }
 
-        <div className="flex items-center space-x-4">
-          {/* Search */}
-          <div className="relative" ref={searchRef}>
-            <button
-              onClick={() => setShowSearch(!showSearch)}
-              className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-200 disabled:pointer-events-none disabled:opacity-50 hover:bg-gray-100 h-9 w-9"
-            >
-              <Search className="h-5 w-5" />
-            </button>
+  // For dashboard and other authenticated pages
+  return (
+    <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="flex justify-between items-center h-16">
+          <div className="flex items-center">
+            <Link href="/" className="flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600">
+                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                <path d="M2 5m0 2a2 2 0 0 1 2 -2h16a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-16a2 2 0 0 1 -2 -2z" />
+                <path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
+                <path d="M9 12h-7" />
+                <path d="M15 12h7" />
+              </svg>
+              <span className="ml-2 text-lg font-bold text-gray-900">Practitioner Passport</span>
+            </Link>
+          </div>
+          
+          <div className="hidden md:flex items-center space-x-4 justify-end">
+            {/* Search */}
+            <div className="relative" ref={searchRef}>
+              <button
+                onClick={() => setShowSearch(!showSearch)}
+                className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-200 disabled:pointer-events-none disabled:opacity-50 hover:bg-gray-100 h-9 w-9"
+              >
+                <Search className="h-5 w-5" />
+              </button>
 
-            {showSearch && (
-              <div className="absolute right-0 mt-2 w-96 rounded-md bg-white shadow-lg">
-                <div className="p-4">
-                  <input
-                    type="text"
-                    placeholder="Search..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full rounded-md border border-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    autoFocus
-                  />
-                  {searchResults.length > 0 && (
-                    <div className="mt-4 space-y-2">
-                      {searchResults.map((result) => (
-                        <Link
-                          key={result.id}
-                          href={result.link}
-                          className="block rounded-md p-2 hover:bg-gray-100"
+              {showSearch && (
+                <div className="absolute right-0 mt-2 w-96 rounded-md bg-white shadow-lg z-50">
+                  <div className="p-4">
+                    <input
+                      type="text"
+                      placeholder="Search..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full rounded-md border border-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      autoFocus
+                    />
+                    {searchResults.length > 0 && (
+                      <div className="mt-4 space-y-2">
+                        {searchResults.map((result) => (
+                          <Link 
+                            key={result.id}
+                            href={result.link}
+                            className="block rounded-md p-2 hover:bg-gray-100"
+                          >
+                            <div className="text-sm font-medium">{result.title}</div>
+                            <div className="text-xs text-gray-500">{result.type}</div>
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* Notifications */}
+            <div className="relative" ref={notificationRef}>
+              <button
+                onClick={() => setShowNotifications(!showNotifications)}
+                className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-200 disabled:pointer-events-none disabled:opacity-50 hover:bg-gray-100 h-9 w-9"
+              >
+                <Bell className="h-5 w-5" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-[10px] font-medium text-white flex items-center justify-center">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+              
+              {showNotifications && (
+                <div className="absolute right-0 mt-2 w-96 rounded-md bg-white shadow-lg">
+                  <div className="p-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold">Notifications</h3>
+                      <button
+                        onClick={markAllAsRead}
+                        className="text-sm text-blue-600 hover:text-blue-800"
+                      >
+                        Mark all as read
+                      </button>
+                    </div>
+                    <div className="space-y-4">
+                      {notifications.map((notification) => (
+                        <div
+                          key={notification.id}
+                          className={`flex items-start space-x-4 p-3 rounded-md ${
+                            notification.read ? 'opacity-75' : 'bg-gray-50'
+                          }`}
                         >
-                          <div className="text-sm font-medium">{result.title}</div>
-                          <div className="text-xs text-gray-500">{result.type}</div>
-                        </Link>
+                          {getNotificationIcon(notification.type)}
+                          <div className="flex-1">
+                            <p className="text-sm">{notification.message}</p>
+                            <p className="text-xs text-gray-500 mt-1">{notification.time}</p>
+                          </div>
+                        </div>
                       ))}
                     </div>
-                  )}
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-
-          {/* Notifications */}
-          <div className="relative" ref={notificationRef}>
-            <button
-              onClick={() => setShowNotifications(!showNotifications)}
-              className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-200 disabled:pointer-events-none disabled:opacity-50 hover:bg-gray-100 h-9 w-9"
-            >
-              <Bell className="h-5 w-5" />
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-[10px] font-medium text-white flex items-center justify-center">
-                  {unreadCount}
-                </span>
               )}
-            </button>
+            </div>
+            
+            {/* Profile */}
+            <div className="relative" ref={profileRef}>
+              <button
+                onClick={() => setShowProfile(!showProfile)}
+                className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-200 disabled:pointer-events-none disabled:opacity-50 hover:bg-gray-100 h-9 px-2 py-2"
+              >
+                <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
+                  <User className="h-5 w-5 text-gray-600" />
+                </div>
+                <span className="ml-2 text-gray-700 hidden md:inline-block">{user?.name}</span>
+                <span className="ml-1 text-xs text-gray-500 capitalize hidden md:inline-block">({user?.role})</span>
+                <ChevronDown className="ml-1 h-4 w-4 text-gray-500" />
+              </button>
 
-            {showNotifications && (
-              <div className="absolute right-0 mt-2 w-96 rounded-md bg-white shadow-lg">
-                <div className="p-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold">Notifications</h3>
-                    <button
-                      onClick={markAllAsRead}
-                      className="text-sm text-blue-600 hover:text-blue-800"
+              {showProfile && (
+                <div className="absolute right-0 mt-2 w-56 rounded-md bg-white shadow-lg">
+                  <div className="py-1">
+                    <Link
+                      href="/dashboard"
+                      className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
                     >
-                      Mark all as read
+                      <LayoutDashboard className="mr-2 h-4 w-4" />
+                      Dashboard
+                    </Link>
+                    <Link
+                      href="/settings"
+                      className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
+                    >
+                      <Settings className="mr-2 h-4 w-4" />
+                      Settings
+                    </Link>
+                    <Link
+                      href="/help"
+                      className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
+                    >
+                      <HelpCircle className="mr-2 h-4 w-4" />
+                      Help & Support
+                    </Link>
+                    <div className="border-t border-gray-200"></div>
+                    <button
+                      onClick={handleLogout}
+                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Sign out
                     </button>
                   </div>
-                  <div className="space-y-4">
-                    {notifications.map((notification) => (
-                      <div
-                        key={notification.id}
-                        className={`flex items-start space-x-4 p-3 rounded-md ${
-                          notification.read ? 'opacity-75' : 'bg-gray-50'
-                        }`}
-                      >
-                        {getNotificationIcon(notification.type)}
-                        <div className="flex-1">
-                          <p className="text-sm">{notification.message}</p>
-                          <p className="text-xs text-gray-500 mt-1">{notification.time}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
-
-          {/* Profile */}
-          <div className="relative" ref={profileRef}>
+          
+          <div className="md:hidden flex items-center">
             <button
-              onClick={() => setShowProfile(!showProfile)}
-              className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-200 disabled:pointer-events-none disabled:opacity-50 hover:bg-gray-100 h-9 px-2 py-2"
+              onClick={toggleMenu}
+              className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
+              aria-expanded={isMenuOpen}
             >
-              <span className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center text-white">
-                JD
-              </span>
-              <ChevronDown className="ml-1 h-4 w-4" />
+              <span className="sr-only">Open main menu</span>
+              {isMenuOpen ? (
+                <X className="block h-6 w-6" />
+              ) : (
+                <Menu className="block h-6 w-6" />
+              )}
             </button>
-
-            {showProfile && (
-              <div className="absolute right-0 mt-2 w-56 rounded-md bg-white shadow-lg">
-                <div className="py-1">
-                  <Link
-                    href="/dashboard"
-                    className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
-                  >
-                    <LayoutDashboard className="mr-2 h-4 w-4" />
-                    Dashboard
-                  </Link>
-                  <Link
-                    href="/settings"
-                    className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
-                  >
-                    <Settings className="mr-2 h-4 w-4" />
-                    Settings
-                  </Link>
-                  <Link
-                    href="/help"
-                    className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
-                  >
-                    <HelpCircle className="mr-2 h-4 w-4" />
-                    Help & Support
-                  </Link>
-                  <div className="border-t border-gray-200"></div>
-                  <button
-                    onClick={handleLogout}
-                    className="flex w-full items-center px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
-                  >
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Logout
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>
+
+      {/* Mobile menu */}
+      {isMenuOpen && (
+        <div className="md:hidden">
+          <div className="pt-2 pb-3 space-y-1">
+            <Link
+              href="/dashboard"
+              className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium ${
+                isActive('/dashboard')
+                  ? 'bg-blue-50 border-blue-500 text-blue-700'
+                  : 'border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800'
+              }`}
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Dashboard
+            </Link>
+            
+            <Link
+              href="/competencies"
+              className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium ${
+                isActive('/competencies')
+                  ? 'bg-blue-50 border-blue-500 text-blue-700'
+                  : 'border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800'
+              }`}
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Competencies
+            </Link>
+            
+            <Link
+              href="/qualifications"
+              className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium ${
+                isActive('/qualifications')
+                  ? 'bg-blue-50 border-blue-500 text-blue-700'
+                  : 'border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800'
+              }`}
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Qualifications
+            </Link>
+            
+            <Link
+              href="/jobs"
+              className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium ${
+                isActive('/jobs')
+                  ? 'bg-blue-50 border-blue-500 text-blue-700'
+                  : 'border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800'
+              }`}
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Jobs
+            </Link>
+            
+            <Link
+              href="/activities"
+              className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium ${
+                isActive('/activities')
+                  ? 'bg-blue-50 border-blue-500 text-blue-700'
+                  : 'border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800'
+              }`}
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Activities
+            </Link>
+            
+            <Link
+              href="/profile"
+              className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium ${
+                isActive('/profile')
+                  ? 'bg-blue-50 border-blue-500 text-blue-700'
+                  : 'border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800'
+              }`}
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Profile
+            </Link>
+            
+            {/* Admin-only link */}
+            {user?.role === 'admin' && (
+              <Link
+                href="/admin"
+                className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium ${
+                  isActive('/admin')
+                    ? 'bg-blue-50 border-blue-500 text-blue-700'
+                    : 'border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800'
+                }`}
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Admin
+              </Link>
+            )}
+          </div>
+          
+          <div className="pt-4 pb-3 border-t border-gray-200">
+            <div className="flex items-center px-4">
+              <div className="flex-shrink-0">
+                <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+                  <User className="h-6 w-6 text-gray-600" />
+                </div>
+              </div>
+              <div className="ml-3">
+                <div className="text-base font-medium text-gray-800">{user?.name}</div>
+                <div className="text-sm font-medium text-gray-500 capitalize">{user?.role}</div>
+              </div>
+            </div>
+            <div className="mt-3 space-y-1">
+              <button
+                onClick={async () => {
+                  setIsMenuOpen(false);
+                  try {
+                    await logout();
+                    router.replace('/');
+                  } catch (error) {
+                    console.error('Logout error:', error);
+                  }
+                }}
+                className="block w-full text-left px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100"
+              >
+                Sign out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 } 
