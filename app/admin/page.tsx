@@ -5,9 +5,10 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { User, Settings, Shield, Users, ClipboardCheck, Bell, BarChart2, Server, Plus } from 'lucide-react';
 import { LineChart, ResponsiveContainer, Line, XAxis, YAxis, Tooltip, Legend } from 'recharts';
 import Link from 'next/link';
+import { useState } from 'react';
 
 // Sample data for charts
-const activityData = [
+const monthlyActivityData = [
   { name: 'Jan', registrations: 65, sessions: 28, verifications: 15 },
   { name: 'Feb', registrations: 59, sessions: 48, verifications: 22 },
   { name: 'Mar', registrations: 80, sessions: 40, verifications: 24 },
@@ -15,6 +16,23 @@ const activityData = [
   { name: 'May', registrations: 56, sessions: 36, verifications: 20 },
   { name: 'Jun', registrations: 55, sessions: 27, verifications: 15 },
   { name: 'Jul', registrations: 40, sessions: 32, verifications: 17 }
+];
+
+const weeklyActivityData = [
+  { name: 'Week 1', registrations: 25, sessions: 18, verifications: 8 },
+  { name: 'Week 2', registrations: 32, sessions: 22, verifications: 10 },
+  { name: 'Week 3', registrations: 28, sessions: 20, verifications: 12 },
+  { name: 'Week 4', registrations: 35, sessions: 25, verifications: 15 }
+];
+
+const dailyActivityData = [
+  { name: 'Mon', registrations: 8, sessions: 6, verifications: 3 },
+  { name: 'Tue', registrations: 10, sessions: 8, verifications: 4 },
+  { name: 'Wed', registrations: 12, sessions: 7, verifications: 5 },
+  { name: 'Thu', registrations: 9, sessions: 5, verifications: 3 },
+  { name: 'Fri', registrations: 11, sessions: 9, verifications: 4 },
+  { name: 'Sat', registrations: 6, sessions: 4, verifications: 2 },
+  { name: 'Sun', registrations: 4, sessions: 3, verifications: 1 }
 ];
 
 // Sample verification requests
@@ -49,6 +67,30 @@ const systemMetrics = [
 
 export default function AdminDashboard() {
   const { user } = useAuth();
+  const [selectedPeriod, setSelectedPeriod] = useState('monthly');
+
+  const handlePeriodChange = (period: string) => {
+    setSelectedPeriod(period);
+  };
+
+  // Determine the correct data based on selected period
+  const getActivityData = () => {
+    switch(selectedPeriod) {
+      case 'weekly':
+        return weeklyActivityData;
+      case 'daily':
+        return dailyActivityData;
+      default:
+        return monthlyActivityData;
+    }
+  };
+  
+  // Get active button style for the selected period
+  const getButtonStyle = (period: string) => {
+    return period === selectedPeriod 
+      ? "px-3 py-1 text-sm bg-blue-50 text-blue-600 rounded-md" 
+      : "px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded-md";
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 p-6 pb-40">
@@ -125,14 +167,14 @@ export default function AdminDashboard() {
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-lg font-semibold">User Activity</h2>
           <div className="flex space-x-2">
-            <button className="px-3 py-1 text-sm bg-blue-50 text-blue-600 rounded-md">Monthly</button>
-            <button className="px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded-md">Weekly</button>
-            <button className="px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded-md">Daily</button>
+            <button className={getButtonStyle('monthly')} onClick={() => handlePeriodChange('monthly')}>Monthly</button>
+            <button className={getButtonStyle('weekly')} onClick={() => handlePeriodChange('weekly')}>Weekly</button>
+            <button className={getButtonStyle('daily')} onClick={() => handlePeriodChange('daily')}>Daily</button>
           </div>
         </div>
         <div className="h-80">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={activityData}>
+            <LineChart data={getActivityData()}>
               <XAxis dataKey="name" />
               <YAxis />
               <Tooltip />
