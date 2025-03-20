@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import '../globals.css';
-import { ThemeProvider } from 'next-themes';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -16,10 +15,8 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
-      <div className={`min-h-screen bg-gray-50 ${inter.className}`}>
-        {children}
-      </div>
-    </ThemeProvider>
+    <div className={`min-h-screen bg-gray-50 ${inter.className}`}>
+      {children}
+    </div>
   );
 } 

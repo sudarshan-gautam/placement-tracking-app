@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Eye, EyeOff, Mail, Lock, CheckCircle } from 'lucide-react';
@@ -15,21 +15,8 @@ export default function SignIn() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   
-  const { login, user, isAuthenticated } = useAuth();
+  const { login, user } = useAuth();
   const router = useRouter();
-  
-  // Check if user is already authenticated and redirect based on role
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      // Redirect admin users to admin dashboard
-      if (user.role === 'admin') {
-        router.push('/admin');
-      } else {
-        // Redirect other users to regular dashboard
-        router.push('/dashboard');
-      }
-    }
-  }, [isAuthenticated, user, router]);
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,49 +24,47 @@ export default function SignIn() {
     setIsLoading(true);
     
     try {
-      const { success, userData } = await login(email, password);
+      const success = await login(email, password);
       
-      if (success && userData) {
-        // Use the userData directly from the login response
-        // Add a small delay before navigation to ensure state is updated
-        setTimeout(() => {
-          // Check user role and redirect accordingly
-          if (userData.role === 'admin') {
-            router.push('/admin');
-          } else {
-            router.push('/dashboard');
-          }
-        }, 300);
+      if (success) {
+        // Redirect based on user role
+        if (user?.role === 'admin') {
+          router.push('/admin');
+        } else if (user?.role === 'mentor') {
+          router.push('/mentor');
+        } else {
+          router.push('/dashboard');
+        }
       } else {
         setError('Invalid email or password');
-        setIsLoading(false);
       }
     } catch (error) {
       setError('An error occurred during login. Please try again.');
       console.error('Login error:', error);
+    } finally {
       setIsLoading(false);
     }
   };
 
   const handleBackToHome = (e: React.MouseEvent) => {
     e.preventDefault();
-    // Navigate to home page
     router.push('/');
   };
 
   return (
-    <div className="flex flex-col md:flex-row h-full">
+    <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">
       {/* Left Section - Form */}
       <div className="flex-1 flex flex-col justify-center px-4 py-12 sm:px-6 lg:px-20 xl:px-24">
         <div className="mx-auto w-full max-w-sm lg:max-w-md">
           <div className="mb-8">
-            <Link 
+            <a 
               href="/"
+              onClick={handleBackToHome}
               className="flex items-center text-blue-600 mb-6"
             >
               <ArrowLeft className="mr-2 h-5 w-5" />
               Back to home
-            </Link>
+            </a>
             <div className="flex items-center mb-6">
               <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600 mr-3">
                 <path stroke="none" d="M0 0h24v24H0z" fill="none"/>

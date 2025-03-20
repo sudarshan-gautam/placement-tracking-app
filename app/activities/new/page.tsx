@@ -2,436 +2,442 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/auth-context';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Calendar, Clock, Tag, ArrowLeft, Save } from 'lucide-react';
+import { 
+  Calendar,
+  Clock,
+  FileText,
+  ArrowLeft,
+  Upload,
+  Plus,
+  X
+} from 'lucide-react';
 import Link from 'next/link';
 
-// Activity types for selection
+// Activity type options
 const activityTypes = [
-  'Teaching',
-  'Professional Development',
-  'Planning',
-  'Communication',
-  'Assessment',
-  'Other',
+  { value: 'Teaching', label: 'Teaching' },
+  { value: 'Planning', label: 'Planning' },
+  { value: 'Communication', label: 'Communication' },
+  { value: 'Development', label: 'Development' },
+  { value: 'Observation', label: 'Observation' },
+  { value: 'Assessment', label: 'Assessment' },
+  { value: 'Other', label: 'Other' },
 ];
 
+interface FormData {
+  title: string;
+  date: string;
+  duration: string;
+  type: string;
+  description: string;
+  reflection: string;
+  outcomes: string[];
+  files: File[];
+}
+
+interface FormErrors {
+  title?: string;
+  date?: string;
+  duration?: string;
+  type?: string;
+  description?: string;
+  submit?: string;
+}
+
 export default function NewActivityPage() {
+  const { user } = useAuth();
   const router = useRouter();
-  const [formData, setFormData] = useState({
+  
+  const [formData, setFormData] = useState<FormData>({
     title: '',
-    type: '',
-    date: new Date().toISOString().split('T')[0],
-    duration: 60,
+    date: '',
+    duration: '',
+    type: 'Teaching',
     description: '',
     reflection: '',
-    status: 'planned',
+    outcomes: [''],
+    files: [],
   });
-  const [errors, setErrors] = useState<Record<string, string>>({});
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [showSuccess, setShowSuccess] = useState(false);
+  
+  // Handle input changes
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData({
-      ...formData,
-      [name]: value,
-    });
-    
-    // Clear error when field is edited
-    if (errors[name]) {
-      setErrors({
-        ...errors,
-        [name]: '',
-      });
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+  
+  // Handle outcome changes
+  const handleOutcomeChange = (index: number, value: string) => {
+    const newOutcomes = [...formData.outcomes];
+    newOutcomes[index] = value;
+    setFormData(prev => ({
+      ...prev,
+      outcomes: newOutcomes
+    }));
+  };
+  
+  // Add new outcome field
+  const addOutcomeField = () => {
+    setFormData(prev => ({
+      ...prev,
+      outcomes: [...prev.outcomes, '']
+    }));
+  };
+  
+  // Remove outcome field
+  const removeOutcomeField = (index: number) => {
+    const newOutcomes = [...formData.outcomes];
+    newOutcomes.splice(index, 1);
+    setFormData(prev => ({
+      ...prev,
+      outcomes: newOutcomes
+    }));
+  };
+  
+  // Handle file upload
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setFormData(prev => ({
+        ...prev,
+        files: [...prev.files, ...Array.from(e.target.files as FileList)]
+      }));
     }
   };
-
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {};
+  
+  // Remove a file
+  const removeFile = (index: number) => {
+    const newFiles = [...formData.files];
+    newFiles.splice(index, 1);
+    setFormData(prev => ({
+      ...prev,
+      files: newFiles
+    }));
+  };
+  
+  // Validate form
+  const validateForm = (): boolean => {
+    const newErrors: FormErrors = {};
     
-    if (!formData.title.trim()) {
-      newErrors.title = 'Title is required';
-    }
-    
-    if (!formData.type) {
-      newErrors.type = 'Activity type is required';
-    }
-    
-    if (!formData.date) {
-      newErrors.date = 'Date is required';
-    }
-    
-    if (!formData.duration || formData.duration <= 0) {
-      newErrors.duration = 'Valid duration is required';
-    }
-    
-    if (!formData.description.trim()) {
-      newErrors.description = 'Description is required';
-    }
+    if (!formData.title.trim()) newErrors.title = 'Title is required';
+    if (!formData.date) newErrors.date = 'Date is required';
+    if (!formData.duration) newErrors.duration = 'Duration is required';
+    if (!formData.type) newErrors.type = 'Activity type is required';
+    if (!formData.description.trim()) newErrors.description = 'Description is required';
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-
-  const handleSubmit = (e: React.FormEvent) => {
+  
+  // Handle form submission
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (validateForm()) {
-      // In a real app, this would call an API to save the activity
+    if (!validateForm()) return;
+    
+    setIsSubmitting(true);
+    
+    try {
+      // In a real app, this would call an API endpoint to save the activity
       console.log('Submitting activity:', formData);
-      alert('Activity created successfully!');
-      router.push('/activities');
+      
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      setShowSuccess(true);
+      
+      // Redirect after showing success message
+      setTimeout(() => {
+        router.push('/activities');
+      }, 2000);
+    } catch (error) {
+      console.error('Error submitting activity:', error);
+      setErrors({ submit: 'Failed to submit activity. Please try again.' });
+    } finally {
+      setIsSubmitting(false);
     }
   };
-
-  const handleMarkAsCompleted = () => {
-    setFormData({
-      ...formData,
-      status: 'completed',
-    });
-  };
-
+  
   return (
     <div className="min-h-screen bg-gray-50 p-6 pb-40">
-      {/* Back button */}
-      <div className="max-w-3xl mx-auto mb-6">
-        <Link href="/activities" className="flex items-center text-blue-600 hover:text-blue-800">
+      {/* Header */}
+      <div className="mb-6">
+        <Link 
+          href="/activities" 
+          className="inline-flex items-center text-blue-600 hover:text-blue-800 mb-4"
+        >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Activities
         </Link>
-      </div>
-
-      {/* Page Header */}
-      <div className="max-w-3xl mx-auto mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Create New Activity</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Add New Activity</h1>
         <p className="text-gray-600">Record a new professional activity for your portfolio</p>
       </div>
-
-      {/* Activity Form */}
-      <div className="max-w-3xl mx-auto">
-        <form onSubmit={handleSubmit}>
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle>Activity Details</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
-                    Activity Title*
-                  </label>
+      
+      {/* Success Message */}
+      {showSuccess && (
+        <div className="mb-6 p-4 bg-green-50 border border-green-200 text-green-700 rounded-md">
+          Activity submitted successfully! Redirecting to activities page...
+        </div>
+      )}
+      
+      {/* Error Message */}
+      {errors.submit && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-md">
+          {errors.submit}
+        </div>
+      )}
+      
+      {/* Form Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Activity Details</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Title */}
+            <div>
+              <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
+                Activity Title <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                id="title"
+                name="title"
+                value={formData.title}
+                onChange={handleChange}
+                className={`block w-full px-3 py-2 border ${errors.title ? 'border-red-300' : 'border-gray-300'} rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm`}
+                placeholder="e.g., Primary School Teaching Session"
+              />
+              {errors.title && <p className="mt-1 text-sm text-red-600">{errors.title}</p>}
+            </div>
+            
+            {/* Date and Duration Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-1">
+                  Date <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Calendar className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    type="date"
+                    id="date"
+                    name="date"
+                    value={formData.date}
+                    onChange={handleChange}
+                    className={`block w-full pl-10 pr-3 py-2 border ${errors.date ? 'border-red-300' : 'border-gray-300'} rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm`}
+                  />
+                </div>
+                {errors.date && <p className="mt-1 text-sm text-red-600">{errors.date}</p>}
+              </div>
+              
+              <div>
+                <label htmlFor="duration" className="block text-sm font-medium text-gray-700 mb-1">
+                  Duration <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Clock className="h-5 w-5 text-gray-400" />
+                  </div>
                   <input
                     type="text"
-                    id="title"
-                    name="title"
-                    value={formData.title}
-                    onChange={handleInputChange}
-                    className={`block w-full rounded-md shadow-sm py-2 px-3 sm:text-sm ${
-                      errors.title 
-                        ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
-                        : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-                    }`}
-                    placeholder="e.g., Primary School Teaching Session"
+                    id="duration"
+                    name="duration"
+                    value={formData.duration}
+                    onChange={handleChange}
+                    className={`block w-full pl-10 pr-3 py-2 border ${errors.duration ? 'border-red-300' : 'border-gray-300'} rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm`}
+                    placeholder="e.g., 2 hours"
                   />
-                  {errors.title && (
-                    <p className="mt-1 text-sm text-red-600">{errors.title}</p>
-                  )}
                 </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-1">
-                      Activity Type*
-                    </label>
-                    <select
-                      id="type"
-                      name="type"
-                      value={formData.type}
-                      onChange={handleInputChange}
-                      className={`block w-full rounded-md shadow-sm py-2 px-3 sm:text-sm ${
-                        errors.type 
-                          ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
-                          : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-                      }`}
-                    >
-                      <option value="">Select Type</option>
-                      {activityTypes.map((type) => (
-                        <option key={type} value={type}>
-                          {type}
-                        </option>
-                      ))}
-                    </select>
-                    {errors.type && (
-                      <p className="mt-1 text-sm text-red-600">{errors.type}</p>
-                    )}
-                  </div>
-                  
-                  <div>
-                    <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-1">
-                      Date*
-                    </label>
-                    <input
-                      type="date"
-                      id="date"
-                      name="date"
-                      value={formData.date}
-                      onChange={handleInputChange}
-                      className={`block w-full rounded-md shadow-sm py-2 px-3 sm:text-sm ${
-                        errors.date 
-                          ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
-                          : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-                      }`}
-                    />
-                    {errors.date && (
-                      <p className="mt-1 text-sm text-red-600">{errors.date}</p>
-                    )}
-                  </div>
-                  
-                  <div>
-                    <label htmlFor="duration" className="block text-sm font-medium text-gray-700 mb-1">
-                      Duration (minutes)*
-                    </label>
-                    <input
-                      type="number"
-                      id="duration"
-                      name="duration"
-                      value={formData.duration}
-                      onChange={handleInputChange}
-                      min="1"
-                      className={`block w-full rounded-md shadow-sm py-2 px-3 sm:text-sm ${
-                        errors.duration 
-                          ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
-                          : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-                      }`}
-                    />
-                    {errors.duration && (
-                      <p className="mt-1 text-sm text-red-600">{errors.duration}</p>
-                    )}
-                  </div>
-                </div>
-                
-                <div>
-                  <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-                    Description*
-                  </label>
-                  <textarea
-                    id="description"
-                    name="description"
-                    value={formData.description}
-                    onChange={handleInputChange}
-                    rows={4}
-                    className={`block w-full rounded-md shadow-sm py-2 px-3 sm:text-sm ${
-                      errors.description 
-                        ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
-                        : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-                    }`}
-                    placeholder="Provide a detailed description of the activity..."
-                  ></textarea>
-                  {errors.description && (
-                    <p className="mt-1 text-sm text-red-600">{errors.description}</p>
-                  )}
-                </div>
-                
-                <div>
-                  <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
-                    Status
-                  </label>
-                  <div className="flex items-center space-x-4">
-                    <label className="inline-flex items-center">
-                      <input
-                        type="radio"
-                        name="status"
-                        value="planned"
-                        checked={formData.status === 'planned'}
-                        onChange={handleInputChange}
-                        className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                      />
-                      <span className="ml-2 text-sm text-gray-700">Planned</span>
-                    </label>
-                    <label className="inline-flex items-center">
-                      <input
-                        type="radio"
-                        name="status"
-                        value="completed"
-                        checked={formData.status === 'completed'}
-                        onChange={handleInputChange}
-                        className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                      />
-                      <span className="ml-2 text-sm text-gray-700">Completed</span>
-                    </label>
-                  </div>
-                </div>
+                {errors.duration && <p className="mt-1 text-sm text-red-600">{errors.duration}</p>}
               </div>
-            </CardContent>
-          </Card>
-          
-          {/* Reflection Section (only shown if activity is marked as completed) */}
-          {formData.status === 'completed' && (
-            <Card className="mb-6">
-              <CardHeader>
-                <CardTitle>Reflection</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div>
-                  <label htmlFor="reflection" className="block text-sm font-medium text-gray-700 mb-1">
-                    Reflect on your experience
-                  </label>
-                  <textarea
-                    id="reflection"
-                    name="reflection"
-                    value={formData.reflection}
-                    onChange={handleInputChange}
-                    rows={6}
-                    className="block w-full rounded-md border border-gray-300 shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    placeholder="Reflect on what went well, what you learned, and what you might do differently next time..."
-                  ></textarea>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-          
-          {/* Competencies Section (only shown if activity is marked as completed) */}
-          {formData.status === 'completed' && (
-            <Card className="mb-6">
-              <CardHeader>
-                <CardTitle>Competencies</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-gray-600 mb-4">
-                  Select the competencies demonstrated in this activity and your self-assessment of your level.
-                </p>
-                
-                {/* This would be dynamically generated based on a list of competencies */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-3 border border-gray-200 rounded-md">
-                    <div className="flex items-center">
-                      <input
-                        type="checkbox"
-                        id="comp-1"
-                        className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                      />
-                      <label htmlFor="comp-1" className="ml-2 text-sm text-gray-700">
-                        Curriculum Knowledge
-                      </label>
-                    </div>
-                    <select className="block rounded-md border-gray-300 shadow-sm py-1 px-2 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                      <option value="">Select Level</option>
-                      <option value="Developing">Developing</option>
-                      <option value="Proficient">Proficient</option>
-                      <option value="Advanced">Advanced</option>
-                    </select>
-                  </div>
-                  
-                  <div className="flex items-center justify-between p-3 border border-gray-200 rounded-md">
-                    <div className="flex items-center">
-                      <input
-                        type="checkbox"
-                        id="comp-2"
-                        className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                      />
-                      <label htmlFor="comp-2" className="ml-2 text-sm text-gray-700">
-                        Classroom Management
-                      </label>
-                    </div>
-                    <select className="block rounded-md border-gray-300 shadow-sm py-1 px-2 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                      <option value="">Select Level</option>
-                      <option value="Developing">Developing</option>
-                      <option value="Proficient">Proficient</option>
-                      <option value="Advanced">Advanced</option>
-                    </select>
-                  </div>
-                  
-                  <div className="flex items-center justify-between p-3 border border-gray-200 rounded-md">
-                    <div className="flex items-center">
-                      <input
-                        type="checkbox"
-                        id="comp-3"
-                        className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                      />
-                      <label htmlFor="comp-3" className="ml-2 text-sm text-gray-700">
-                        Assessment Techniques
-                      </label>
-                    </div>
-                    <select className="block rounded-md border-gray-300 shadow-sm py-1 px-2 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                      <option value="">Select Level</option>
-                      <option value="Developing">Developing</option>
-                      <option value="Proficient">Proficient</option>
-                      <option value="Advanced">Advanced</option>
-                    </select>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-          
-          {/* Evidence Upload Section (only shown if activity is marked as completed) */}
-          {formData.status === 'completed' && (
-            <Card className="mb-6">
-              <CardHeader>
-                <CardTitle>Evidence</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-gray-600 mb-4">
-                  Upload files as evidence of your activity (e.g., lesson plans, presentations, certificates).
-                </p>
-                
-                <div className="p-4 border border-dashed border-gray-300 rounded-md text-center">
-                  <input 
-                    type="file" 
-                    className="hidden" 
-                    id="evidence-upload" 
-                    multiple 
-                  />
-                  <label 
-                    htmlFor="evidence-upload"
-                    className="cursor-pointer"
-                  >
-                    <div className="space-y-2">
-                      <div className="mx-auto h-12 w-12 text-gray-400">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                        </svg>
-                      </div>
-                      <p className="text-sm text-gray-500">
-                        Drag and drop files here, or click to select files
-                      </p>
-                    </div>
-                  </label>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-          
-          {/* Form Actions */}
-          <div className="flex justify-between">
-            <Link
-              href="/activities"
-              className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50"
-            >
-              Cancel
-            </Link>
+            </div>
             
-            <div className="space-x-3">
-              {formData.status === 'planned' && (
+            {/* Activity Type */}
+            <div>
+              <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-1">
+                Activity Type <span className="text-red-500">*</span>
+              </label>
+              <select
+                id="type"
+                name="type"
+                value={formData.type}
+                onChange={handleChange}
+                className={`block w-full px-3 py-2 border ${errors.type ? 'border-red-300' : 'border-gray-300'} rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm`}
+              >
+                {activityTypes.map((type) => (
+                  <option key={type.value} value={type.value}>
+                    {type.label}
+                  </option>
+                ))}
+              </select>
+              {errors.type && <p className="mt-1 text-sm text-red-600">{errors.type}</p>}
+            </div>
+            
+            {/* Description */}
+            <div>
+              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+                Description <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                id="description"
+                name="description"
+                value={formData.description}
+                onChange={handleChange}
+                rows={4}
+                className={`block w-full px-3 py-2 border ${errors.description ? 'border-red-300' : 'border-gray-300'} rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm`}
+                placeholder="Describe what you did during this activity..."
+              ></textarea>
+              {errors.description && <p className="mt-1 text-sm text-red-600">{errors.description}</p>}
+            </div>
+            
+            {/* Learning Outcomes */}
+            <div>
+              <div className="flex justify-between items-center mb-1">
+                <label className="block text-sm font-medium text-gray-700">
+                  Learning Outcomes
+                </label>
                 <button
                   type="button"
-                  onClick={handleMarkAsCompleted}
-                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                  onClick={addOutcomeField}
+                  className="inline-flex items-center text-sm text-blue-600 hover:text-blue-800"
                 >
-                  Mark as Completed
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add Outcome
                 </button>
-              )}
+              </div>
+              <p className="text-sm text-gray-500 mb-2">
+                What did you learn or achieve from this activity?
+              </p>
               
+              <div className="space-y-2">
+                {formData.outcomes.map((outcome, index) => (
+                  <div key={index} className="flex items-center">
+                    <input
+                      type="text"
+                      value={outcome}
+                      onChange={(e) => handleOutcomeChange(index, e.target.value)}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      placeholder={`Outcome ${index + 1}`}
+                    />
+                    {formData.outcomes.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeOutcomeField(index)}
+                        className="ml-2 p-1 text-gray-400 hover:text-red-500"
+                      >
+                        <X className="h-5 w-5" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            {/* Reflection */}
+            <div>
+              <label htmlFor="reflection" className="block text-sm font-medium text-gray-700 mb-1">
+                Reflection
+              </label>
+              <p className="text-sm text-gray-500 mb-2">
+                Reflect on your experience and what you would do differently next time.
+              </p>
+              <textarea
+                id="reflection"
+                name="reflection"
+                value={formData.reflection}
+                onChange={handleChange}
+                rows={4}
+                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                placeholder="Your reflections on this activity..."
+              ></textarea>
+            </div>
+            
+            {/* File Upload */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Evidence (Optional)
+              </label>
+              <p className="text-sm text-gray-500 mb-2">
+                Upload documents, photos, or other evidence of your activity (max 5 files).
+              </p>
+              
+              <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                <div className="space-y-1 text-center">
+                  <Upload className="mx-auto h-12 w-12 text-gray-400" />
+                  <div className="flex text-sm text-gray-600">
+                    <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500">
+                      <span>Upload files</span>
+                      <input 
+                        id="file-upload" 
+                        name="file-upload" 
+                        type="file" 
+                        className="sr-only" 
+                        multiple
+                        onChange={handleFileChange}
+                        disabled={formData.files.length >= 5}
+                      />
+                    </label>
+                    <p className="pl-1">or drag and drop</p>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    PNG, JPG, PDF up to 10MB each
+                  </p>
+                </div>
+              </div>
+              
+              {/* File List */}
+              {formData.files.length > 0 && (
+                <ul className="mt-3 divide-y divide-gray-200 border border-gray-200 rounded-md">
+                  {formData.files.map((file, index) => (
+                    <li key={index} className="flex items-center justify-between py-3 pl-3 pr-4 text-sm">
+                      <div className="flex items-center">
+                        <FileText className="flex-shrink-0 h-5 w-5 text-gray-400 mr-3" />
+                        <span className="truncate">{file.name}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeFile(index)}
+                        className="ml-2 p-1 text-gray-400 hover:text-red-500"
+                      >
+                        <X className="h-5 w-5" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            
+            {/* Submit Button */}
+            <div className="flex justify-end pt-4">
+              <Link
+                href="/activities"
+                className="mr-4 px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                Cancel
+              </Link>
               <button
                 type="submit"
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center"
+                disabled={isSubmitting}
+                className={`px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+                  isSubmitting ? 'opacity-75 cursor-not-allowed' : ''
+                }`}
               >
-                <Save className="h-4 w-4 mr-2" />
-                Save Activity
+                {isSubmitting ? 'Submitting...' : 'Submit Activity'}
               </button>
             </div>
-          </div>
-        </form>
-      </div>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 } 

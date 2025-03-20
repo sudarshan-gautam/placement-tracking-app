@@ -10,6 +10,7 @@ export interface User {
   password: string;
   role: UserRole;
   name: string;
+  profileImage?: string;
 }
 
 // Mock users database

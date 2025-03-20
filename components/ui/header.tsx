@@ -1,11 +1,10 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Moon, Sun, Bell, User, Settings, LogOut, ChevronDown, 
-  LayoutDashboard, HelpCircle, Mail, Shield, BookOpen, AlertCircle, Menu, X, Award, Briefcase } from 'lucide-react';
+import { Search, Bell, User, Settings, LogOut, ChevronDown, 
+  LayoutDashboard, HelpCircle, Mail, Shield, BookOpen, AlertCircle, FileText, Briefcase } from 'lucide-react';
 import Link from 'next/link';
-import { useTheme } from 'next-themes';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 
 interface Notification {
@@ -53,26 +52,13 @@ export function Header() {
     }
   ]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const { theme, setTheme } = useTheme();
   const pathname = usePathname();
-  const router = useRouter();
   const { user, logout, isAuthenticated } = useAuth();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   
   const searchRef = useRef<HTMLDivElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
-
-  // Close mobile menu when pathname changes
-  useEffect(() => {
-    // setIsMenuOpen(false);
-  }, [pathname]);
-
-  // Handle logout with proper navigation
-  const handleLogout = async () => {
-    await logout();
-    // Navigate to home page after logout
-    router.push('/');
-  };
 
   // Handle click outside to close dropdowns
   useEffect(() => {
@@ -129,6 +115,10 @@ export function Header() {
     }
   }, [searchQuery]);
 
+  const toggleMenu = () => {
+    setIsMenuOpen(!isMenuOpen);
+  };
+
   const isActive = (path: string) => {
     return pathname === path;
   };
@@ -152,41 +142,38 @@ export function Header() {
     }
   };
 
-  const handleNavigation = (e: React.MouseEvent, path: string) => {
-    e.preventDefault();
-    router.push(path);
-  };
-
   // Show simple header with auth buttons on landing page
   if (pathname === '/') {
     return (
       <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
-        <div className="w-full">
-          <div className="flex justify-between items-center h-16 px-4">
-            <div className="flex items-center ml-1">
-              <Link href="/" className="flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600">
-                  <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                  <path d="M2 5m0 2a2 2 0 0 1 2 -2h16a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-16a2 2 0 0 1 -2 -2z" />
-                  <path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
-                  <path d="M9 12h-7" />
-                  <path d="M15 12h7" />
-                </svg>
-                <span className="ml-2 text-lg font-bold text-gray-900">Practitioner Passport</span>
-              </Link>
+        <div className="w-full px-6 mx-auto">
+          <div className="flex justify-between h-16">
+            <div className="flex">
+              <div className="flex-shrink-0 flex items-center">
+                <Link href="/" className="flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600">
+                    <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                    <path d="M2 5m0 2a2 2 0 0 1 2 -2h16a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-16a2 2 0 0 1 -2 -2z" />
+                    <path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
+                    <path d="M9 12h-7" />
+                    <path d="M15 12h7" />
+                  </svg>
+                  <span className="ml-2 text-xl font-bold text-gray-900">Practitioner Passport</span>
+                </Link>
+              </div>
             </div>
             
-            <div className="flex items-center space-x-3 justify-end">
+            <div className="flex items-center space-x-4">
               {isAuthenticated ? (
                 <>
                   <Link
-                    href="/dashboard"
+                    href={user?.role === 'admin' ? '/admin' : user?.role === 'mentor' ? '/mentor' : '/dashboard'}
                     className="text-gray-500 hover:text-gray-700"
                   >
-                    Dashboard
+                    {user?.role === 'admin' ? 'Admin Dashboard' : user?.role === 'mentor' ? 'Mentor Dashboard' : 'Dashboard'}
                   </Link>
                   <button
-                    onClick={handleLogout}
+                    onClick={logout}
                     className="text-gray-500 hover:text-gray-700"
                   >
                     Sign out
@@ -219,19 +206,21 @@ export function Header() {
   if (pathname.startsWith('/auth/')) {
     return (
       <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
-        <div className="w-full">
-          <div className="flex justify-between items-center h-16 px-4">
-            <div className="flex items-center ml-0">
-              <Link href="/" className="flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600">
-                  <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                  <path d="M2 5m0 2a2 2 0 0 1 2 -2h16a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-16a2 2 0 0 1 -2 -2z" />
-                  <path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
-                  <path d="M9 12h-7" />
-                  <path d="M15 12h7" />
-                </svg>
-                <span className="ml-2 text-lg font-bold text-gray-900">Practitioner Passport</span>
-              </Link>
+        <div className="w-full px-6 mx-auto">
+          <div className="flex justify-between h-16">
+            <div className="flex">
+              <div className="flex-shrink-0 flex items-center">
+                <Link href="/" className="flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600">
+                    <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                    <path d="M2 5m0 2a2 2 0 0 1 2 -2h16a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-16a2 2 0 0 1 -2 -2z" />
+                    <path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
+                    <path d="M9 12h-7" />
+                    <path d="M15 12h7" />
+                  </svg>
+                  <span className="ml-2 text-xl font-bold text-gray-900">Practitioner Passport</span>
+                </Link>
+              </div>
             </div>
           </div>
         </div>
@@ -242,23 +231,24 @@ export function Header() {
   // For dashboard and other authenticated pages
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
-      <div className="w-full">
-        <div className="flex justify-between items-center h-16 px-4">
-          <div className="flex items-center ml-2">
-            <Link href="/" className="flex items-center">
-              <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600">
-                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                <path d="M2 5m0 2a2 2 0 0 1 2 -2h16a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-16a2 2 0 0 1 -2 -2z" />
-                <path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
-                <path d="M9 12h-7" />
-                <path d="M15 12h7" />
-              </svg>
-              <span className="ml-2 text-lg font-bold text-gray-900">Practitioner Passport</span>
-            </Link>
+      <div className="w-full px-6 mx-auto">
+        <div className="flex justify-between h-16">
+          <div className="flex">
+            <div className="flex-shrink-0 flex items-center">
+              <Link href="/" className="flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600">
+                  <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                  <path d="M2 5m0 2a2 2 0 0 1 2 -2h16a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-16a2 2 0 0 1 -2 -2z" />
+                  <path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
+                  <path d="M9 12h-7" />
+                  <path d="M15 12h7" />
+                </svg>
+                <span className="ml-2 text-xl font-bold text-gray-900">Practitioner Passport</span>
+              </Link>
+            </div>
           </div>
           
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-3 justify-end">
+          <div className="flex items-center space-x-4">
             {/* Search */}
             <div className="relative" ref={searchRef}>
               <button
@@ -311,6 +301,7 @@ export function Header() {
                   </span>
                 )}
               </button>
+              
               {showNotifications && (
                 <div className="absolute right-0 mt-2 w-96 rounded-md bg-white shadow-lg">
                   <div className="p-4">
@@ -361,154 +352,54 @@ export function Header() {
               {showProfile && (
                 <div className="absolute right-0 mt-2 w-56 rounded-md bg-white shadow-lg">
                   <div className="py-1">
-                    <div className="px-4 py-3 border-b border-gray-200">
-                      <p className="text-sm font-medium text-gray-900">{user?.name}</p>
-                      <p className="text-xs text-gray-500 capitalize">{user?.role}</p>
-                    </div>
-                    <Link
-                      href="/dashboard"
-                      className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
-                    >
-                      <LayoutDashboard className="mr-2 h-4 w-4" />
-                      Dashboard
-                    </Link>
-                    <Link
-                      href="/settings"
-                      className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
-                    >
-                      <Settings className="mr-2 h-4 w-4" />
-                      Settings
-                    </Link>
-                    <Link
-                      href="/help"
-                      className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
-                    >
-                      <HelpCircle className="mr-2 h-4 w-4" />
-                      Help & Support
-                    </Link>
-                    <div className="border-t border-gray-200"></div>
-                    <button
-                      onClick={handleLogout}
-                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    >
-                      <LogOut className="mr-2 h-4 w-4" />
-                      Sign out
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-          
-          {/* Mobile Navigation */}
-          <div className="flex md:hidden items-center space-x-2">
-            {/* Search */}
-            <div className="relative" ref={searchRef}>
-              <button
-                onClick={() => setShowSearch(!showSearch)}
-                className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-200 disabled:pointer-events-none disabled:opacity-50 hover:bg-gray-100 h-9 w-9"
-              >
-                <Search className="h-5 w-5" />
-              </button>
-
-              {showSearch && (
-                <div className="absolute right-0 mt-2 w-72 rounded-md bg-white shadow-lg">
-                  <div className="p-4">
-                    <input
-                      type="text"
-                      placeholder="Search..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full rounded-md border border-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      autoFocus
-                    />
-                    {searchResults.length > 0 && (
-                      <div className="mt-4 space-y-2">
-                        {searchResults.map((result) => (
-                          <Link 
-                            key={result.id}
-                            href={result.link}
-                            className="block rounded-md p-2 hover:bg-gray-100"
-                          >
-                            <div className="text-sm font-medium">{result.title}</div>
-                            <div className="text-xs text-gray-500">{result.type}</div>
-                          </Link>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-            
-            {/* Notifications */}
-            <div className="relative" ref={notificationRef}>
-              <button
-                onClick={() => setShowNotifications(!showNotifications)}
-                className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-200 disabled:pointer-events-none disabled:opacity-50 hover:bg-gray-100 h-9 w-9"
-              >
-                <Bell className="h-5 w-5" />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-[10px] font-medium text-white flex items-center justify-center">
-                    {unreadCount}
-                  </span>
-                )}
-              </button>
-              {showNotifications && (
-                <div className="absolute right-0 mt-2 w-72 rounded-md bg-white shadow-lg">
-                  <div className="p-4">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-semibold">Notifications</h3>
-                      <button
-                        onClick={markAllAsRead}
-                        className="text-sm text-blue-600 hover:text-blue-800"
+                    {/* Role-specific dashboard links */}
+                    {user?.role === 'admin' ? (
+                      <Link
+                        href="/admin"
+                        className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
                       >
-                        Mark all as read
-                      </button>
-                    </div>
-                    <div className="space-y-4 max-h-60 overflow-y-auto">
-                      {notifications.map((notification) => (
-                        <div
-                          key={notification.id}
-                          className={`flex items-start space-x-4 p-3 rounded-md ${
-                            notification.read ? 'opacity-75' : 'bg-gray-50'
-                          }`}
-                        >
-                          {getNotificationIcon(notification.type)}
-                          <div className="flex-1">
-                            <p className="text-sm">{notification.message}</p>
-                            <p className="text-xs text-gray-500 mt-1">{notification.time}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-            
-            {/* Profile */}
-            <div className="relative" ref={profileRef}>
-              <button
-                onClick={() => setShowProfile(!showProfile)}
-                className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-200 disabled:pointer-events-none disabled:opacity-50 hover:bg-gray-100 h-9 w-9"
-              >
-                <User className="h-5 w-5 text-gray-600" />
-              </button>
-
-              {showProfile && (
-                <div className="absolute right-0 mt-2 w-56 rounded-md bg-white shadow-lg">
-                  <div className="py-1">
-                    <div className="px-4 py-3 border-b border-gray-200">
-                      <p className="text-sm font-medium text-gray-900">{user?.name}</p>
-                      <p className="text-xs text-gray-500 capitalize">{user?.role}</p>
-                    </div>
+                        <LayoutDashboard className="mr-2 h-4 w-4" />
+                        Admin Dashboard
+                      </Link>
+                    ) : user?.role === 'mentor' ? (
+                      <Link
+                        href="/mentor"
+                        className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
+                      >
+                        <LayoutDashboard className="mr-2 h-4 w-4" />
+                        Mentor Dashboard
+                      </Link>
+                    ) : (
+                      <Link
+                        href="/dashboard"
+                        className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
+                      >
+                        <LayoutDashboard className="mr-2 h-4 w-4" />
+                        Dashboard
+                      </Link>
+                    )}
+                    
+                    {/* Common navigation items */}
                     <Link
-                      href="/dashboard"
+                      href="/profile"
                       className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
                     >
-                      <LayoutDashboard className="mr-2 h-4 w-4" />
-                      Dashboard
+                      <User className="mr-2 h-4 w-4" />
+                      Profile
+                    </Link>
+                    <Link
+                      href="/activities"
+                      className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
+                    >
+                      <FileText className="mr-2 h-4 w-4" />
+                      Activities
+                    </Link>
+                    <Link
+                      href="/jobs"
+                      className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
+                    >
+                      <Briefcase className="mr-2 h-4 w-4" />
+                      Jobs
                     </Link>
                     <Link
                       href="/settings"
@@ -526,11 +417,11 @@ export function Header() {
                     </Link>
                     <div className="border-t border-gray-200"></div>
                     <button
-                      onClick={handleLogout}
-                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={logout}
+                      className="flex w-full items-center px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
                     >
                       <LogOut className="mr-2 h-4 w-4" />
-                      Sign out
+                      Logout
                     </button>
                   </div>
                 </div>

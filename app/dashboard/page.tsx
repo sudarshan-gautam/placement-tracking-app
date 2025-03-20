@@ -2,44 +2,26 @@
 
 import React, { useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { LineChart, ResponsiveContainer, Line, XAxis, YAxis, Tooltip } from 'recharts';
 import { User, Calendar, Award, BookOpen } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
+import { useRouter } from 'next/navigation';
 
 const DashboardPage = () => {
-  const { user, loading, isAuthenticated } = useAuth();
+  const { user } = useAuth();
   const router = useRouter();
   
-  // Redirect if not authenticated or if user is admin
+  // Redirect admin and mentor users to their specific dashboards
   useEffect(() => {
-    if (!loading) {
-      if (!isAuthenticated) {
-        router.push('/auth/signin');
-      } else if (user && user.role === 'admin') {
-        // Redirect admin users to admin dashboard
+    if (user) {
+      if (user.role === 'admin') {
         router.push('/admin');
+      } else if (user.role === 'mentor') {
+        router.push('/mentor');
       }
     }
-  }, [loading, isAuthenticated, user, router]);
-  
-  // Show loading state while checking authentication
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading your dashboard...</p>
-        </div>
-      </div>
-    );
-  }
-  
-  // If not authenticated or user is admin, don't render anything (will be redirected)
-  if (!isAuthenticated || (user && user.role === 'admin')) {
-    return null;
-  }
+  }, [user, router]);
   
   // Sample data for the activity chart
   const activityData = [
@@ -62,15 +44,6 @@ const DashboardPage = () => {
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Practitioner Passport</h1>
         <p className="text-gray-600">Welcome back, {user?.name || 'User'}</p>
-        
-        {/* Admin link - only visible to admin users */}
-        {user?.role === 'admin' && (
-          <div className="mt-2">
-            <Link href="/admin" className="text-blue-600 hover:text-blue-800 font-medium">
-              Go to Admin Dashboard
-            </Link>
-          </div>
-        )}
       </div>
 
       {/* User Information Card */}

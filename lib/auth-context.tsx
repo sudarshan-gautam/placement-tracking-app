@@ -2,12 +2,13 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, UserRole } from './db';
+import { useRouter } from 'next/navigation';
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; userData?: User }>;
-  logout: () => Promise<void>;
+  login: (email: string, password: string) => Promise<boolean>;
+  logout: () => void;
   isAuthenticated: boolean;
   hasRole: (role: UserRole | UserRole[]) => boolean;
 }
@@ -17,22 +18,42 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
     // Check if user is stored in localStorage on initial load
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
       try {
-        setUser(JSON.parse(storedUser));
+        const userData = JSON.parse(storedUser);
+        setUser(userData);
+        
+        // Check current path to avoid unnecessary redirects
+        const currentPath = window.location.pathname;
+        
+        // Redirect based on user role if not on the correct dashboard already
+        if (
+          (userData.role === 'admin' && !currentPath.startsWith('/admin')) ||
+          (userData.role === 'mentor' && !currentPath.startsWith('/mentor')) ||
+          (userData.role === 'student' && currentPath === '/')
+        ) {
+          const dashboardPath = userData.role === 'admin' 
+            ? '/admin' 
+            : userData.role === 'mentor' 
+              ? '/mentor' 
+              : '/dashboard';
+          
+          router.push(dashboardPath);
+        }
       } catch (error) {
         console.error('Failed to parse stored user:', error);
         localStorage.removeItem('user');
       }
     }
     setLoading(false);
-  }, []);
+  }, [router]);
 
-  const login = async (email: string, password: string): Promise<{ success: boolean; userData?: User }> => {
+  const login = async (email: string, password: string): Promise<boolean> => {
     try {
       setLoading(true);
       const response = await fetch('/api/auth/login', {
@@ -44,43 +65,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (!response.ok) {
-        setLoading(false);
-        return { success: false };
+        return false;
       }
 
       const data = await response.json();
-      const userData = data.user;
+      setUser(data.user);
+      localStorage.setItem('user', JSON.stringify(data.user));
       
-      // Store user data in localStorage first
-      localStorage.setItem('user', JSON.stringify(userData));
+      // Redirect based on user role
+      if (data.user.role === 'admin') {
+        router.push('/admin');
+      } else if (data.user.role === 'mentor') {
+        router.push('/mentor');
+      } else {
+        router.push('/dashboard');
+      }
       
-      // Set user state and ensure it's completed before returning
-      return new Promise((resolve) => {
-        setUser(userData);
-        // Small timeout to ensure state is updated before navigation
-        setTimeout(() => {
-          setLoading(false);
-          resolve({ success: true, userData });
-        }, 200);
-      });
+      return true;
     } catch (error) {
       console.error('Login error:', error);
+      return false;
+    } finally {
       setLoading(false);
-      return { success: false };
     }
   };
 
   const logout = () => {
-    // First clear the user state
     setUser(null);
-    // Then remove from localStorage
     localStorage.removeItem('user');
-    // Return a promise to ensure state is cleared before navigation
-    return new Promise<void>((resolve) => {
-      setTimeout(() => {
-        resolve();
-      }, 100);
-    });
+    // Redirect to home page
+    window.location.href = '/';
   };
 
   const hasRole = (role: UserRole | UserRole[]): boolean => {
