@@ -6,6 +6,20 @@ import { User, Settings, Shield, Users, ClipboardCheck, Bell, BarChart2, Server,
 import { LineChart, ResponsiveContainer, Line, XAxis, YAxis, Tooltip, Legend } from 'recharts';
 import Link from 'next/link';
 import { useState } from 'react';
+import { VerificationReviewModal } from '@/components/ui/verification-review-modal';
+
+// Define verification request type
+interface VerificationRequest {
+  id: number;
+  type: string;
+  title: string;
+  user: string;
+  date: string;
+  priority: string;
+  description?: string;
+  attachments?: string[];
+  status: string;
+}
 
 // Sample data for charts
 const monthlyActivityData = [
@@ -36,11 +50,49 @@ const dailyActivityData = [
 ];
 
 // Sample verification requests
-const verificationRequests = [
-  { id: 1, type: 'Qualification', title: 'First Aid Certificate', user: 'Jane Smith', date: '2023-07-15', priority: 'High' },
-  { id: 2, type: 'Competency', title: 'Classroom Management', user: 'John Doe', date: '2023-07-14', priority: 'Medium' },
-  { id: 3, type: 'Session', title: 'Primary School Teaching', user: 'Alice Johnson', date: '2023-07-13', priority: 'Low' },
-  { id: 4, type: 'Qualification', title: 'Teaching Degree', user: 'Bob Wilson', date: '2023-07-12', priority: 'High' }
+const verificationRequests: VerificationRequest[] = [
+  { 
+    id: 1, 
+    type: 'Qualification', 
+    title: 'First Aid Certificate', 
+    user: 'Jane Smith', 
+    date: '2023-07-15', 
+    priority: 'High',
+    description: 'Completed a First Aid and CPR training course with Red Cross. Certificate valid for 3 years.',
+    attachments: ['FirstAidCert.pdf', 'CPR_Training_Completion.pdf'],
+    status: 'pending'
+  },
+  { 
+    id: 2, 
+    type: 'Competency', 
+    title: 'Classroom Management', 
+    user: 'John Doe', 
+    date: '2023-07-14', 
+    priority: 'Medium',
+    description: 'Demonstrated effective classroom management skills during student teaching placement at Springfield Elementary.',
+    status: 'pending'
+  },
+  { 
+    id: 3, 
+    type: 'Session', 
+    title: 'Primary School Teaching', 
+    user: 'Alice Johnson', 
+    date: '2023-07-13', 
+    priority: 'Low',
+    description: 'Completed a teaching session with 3rd grade students focusing on mathematics fundamentals.',
+    status: 'pending'
+  },
+  { 
+    id: 4, 
+    type: 'Qualification', 
+    title: 'Teaching Degree', 
+    user: 'Bob Wilson', 
+    date: '2023-07-12', 
+    priority: 'High',
+    description: 'Bachelor of Education from University of Teaching Excellence, specialized in Secondary Education.',
+    attachments: ['TeachingDegree.pdf', 'TranscriptSpring2023.pdf'],
+    status: 'pending'
+  }
 ];
 
 // Sample recent activities
@@ -68,6 +120,17 @@ const systemMetrics = [
 export default function AdminDashboard() {
   const { user } = useAuth();
   const [selectedPeriod, setSelectedPeriod] = useState('monthly');
+  const [verificationFilter, setVerificationFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [selectedVerification, setSelectedVerification] = useState<VerificationRequest | null>(null);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [verificationList, setVerificationList] = useState<VerificationRequest[]>(() => {
+    // Check if we have saved verification data in localStorage
+    const savedVerifications = typeof window !== 'undefined' ? localStorage.getItem('verificationList') : null;
+    
+    // If we have saved data, use it; otherwise use the default
+    return savedVerifications ? JSON.parse(savedVerifications) : verificationRequests;
+  });
 
   const handlePeriodChange = (period: string) => {
     setSelectedPeriod(period);
@@ -90,6 +153,90 @@ export default function AdminDashboard() {
     return period === selectedPeriod 
       ? "px-3 py-1 text-sm bg-blue-50 text-blue-600 rounded-md" 
       : "px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded-md";
+  };
+
+  // Handle verification filter change
+  const handleVerificationFilterChange = (filter: string) => {
+    setVerificationFilter(filter.toLowerCase());
+  };
+
+  // Get active button style for verification filters
+  const getVerificationButtonStyle = (filter: string) => {
+    return verificationFilter === filter.toLowerCase() 
+      ? "px-3 py-1 text-sm bg-blue-50 text-blue-600 rounded-md" 
+      : "px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded-md";
+  };
+
+  // Handle status filter change
+  const handleStatusFilterChange = (filter: string) => {
+    setStatusFilter(filter.toLowerCase());
+  };
+
+  // Get active button style for status filters
+  const getStatusButtonStyle = (filter: string) => {
+    return statusFilter === filter.toLowerCase() 
+      ? "px-3 py-1 text-sm bg-blue-50 text-blue-600 rounded-md" 
+      : "px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded-md";
+  };
+
+  // Filter verification requests based on selected filters
+  const getFilteredVerifications = () => {
+    return verificationList.filter(request => {
+      // Filter by type
+      const matchesType = verificationFilter === 'all' || 
+                         request.type.toLowerCase() === verificationFilter;
+      
+      // Filter by status
+      const matchesStatus = statusFilter === 'all' || 
+                          request.status.toLowerCase() === statusFilter;
+      
+      return matchesType && matchesStatus;
+    });
+  };
+
+  // Handle review button click
+  const handleReviewClick = (requestId: number) => {
+    const verification = verificationList.find(v => v.id === requestId) || null;
+    setSelectedVerification(verification);
+    setIsReviewModalOpen(true);
+  };
+
+  // Handle approve verification
+  const handleApproveVerification = (id: number, feedback: string) => {
+    // Update the verification status
+    const updatedList = verificationList.map(v => 
+      v.id === id ? { ...v, status: 'approved' } : v
+    );
+    
+    // Update state and save to localStorage
+    setVerificationList(updatedList);
+    localStorage.setItem('verificationList', JSON.stringify(updatedList));
+    
+    setIsReviewModalOpen(false);
+    
+    // Show success message
+    if (feedback) {
+      alert(`Verification #${id} has been approved\nFeedback: ${feedback}`);
+    } else {
+      alert(`Verification #${id} has been approved`);
+    }
+  };
+
+  // Handle reject verification
+  const handleRejectVerification = (id: number, reason: string) => {
+    // Update the verification status
+    const updatedList = verificationList.map(v => 
+      v.id === id ? { ...v, status: 'rejected' } : v
+    );
+    
+    // Update state and save to localStorage
+    setVerificationList(updatedList);
+    localStorage.setItem('verificationList', JSON.stringify(updatedList));
+    
+    setIsReviewModalOpen(false);
+    
+    // Show rejection message
+    alert(`Verification #${id} has been rejected\nReason: ${reason}`);
   };
 
   return (
@@ -189,50 +336,92 @@ export default function AdminDashboard() {
 
       {/* 4. VERIFICATION QUEUE */}
       <div className="bg-white p-6 rounded-lg shadow mb-8">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-lg font-semibold">Pending Verifications</h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-semibold">Verifications</h2>
           <div className="flex space-x-2">
-            <button className="px-3 py-1 text-sm bg-blue-50 text-blue-600 rounded-md">All</button>
-            <button className="px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded-md">Qualifications</button>
-            <button className="px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded-md">Competencies</button>
-            <button className="px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded-md">Sessions</button>
+            <button className={getVerificationButtonStyle('all')} onClick={() => handleVerificationFilterChange('all')}>All</button>
+            <button className={getVerificationButtonStyle('qualification')} onClick={() => handleVerificationFilterChange('qualification')}>Qualifications</button>
+            <button className={getVerificationButtonStyle('competency')} onClick={() => handleVerificationFilterChange('competency')}>Competencies</button>
+            <button className={getVerificationButtonStyle('session')} onClick={() => handleVerificationFilterChange('session')}>Sessions</button>
           </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {verificationRequests.map((request) => (
-                <tr key={request.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.type}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{request.title}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.user}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.date}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                      ${request.priority === 'High' ? 'bg-red-100 text-red-800' : 
-                        request.priority === 'Medium' ? 'bg-yellow-100 text-yellow-800' : 
-                        'bg-green-100 text-green-800'}`}>
-                      {request.priority}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <button className="text-blue-600 hover:text-blue-900">Review</button>
-                  </td>
+        
+        {getFilteredVerifications().length === 0 ? (
+          <div className="text-center py-8">
+            <ClipboardCheck className="mx-auto h-12 w-12 text-gray-400" />
+            <h3 className="mt-2 text-sm font-medium text-gray-900">No verifications</h3>
+            <p className="mt-1 text-sm text-gray-500">There are no pending verifications in this category.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {getFilteredVerifications().map((request) => (
+                  <tr key={request.id}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.type}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{request.title}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.user}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.date}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                        ${request.priority === 'High' ? 'bg-red-100 text-red-800' : 
+                          request.priority === 'Medium' ? 'bg-yellow-100 text-yellow-800' : 
+                          'bg-green-100 text-green-800'}`}>
+                        {request.priority}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                        ${request.status === 'approved' ? 'bg-green-100 text-green-800' : 
+                          request.status === 'rejected' ? 'bg-red-100 text-red-800' : 
+                          'bg-blue-100 text-blue-800'}`}>
+                        {request.status === 'pending' ? 'Pending' : 
+                        request.status === 'approved' ? 'Approved' : 'Rejected'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {request.status === 'pending' ? (
+                        <button 
+                          className="text-blue-600 hover:text-blue-900" 
+                          onClick={() => handleReviewClick(request.id)}
+                        >
+                          Review
+                        </button>
+                      ) : (
+                        <button 
+                          className="text-blue-600 hover:text-blue-900" 
+                          onClick={() => handleReviewClick(request.id)}
+                        >
+                          Edit
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        
+        {/* Review Modal */}
+        <VerificationReviewModal
+          isOpen={isReviewModalOpen}
+          onClose={() => setIsReviewModalOpen(false)}
+          verification={selectedVerification}
+          onApprove={handleApproveVerification}
+          onReject={handleRejectVerification}
+        />
       </div>
 
       {/* 5 & 6. RECENT ACTIVITIES AND USER MANAGEMENT */}
