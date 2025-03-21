@@ -1,7 +1,7 @@
 'use client';
 
-import React from 'react';
-import { Plus, Award, BookOpen, Calendar, BarChart2, FileText, Edit, X, User, Settings, Shield, ClipboardCheck, Server, Briefcase } from 'lucide-react';
+import React, { useState } from 'react';
+import { Plus, Award, BookOpen, Calendar, BarChart2, FileText, Edit, X, User, Settings, Shield, ClipboardCheck, Server, Briefcase, CheckCircle } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 
 interface QuickActionsModalProps {
@@ -135,10 +135,12 @@ export function QuickActionsModal({ isOpen, onClose }: QuickActionsModalProps) {
       ? mentorActions 
       : studentActions;
 
-  const handleActionClick = (e: React.MouseEvent, href: string) => {
+  const handleActionClick = (e: React.MouseEvent, action: any) => {
     e.preventDefault();
-    window.location.href = href;
-    onClose();
+    if (action.href) {
+      window.location.href = action.href;
+      onClose();
+    }
   };
 
   return (
@@ -150,7 +152,10 @@ export function QuickActionsModal({ isOpen, onClose }: QuickActionsModalProps) {
       />
       
       {/* Modal */}
-      <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6">
+      <div 
+        className="relative bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-gray-900">Quick Actions</h2>
           <button 
@@ -165,8 +170,8 @@ export function QuickActionsModal({ isOpen, onClose }: QuickActionsModalProps) {
           {actions.map((action) => (
             <a
               key={action.label}
-              href={action.href}
-              onClick={(e) => handleActionClick(e, action.href)}
+              href={action.href || '#'}
+              onClick={(e) => handleActionClick(e, action)}
               className={`flex items-center gap-3 p-4 text-white rounded-lg ${action.bgColor}`}
             >
               <action.icon className="h-5 w-5" />
@@ -174,6 +179,26 @@ export function QuickActionsModal({ isOpen, onClose }: QuickActionsModalProps) {
             </a>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// Export a second component for the card-based design (second screenshot)
+export function QuickActionsCard({ onAddUser }: { onAddUser: () => void }) {
+  return (
+    <div className="p-4">
+      <h2 className="text-3xl font-bold text-black mb-4">Quick Actions</h2>
+      <div className="bg-white rounded-lg shadow-md p-4">
+        <button
+          onClick={onAddUser}
+          className="w-full text-left flex items-center gap-4 py-3 px-4 hover:bg-gray-50 rounded-lg transition-colors"
+        >
+          <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+            <User className="h-5 w-5 text-blue-600" />
+          </div>
+          <span className="text-lg text-gray-800">Add User</span>
+        </button>
       </div>
     </div>
   );

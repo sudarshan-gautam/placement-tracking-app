@@ -7,6 +7,7 @@ import { LineChart, ResponsiveContainer, Line, XAxis, YAxis, Tooltip, Legend } f
 import Link from 'next/link';
 import { useState } from 'react';
 import { VerificationReviewModal } from '@/components/ui/verification-review-modal';
+import { QuickActionsModal } from '@/components/ui/quick-actions-modal';
 
 // Define verification request type
 interface VerificationRequest {
@@ -131,6 +132,11 @@ export default function AdminDashboard() {
     // If we have saved data, use it; otherwise use the default
     return savedVerifications ? JSON.parse(savedVerifications) : verificationRequests;
   });
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [filteredUsers, setFilteredUsers] = useState(recentUsers);
+  const [isUserEditModalOpen, setIsUserEditModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<typeof recentUsers[0] | null>(null);
+  const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
 
   const handlePeriodChange = (period: string) => {
     setSelectedPeriod(period);
@@ -237,6 +243,36 @@ export default function AdminDashboard() {
     
     // Show rejection message
     alert(`Verification #${id} has been rejected\nReason: ${reason}`);
+  };
+
+  // Handle user search
+  const handleUserSearch = () => {
+    if (!userSearchQuery.trim()) {
+      setFilteredUsers(recentUsers);
+      return;
+    }
+    
+    const query = userSearchQuery.toLowerCase();
+    const filtered = recentUsers.filter(user => 
+      user.name.toLowerCase().includes(query) || 
+      user.email.toLowerCase().includes(query) ||
+      user.role.toLowerCase().includes(query)
+    );
+    
+    setFilteredUsers(filtered);
+  };
+
+  // Handle user edit
+  const handleUserEdit = (userId: number) => {
+    const userToEdit = recentUsers.find(u => u.id === userId);
+    setSelectedUser(userToEdit || null);
+    setIsUserEditModalOpen(true);
+  };
+
+  // Handle close user edit modal
+  const handleCloseUserEditModal = () => {
+    setIsUserEditModalOpen(false);
+    setSelectedUser(null);
   };
 
   return (
@@ -430,7 +466,7 @@ export default function AdminDashboard() {
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-lg font-semibold">Recent Activities</h2>
-            <button className="text-sm text-blue-600 hover:text-blue-800">View All</button>
+            <Link href="/admin/activities" className="text-sm text-blue-600 hover:text-blue-800">View All</Link>
           </div>
           <div className="space-y-4">
             {recentActivities.map((activity) => (
@@ -462,8 +498,16 @@ export default function AdminDashboard() {
                 type="text" 
                 placeholder="Search users..." 
                 className="px-3 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                value={userSearchQuery}
+                onChange={(e) => setUserSearchQuery(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleUserSearch()}
               />
-              <button className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md">Search</button>
+              <button 
+                className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                onClick={handleUserSearch}
+              >
+                Search
+              </button>
             </div>
           </div>
           <div className="overflow-x-auto">
@@ -478,7 +522,7 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {recentUsers.map((user) => (
+                {filteredUsers.map((user) => (
                   <tr key={user.id}>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
@@ -500,7 +544,12 @@ export default function AdminDashboard() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.joined}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <button className="text-blue-600 hover:text-blue-900">Edit</button>
+                      <Link 
+                        href={`/admin/users/edit/${user.id}`} 
+                        className="text-blue-600 hover:text-blue-900"
+                      >
+                        Edit
+                      </Link>
                     </td>
                   </tr>
                 ))}
@@ -529,9 +578,9 @@ export default function AdminDashboard() {
             ))}
           </div>
           <div className="mt-6">
-            <button className="w-full py-2 bg-gray-100 text-gray-700 rounded-md text-sm font-medium hover:bg-gray-200">
+            <Link href="/admin/system-health" className="block w-full text-center py-2 bg-gray-100 text-gray-700 rounded-md text-sm font-medium hover:bg-gray-200">
               View Detailed Report
-            </button>
+            </Link>
           </div>
         </div>
 
@@ -539,12 +588,14 @@ export default function AdminDashboard() {
         <div className="lg:col-span-2 bg-white p-6 rounded-lg shadow">
           <h2 className="text-lg font-semibold mb-6">Quick Actions</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Link href="/admin/users/new" className="p-4 bg-white rounded-lg shadow hover:shadow-md transition-shadow border border-gray-200">
+            <div 
+              className="p-4 bg-white rounded-lg shadow border border-gray-200"
+            >
               <div className="flex items-center">
                 <User className="h-5 w-5 mr-2 text-blue-500" />
                 <span>Add User</span>
               </div>
-            </Link>
+            </div>
             
             <Link href="/admin/roles" className="p-4 bg-white rounded-lg shadow hover:shadow-md transition-shadow border border-gray-200">
               <div className="flex items-center">
@@ -583,6 +634,12 @@ export default function AdminDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Add the QuickActionsModal */}
+      <QuickActionsModal 
+        isOpen={isQuickActionsOpen}
+        onClose={() => setIsQuickActionsOpen(false)}
+      />
     </div>
   );
 } 
