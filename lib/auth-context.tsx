@@ -1,13 +1,14 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User, UserRole } from './db';
+import { User as UserType, UserRole } from '@/models/User';
 import { useRouter } from 'next/navigation';
 
 interface AuthContextType {
-  user: User | null;
+  user: UserType | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
+  register: (name: string, email: string, password: string, role?: string, dateOfBirth?: string) => Promise<boolean>;
   logout: () => void;
   isAuthenticated: boolean;
   hasRole: (role: UserRole | UserRole[]) => boolean;
@@ -16,7 +17,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<UserType | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -90,6 +91,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const register = async (name: string, email: string, password: string, role?: string, dateOfBirth?: string): Promise<boolean> => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name, email, password, role, dateOfBirth }),
+      });
+
+      if (!response.ok) {
+        return false;
+      }
+
+      const data = await response.json();
+      setUser(data.user);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      
+      // Redirect based on user role
+      if (data.user.role === 'admin') {
+        router.push('/admin');
+      } else if (data.user.role === 'mentor') {
+        router.push('/mentor');
+      } else {
+        router.push('/dashboard');
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Registration error:', error);
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const logout = () => {
     setUser(null);
     localStorage.removeItem('user');
@@ -113,6 +151,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         loading,
         login,
+        register,
         logout,
         isAuthenticated: !!user,
         hasRole,

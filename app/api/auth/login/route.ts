@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
-import { validateUser } from '@/lib/db';
+import connectDB from '@/lib/mongodb';
+import User from '@/models/User';
+import bcrypt from 'bcrypt';
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { email, password } = body;
+    const { email, password } = await request.json();
 
     if (!email || !password) {
       return NextResponse.json(
@@ -13,8 +14,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const user = await validateUser(email, password);
+    await connectDB();
 
+    // Find user by email
+    const user = await User.findOne({ email });
     if (!user) {
       return NextResponse.json(
         { error: 'Invalid email or password' },
@@ -22,15 +25,19 @@ export async function POST(request: Request) {
       );
     }
 
-    // Create a sanitized user object without the password
-    const sanitizedUser = {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-      name: user.name
-    };
+    // Compare passwords
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return NextResponse.json(
+        { error: 'Invalid email or password' },
+        { status: 401 }
+      );
+    }
 
-    return NextResponse.json({ user: sanitizedUser }, { status: 200 });
+    // Create a sanitized user object without the password
+    const { password: _, ...userWithoutPassword } = user.toObject();
+
+    return NextResponse.json({ user: userWithoutPassword }, { status: 200 });
   } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json(

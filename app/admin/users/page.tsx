@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   Search, UserPlus, Filter, Edit, Trash2, CheckCircle, XCircle, Shield, 
@@ -8,60 +8,21 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 
-// Sample user data
-const usersData = [
-  { 
-    id: '1', 
-    name: 'John Doe', 
-    email: 'admin@gmail.com', 
-    role: 'admin', 
-    status: 'active', 
-    dateJoined: '2023-02-15',
-    lastActive: '2023-11-01' 
-  },
-  { 
-    id: '2', 
-    name: 'Jane Smith', 
-    email: 'mentor@gmail.com', 
-    role: 'mentor', 
-    status: 'active', 
-    dateJoined: '2023-03-20',
-    lastActive: '2023-10-28',
-    assignedStudents: 12
-  },
-  { 
-    id: '3', 
-    name: 'Michael Johnson', 
-    email: 'student@gmail.com', 
-    role: 'student', 
-    status: 'active', 
-    dateJoined: '2023-05-10',
-    lastActive: '2023-10-31',
-    completedActivities: 18,
-    verifiedActivities: 15
-  },
-  { 
-    id: '4', 
-    name: 'Sarah Williams', 
-    email: 'sarah@example.com', 
-    role: 'student', 
-    status: 'pending', 
-    dateJoined: '2023-09-05',
-    lastActive: '2023-09-05',
-    completedActivities: 2,
-    verifiedActivities: 0
-  },
-  { 
-    id: '5', 
-    name: 'Robert Brown', 
-    email: 'robert@example.com', 
-    role: 'mentor', 
-    status: 'inactive', 
-    dateJoined: '2023-01-25',
-    lastActive: '2023-08-15',
-    assignedStudents: 0
-  },
-];
+// Define User type
+interface User {
+  _id: string;
+  name: string;
+  email: string;
+  role: 'admin' | 'mentor' | 'student';
+  status?: 'active' | 'pending' | 'inactive';
+  dateJoined?: string;
+  lastActive?: string;
+  assignedStudents?: number;
+  completedActivities?: number;
+  verifiedActivities?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
 
 // Role descriptions for tooltips
 const roleDescriptions = {
@@ -114,7 +75,8 @@ const roleStyles = {
 
 export default function UsersManagementPage() {
   const { user } = useAuth();
-  const [users, setUsers] = useState(usersData);
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -122,9 +84,9 @@ export default function UsersManagementPage() {
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [selectAll, setSelectAll] = useState(false);
   const [showTutorial, setShowTutorial] = useState(true);
-  const [userToDelete, setUserToDelete] = useState<any>(null);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [userToEdit, setUserToEdit] = useState<any>(null);
+  const [userToEdit, setUserToEdit] = useState<User | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
@@ -136,13 +98,15 @@ export default function UsersManagementPage() {
     name: '',
     email: '',
     role: '',
-    status: ''
+    status: '',
+    password: ''
   });
   const [addFormData, setAddFormData] = useState({
     name: '',
     email: '',
+    password: '',
     role: 'student',
-    status: 'pending'
+    status: 'active'
   });
   const [formErrors, setFormErrors] = useState({
     name: '',
@@ -150,7 +114,8 @@ export default function UsersManagementPage() {
   });
   const [addFormErrors, setAddFormErrors] = useState({
     name: '',
-    email: ''
+    email: '',
+    password: ''
   });
   const [toast, setToast] = useState<{
     show: boolean;
@@ -162,14 +127,42 @@ export default function UsersManagementPage() {
     type: 'info'
   });
 
+  // Fetch users from the database
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch('/api/admin/users');
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch users');
+        }
+        
+        const data = await response.json();
+        setUsers(data.users);
+      } catch (error) {
+        console.error('Error fetching users:', error);
+        showToast('Failed to load users', 'error');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchUsers();
+  }, []);
+
   // Filter users based on search term and filters
-  const filteredUsers = users.filter(user => {
+  const filteredUsers = users.filter((user: User) => {
     const matchesSearch = 
       user.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
       user.email.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesRole = roleFilter === 'all' || user.role === roleFilter;
-    const matchesStatus = statusFilter === 'all' || user.status === statusFilter;
+    
+    // For demonstration, we'll consider all fetched users as "active"
+    // In a real app, you would have a status field in your user model
+    const userStatus = user.status || 'active';
+    const matchesStatus = statusFilter === 'all' || userStatus === statusFilter;
     
     return matchesSearch && matchesRole && matchesStatus;
   });
@@ -188,7 +181,7 @@ export default function UsersManagementPage() {
     if (selectAll) {
       setSelectedUsers([]);
     } else {
-      setSelectedUsers(filteredUsers.map(user => user.id));
+      setSelectedUsers(filteredUsers.map((user: User) => user._id));
     }
     setSelectAll(!selectAll);
   };
@@ -199,75 +192,65 @@ export default function UsersManagementPage() {
     
     switch (action) {
       case 'activate':
-        updatedUsers = users.map(user => 
-          selectedUsers.includes(user.id) ? { ...user, status: 'active' } : user
-        );
-        showToast(`${selectedUsers.length} users activated successfully`, 'success');
+        // In a real app, you would send API requests to update each user's status
+        showToast('Bulk activation is not implemented yet', 'info');
         break;
       case 'deactivate':
-        updatedUsers = users.map(user => 
-          selectedUsers.includes(user.id) ? { ...user, status: 'inactive' } : user
-        );
-        showToast(`${selectedUsers.length} users deactivated successfully`, 'success');
+        showToast('Bulk deactivation is not implemented yet', 'info');
         break;
       case 'delete':
-        updatedUsers = users.filter(user => !selectedUsers.includes(user.id));
-        showToast(`${selectedUsers.length} users deleted successfully`, 'success');
+        showToast('Bulk deletion is not implemented yet', 'info');
         break;
       default:
-        return;
+        break;
     }
     
-    // Update the users array
     setUsers(updatedUsers);
-    
-    // Clear selections
     setSelectedUsers([]);
     setSelectAll(false);
   };
 
-  // Get role icon with improved visual clarity
+  // Get role icon based on role
   const getRoleIcon = (role: string) => {
     switch (role) {
       case 'admin':
-        return <Shield className={`h-4 w-4 ${roleStyles.admin.icon}`} aria-label="Administrator" />;
+        return <Shield className={`${roleStyles.admin.icon} h-4 w-4`} />;
       case 'mentor':
-        return <Briefcase className={`h-4 w-4 ${roleStyles.mentor.icon}`} aria-label="Mentor" />;
+        return <Briefcase className={`${roleStyles.mentor.icon} h-4 w-4`} />;
       case 'student':
-        return <GraduationCap className={`h-4 w-4 ${roleStyles.student.icon}`} aria-label="Student" />;
+        return <GraduationCap className={`${roleStyles.student.icon} h-4 w-4`} />;
       default:
         return null;
     }
   };
 
-  // Get status indicator with improved visual design
-  const getStatusIndicator = (status: string) => {
-    const style = statusStyles[status as keyof typeof statusStyles] || statusStyles.inactive;
+  // Get status indicator
+  const getStatusIndicator = (status: string = 'active') => {
+    const style = statusStyles[status as keyof typeof statusStyles] || statusStyles.active;
     
     return (
-      <span 
-        className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${style.bg} ${style.text} ${style.border}`} 
-        title={statusDescriptions[status as keyof typeof statusDescriptions]}
-      >
-        {status === 'active' && <div className="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5"></div>}
-        {status === 'pending' && <div className="w-1.5 h-1.5 rounded-full bg-yellow-500 mr-1.5"></div>}
-        {status === 'inactive' && <div className="w-1.5 h-1.5 rounded-full bg-gray-400 mr-1.5"></div>}
+      <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${style.bg} ${style.text} ${style.border}`}>
+        {status === 'active' && <CheckCircle className="h-3 w-3 mr-1" />}
+        {status === 'pending' && <Info className="h-3 w-3 mr-1" />}
+        {status === 'inactive' && <XCircle className="h-3 w-3 mr-1" />}
         {status.charAt(0).toUpperCase() + status.slice(1)}
-      </span>
+      </div>
     );
   };
 
-  // Get role-specific details
-  const getRoleSpecificDetails = (userData: any) => {
-    if (userData.role === 'mentor' && userData.assignedStudents !== undefined) {
-      return `${userData.assignedStudents} assigned students`;
-    } else if (userData.role === 'student' && userData.completedActivities !== undefined) {
-      return `${userData.completedActivities} activities (${userData.verifiedActivities} verified)`;
+  // Get role-specific user details
+  const getRoleSpecificDetails = (userData: User) => {
+    if (userData.role === 'mentor') {
+      return <span>{userData.assignedStudents || 0} assigned students</span>;
+    } else if (userData.role === 'student') {
+      const verified = userData.verifiedActivities || 0;
+      const total = userData.completedActivities || 0;
+      return <span>{total} activities ({verified} verified)</span>;
     }
     return null;
   };
 
-  // Show toast notification
+  // Show toast message
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
     setToast({
       show: true,
@@ -277,50 +260,45 @@ export default function UsersManagementPage() {
     
     // Auto hide toast after 3 seconds
     setTimeout(() => {
-      setToast(prev => ({...prev, show: false}));
+      setToast(prev => ({ ...prev, show: false }));
     }, 3000);
   };
 
-  // Validate form data
+  // Validate edit form
   const validateForm = () => {
-    let valid = true;
+    let isValid = true;
     const errors = {
       name: '',
       email: ''
     };
     
-    // Name validation
     if (!editFormData.name.trim()) {
       errors.name = 'Name is required';
-      valid = false;
-    } else if (editFormData.name.trim().length < 2) {
-      errors.name = 'Name must be at least 2 characters';
-      valid = false;
+      isValid = false;
     }
     
-    // Email validation
     if (!editFormData.email.trim()) {
       errors.email = 'Email is required';
-      valid = false;
+      isValid = false;
     } else if (!/\S+@\S+\.\S+/.test(editFormData.email)) {
-      errors.email = 'Email address is invalid';
-      valid = false;
+      errors.email = 'Email is invalid';
+      isValid = false;
     }
     
     setFormErrors(errors);
-    return valid;
+    return isValid;
   };
 
-  // Handle edit user
-  const handleEditUser = (user: any) => {
-    setUserToEdit(user);
+  // Handle edit user click
+  const handleEditUser = (userData: User) => {
+    setUserToEdit(userData);
     setEditFormData({
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      status: user.status
+      name: userData.name,
+      email: userData.email,
+      role: userData.role,
+      status: userData.status || 'active',
+      password: ''
     });
-    // Reset form errors
     setFormErrors({
       name: '',
       email: ''
@@ -330,246 +308,254 @@ export default function UsersManagementPage() {
 
   // Handle edit cancel
   const handleEditCancel = () => {
-    setShowEditModal(false);
     setUserToEdit(null);
-    // Reset form errors
+    setShowEditModal(false);
+    setEditFormData({
+      name: '',
+      email: '',
+      role: '',
+      status: '',
+      password: ''
+    });
     setFormErrors({
       name: '',
       email: ''
     });
   };
 
-  // Handle edit form change
+  // Handle edit form changes
   const handleEditFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     
-    // Clear the error for this field when user starts typing
-    if (formErrors[name as keyof typeof formErrors]) {
-      setFormErrors({
-        ...formErrors,
-        [name]: ''
-      });
-    }
-    
-    setEditFormData({
-      ...editFormData,
+    setEditFormData(prev => ({
+      ...prev,
       [name]: value
-    });
+    }));
+    
+    // Clear error when user types
+    if (name === 'name' || name === 'email') {
+      setFormErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }));
+    }
   };
 
   // Handle edit save
-  const handleEditSave = (e: React.FormEvent) => {
+  const handleEditSave = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate form before saving
-    if (!validateForm()) {
-      showToast('Please correct the errors in the form', 'error');
+    if (!validateForm() || !userToEdit) {
       return;
     }
     
-    if (userToEdit) {
-      try {
-        // Check for duplicate email
-        const isDuplicateEmail = users.some(u => 
-          u.id !== userToEdit.id && u.email.toLowerCase() === editFormData.email.toLowerCase()
-        );
-        
-        if (isDuplicateEmail) {
-          setFormErrors({
-            ...formErrors,
-            email: 'This email is already in use by another user'
-          });
-          showToast('Email address is already in use', 'error');
-          return;
-        }
-        
-        // Update the users array with the edited data
-        const updatedUsers = users.map(user => {
-          if (user.id === userToEdit.id) {
-            return {
-              ...user,
-              name: editFormData.name,
-              email: editFormData.email,
-              role: editFormData.role,
-              status: editFormData.status
-            };
-          }
-          return user;
-        });
-        
-        // Update the state with the new users array
-        setUsers(updatedUsers);
-        
-        // Show success message
-        showToast(`User ${editFormData.name} updated successfully`, 'success');
-        
-        // Close the modal and reset states
-        setShowEditModal(false);
-        setUserToEdit(null);
-      } catch (error) {
-        showToast('An error occurred while updating the user', 'error');
-        console.error('Update error:', error);
+    try {
+      const requestBody: {
+        name: string;
+        email: string;
+        role: string;
+        password?: string;
+      } = {
+        name: editFormData.name,
+        email: editFormData.email,
+        role: editFormData.role
+      };
+      
+      // Only include password in the request if it's been provided
+      if (editFormData.password) {
+        requestBody.password = editFormData.password;
       }
+      
+      const response = await fetch(`/api/admin/users/${userToEdit._id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update user');
+      }
+      
+      const data = await response.json();
+      
+      // Update users array with the updated user
+      setUsers(users.map((user: User) => 
+        user._id === userToEdit._id ? data.user : user
+      ));
+      
+      showToast('User updated successfully', 'success');
+      handleEditCancel();
+    } catch (error) {
+      console.error('Error updating user:', error);
+      showToast((error as Error).message || 'Failed to update user', 'error');
     }
   };
 
-  // Handle delete confirmation
-  const handleDeleteConfirm = () => {
-    if (userToDelete) {
-      // Remove the user from the array
-      const updatedUsers = users.filter(user => user.id !== userToDelete.id);
+  // Handle delete user click
+  const handleDeleteUser = (userData: User) => {
+    setUserToDelete(userData);
+    setShowDeleteModal(true);
+  };
+
+  // Handle delete confirm
+  const handleDeleteConfirm = async () => {
+    if (!userToDelete) {
+      return;
+    }
+    
+    try {
+      const response = await fetch(`/api/admin/users/${userToDelete._id}`, {
+        method: 'DELETE'
+      });
       
-      // Update the state with the new users array
-      setUsers(updatedUsers);
-      
-      // If the deleted user was selected, remove it from selection
-      if (selectedUsers.includes(userToDelete.id)) {
-        setSelectedUsers(selectedUsers.filter(id => id !== userToDelete.id));
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to delete user');
       }
       
-      // Show success message
-      showToast(`User ${userToDelete.name} deleted successfully`, 'success');
+      // Remove user from the users array
+      setUsers(users.filter((user: User) => user._id !== userToDelete._id));
       
-      // Close the modal and reset states
-      setShowDeleteModal(false);
-      setUserToDelete(null);
+      showToast('User deleted successfully', 'success');
+      handleDeleteCancel();
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      showToast((error as Error).message || 'Failed to delete user', 'error');
     }
   };
 
   // Handle delete cancel
   const handleDeleteCancel = () => {
-    setShowDeleteModal(false);
     setUserToDelete(null);
+    setShowDeleteModal(false);
   };
 
-  // Handle open add user modal
+  // Handle add user modal open
   const handleOpenAddModal = () => {
     setAddFormData({
       name: '',
       email: '',
+      password: '',
       role: 'student',
-      status: 'pending'
+      status: 'active'
     });
     setAddFormErrors({
       name: '',
-      email: ''
+      email: '',
+      password: ''
     });
     setShowAddModal(true);
   };
 
-  // Handle add user cancel
+  // Handle add cancel
   const handleAddCancel = () => {
     setShowAddModal(false);
+    setAddFormData({
+      name: '',
+      email: '',
+      password: '',
+      role: 'student',
+      status: 'active'
+    });
     setAddFormErrors({
       name: '',
-      email: ''
+      email: '',
+      password: ''
     });
   };
 
-  // Handle add form change
+  // Handle add form changes
   const handleAddFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     
-    // Clear the error for this field when user starts typing
-    if (addFormErrors[name as keyof typeof addFormErrors]) {
-      setAddFormErrors({
-        ...addFormErrors,
-        [name]: ''
-      });
-    }
-    
-    setAddFormData({
-      ...addFormData,
+    setAddFormData(prev => ({
+      ...prev,
       [name]: value
-    });
+    }));
+    
+    // Clear error when user types
+    if (name === 'name' || name === 'email' || name === 'password') {
+      setAddFormErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }));
+    }
   };
 
-  // Validate add form data
+  // Validate add form
   const validateAddForm = () => {
-    let valid = true;
+    let isValid = true;
     const errors = {
       name: '',
-      email: ''
+      email: '',
+      password: ''
     };
     
-    // Name validation
     if (!addFormData.name.trim()) {
       errors.name = 'Name is required';
-      valid = false;
-    } else if (addFormData.name.trim().length < 2) {
-      errors.name = 'Name must be at least 2 characters';
-      valid = false;
+      isValid = false;
     }
     
-    // Email validation
     if (!addFormData.email.trim()) {
       errors.email = 'Email is required';
-      valid = false;
+      isValid = false;
     } else if (!/\S+@\S+\.\S+/.test(addFormData.email)) {
-      errors.email = 'Email address is invalid';
-      valid = false;
+      errors.email = 'Email is invalid';
+      isValid = false;
+    }
+    
+    if (!addFormData.password.trim()) {
+      errors.password = 'Password is required';
+      isValid = false;
+    } else if (addFormData.password.length < 6) {
+      errors.password = 'Password must be at least 6 characters';
+      isValid = false;
     }
     
     setAddFormErrors(errors);
-    return valid;
+    return isValid;
   };
 
-  // Handle add user save
-  const handleAddSave = (e: React.FormEvent) => {
+  // Handle add save
+  const handleAddSave = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate form before saving
     if (!validateAddForm()) {
-      showToast('Please correct the errors in the form', 'error');
       return;
     }
     
     try {
-      // Check for duplicate email
-      const isDuplicateEmail = users.some(user => 
-        user.email.toLowerCase() === addFormData.email.toLowerCase()
-      );
+      const response = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: addFormData.name,
+          email: addFormData.email,
+          password: addFormData.password,
+          role: addFormData.role
+        })
+      });
       
-      if (isDuplicateEmail) {
-        setAddFormErrors({
-          ...addFormErrors,
-          email: 'This email is already in use by another user'
-        });
-        showToast('Email address is already in use', 'error');
-        return;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create user');
       }
       
-      // Create a new user with a unique ID
-      const newUserId = (Math.max(...users.map(u => parseInt(u.id))) + 1).toString();
-      let newUser: any = {
-        id: newUserId,
-        name: addFormData.name,
-        email: addFormData.email,
-        role: addFormData.role,
-        status: addFormData.status,
-        dateJoined: new Date().toISOString().split('T')[0],
-        lastActive: new Date().toISOString().split('T')[0]
-      };
+      const data = await response.json();
       
-      // Add role-specific properties
-      if (addFormData.role === 'mentor') {
-        newUser.assignedStudents = 0;
-      } else if (addFormData.role === 'student') {
-        newUser.completedActivities = 0;
-        newUser.verifiedActivities = 0;
-      }
+      // Add new user to the users array
+      setUsers([data.user, ...users]);
       
-      // Add the new user to the list
-      setUsers([...users, newUser]);
-      
-      // Show success message
-      showToast(`User ${addFormData.name} created successfully`, 'success');
-      
-      // Close the modal
-      setShowAddModal(false);
+      showToast('User added successfully', 'success');
+      handleAddCancel();
     } catch (error) {
-      showToast('An error occurred while creating the user', 'error');
-      console.error('Create error:', error);
+      console.error('Error creating user:', error);
+      showToast((error as Error).message || 'Failed to create user', 'error');
     }
   };
 
@@ -586,7 +572,7 @@ export default function UsersManagementPage() {
   // Handle export confirm
   const handleExportConfirm = () => {
     const dataToExport = exportSelection === 'selected' && selectedUsers.length > 0
-      ? users.filter(user => selectedUsers.includes(user.id))
+      ? users.filter(user => selectedUsers.includes(user._id))
       : filteredUsers;
     
     // Generate and download file based on selected format
@@ -598,7 +584,7 @@ export default function UsersManagementPage() {
   };
   
   // Generate and download file
-  const downloadExportedData = (data: any[], format: string) => {
+  const downloadExportedData = (data: User[], format: string) => {
     let fileContent = '';
     let fileName = `user-export-${new Date().toISOString().slice(0, 10)}`;
     let fileType = '';
@@ -606,7 +592,7 @@ export default function UsersManagementPage() {
     if (format === 'json') {
       // Format JSON data
       const exportData = data.map(user => ({
-        id: user.id,
+        id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
@@ -632,7 +618,7 @@ export default function UsersManagementPage() {
       // Add each row of data
       data.forEach(user => {
         const row = [
-          user.id,
+          user._id,
           `"${user.name.replace(/"/g, '""')}"`, // Escape quotes in names
           `"${user.email}"`,
           user.role,
@@ -657,7 +643,7 @@ export default function UsersManagementPage() {
       // Add each row of data
       data.forEach(user => {
         const row = [
-          user.id,
+          user._id,
           `"${user.name.replace(/"/g, '""')}"`,
           `"${user.email}"`,
           user.role,
@@ -716,13 +702,13 @@ export default function UsersManagementPage() {
     if (importFile) {
       // In a real application, this would process the file and import users
       // For demo purposes, we'll just add a sample user and show a success message
-      const newUserId = (Math.max(...users.map(u => parseInt(u.id))) + 1).toString();
-      const newUser = {
-        id: newUserId,
+      const newUserId = (Math.max(...users.map(u => parseInt(u._id))) + 1).toString();
+      const newUser: User = {
+        _id: newUserId,
         name: 'Imported User',
         email: `imported${newUserId}@example.com`,
         role: 'student',
-        status: 'pending',
+        status: 'active',
         dateJoined: new Date().toISOString().split('T')[0],
         lastActive: new Date().toISOString().split('T')[0],
         completedActivities: 0,
@@ -944,17 +930,17 @@ export default function UsersManagementPage() {
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredUsers.length > 0 ? (
                 filteredUsers.map((user, index) => (
-                  <tr key={user.id} className={`
-                    ${selectedUsers.includes(user.id) ? 'bg-blue-50' : index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} 
+                  <tr key={user._id} className={`
+                    ${selectedUsers.includes(user._id) ? 'bg-blue-50' : index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} 
                     hover:bg-gray-100 transition-colors duration-150
-                    ${user.status === 'inactive' ? 'opacity-75' : ''}
+                    ${(user.status || 'active') === 'inactive' ? 'opacity-75' : ''}
                   `}>
                     <td className="px-6 py-5 whitespace-nowrap">
                       <input
                         type="checkbox"
                         className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                        checked={selectedUsers.includes(user.id)}
-                        onChange={() => toggleUserSelection(user.id)}
+                        checked={selectedUsers.includes(user._id)}
+                        onChange={() => toggleUserSelection(user._id)}
                       />
                     </td>
                     <td className="px-6 py-5 whitespace-nowrap">
@@ -967,7 +953,7 @@ export default function UsersManagementPage() {
                           } flex items-center justify-center uppercase font-bold text-lg`}>
                             {user.name.substring(0, 2)}
                           </div>
-                          {user.status === 'active' && (
+                          {(user.status || 'active') === 'active' && (
                             <div className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 border-2 border-white"></div>
                           )}
                         </div>
@@ -990,16 +976,16 @@ export default function UsersManagementPage() {
                     <td className="px-6 py-5 whitespace-nowrap">
                       <span 
                         className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold border-2 ${
-                          user.status === 'active' ? 'bg-white border-green-300 text-green-700' :
-                          user.status === 'pending' ? 'bg-white border-yellow-300 text-yellow-700' :
+                          (user.status || 'active') === 'active' ? 'bg-white border-green-300 text-green-700' :
+                          (user.status || 'active') === 'pending' ? 'bg-white border-yellow-300 text-yellow-700' :
                           'bg-white border-gray-300 text-gray-700'
                         }`} 
-                        title={statusDescriptions[user.status as keyof typeof statusDescriptions]}
+                        title={statusDescriptions[(user.status || 'active') as keyof typeof statusDescriptions]}
                       >
-                        {user.status === 'active' && <div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div>}
-                        {user.status === 'pending' && <div className="w-2 h-2 rounded-full bg-yellow-500 mr-2"></div>}
-                        {user.status === 'inactive' && <div className="w-2 h-2 rounded-full bg-gray-400 mr-2"></div>}
-                        {user.status.charAt(0).toUpperCase() + user.status.slice(1)}
+                        {(user.status || 'active') === 'active' && <div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div>}
+                        {(user.status || 'active') === 'pending' && <div className="w-2 h-2 rounded-full bg-yellow-500 mr-2"></div>}
+                        {(user.status || 'active') === 'inactive' && <div className="w-2 h-2 rounded-full bg-gray-400 mr-2"></div>}
+                        {(user.status || 'active').charAt(0).toUpperCase() + (user.status || 'active').slice(1)}
                       </span>
                     </td>
                     <td className="px-6 py-5 whitespace-nowrap text-sm text-gray-600">
@@ -1032,7 +1018,7 @@ export default function UsersManagementPage() {
                         {/* Delete button */}
                         <button
                           onClick={() => {
-                            setUserToDelete(user);
+                            handleDeleteUser(user);
                             setShowDeleteModal(true);
                           }}
                           className="group relative flex items-center justify-center bg-white p-2.5 rounded-md transition-all duration-150 hover:shadow-md border-2 border-red-300"
@@ -1189,6 +1175,21 @@ export default function UsersManagementPage() {
                 </div>
                 
                 <div>
+                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+                    Password <span className="text-gray-500 text-xs">(Leave blank to keep current password)</span>
+                  </label>
+                  <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    value={editFormData.password}
+                    onChange={handleEditFormChange}
+                    className="w-full p-2 border border-gray-300 focus:ring-blue-500 focus:border-blue-500 rounded-md focus:ring-2"
+                    placeholder="Enter new password"
+                  />
+                </div>
+                
+                <div>
                   <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">Role</label>
                   <select
                     id="role"
@@ -1290,6 +1291,23 @@ export default function UsersManagementPage() {
                   />
                   {addFormErrors.email && (
                     <p className="mt-1 text-sm text-red-600">{addFormErrors.email}</p>
+                  )}
+                </div>
+                
+                <div>
+                  <label htmlFor="add-password" className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                  <input
+                    type="password"
+                    id="add-password"
+                    name="password"
+                    value={addFormData.password}
+                    onChange={handleAddFormChange}
+                    className={`w-full p-2 border ${addFormErrors.password ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'} rounded-md focus:ring-2`}
+                    required
+                    placeholder="Enter password"
+                  />
+                  {addFormErrors.password && (
+                    <p className="mt-1 text-sm text-red-600">{addFormErrors.password}</p>
                   )}
                 </div>
                 
