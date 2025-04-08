@@ -1,18 +1,18 @@
-import { NextRequest, NextResponse } from 'next/server';
-import connectDB from '@/lib/mongodb';
-import User from '@/models/User';
+import { NextResponse } from 'next/server';
 import bcrypt from 'bcrypt';
+import { getPool } from '@/lib/db';
 
-// GET endpoint to fetch all users
-export async function GET(req: NextRequest) {
+// GET: Get all users
+export async function GET(request: Request) {
   try {
-    await connectDB();
-
-    const users = await User.find({}).select('-password').sort({ createdAt: -1 });
+    const pool = await getPool();
+    const [users] = await pool.query(
+      'SELECT id, email, name, role, status, created_at, updated_at FROM users'
+    );
     
     return NextResponse.json({ users }, { status: 200 });
   } catch (error) {
-    console.error('Error fetching users:', error);
+    console.error('Error getting users:', error);
     return NextResponse.json(
       { error: 'Failed to fetch users' },
       { status: 500 }
@@ -20,55 +20,66 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST endpoint to create a new user
-export async function POST(req: NextRequest) {
+// POST: Create a new user
+export async function POST(request: Request) {
   try {
-    await connectDB();
-    
-    const data = await req.json();
-    const { name, email, role, password } = data;
-    
-    // Basic validation
-    if (!name || !email || !role || !password) {
+    const body = await request.json();
+    const { name, email, password, role, status = 'active' } = body;
+
+    // Validate input
+    if (!name || !email || !password || !role) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'Name, email, password, and role are required' },
         { status: 400 }
       );
     }
-    
-    // Check if user already exists
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
+
+    // Validate role
+    if (!['admin', 'mentor', 'student'].includes(role)) {
       return NextResponse.json(
-        { error: 'User with this email already exists' },
-        { status: 409 }
+        { error: 'Invalid role. Must be admin, mentor, or student' },
+        { status: 400 }
       );
     }
-    
-    // Hash the password
+
+    const pool = await getPool();
+
+    // Check if user already exists
+    const [existingUsers] = await pool.query(
+      'SELECT * FROM users WHERE email = ?',
+      [email]
+    );
+
+    if ((existingUsers as any[]).length > 0) {
+      return NextResponse.json(
+        { error: 'User with this email already exists' },
+        { status: 400 }
+      );
+    }
+
+    // Hash password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
+
+    // Insert new user
+    const result = await pool.query(
+      'INSERT INTO users (email, password, name, role, status) VALUES (?, ?, ?, ?, ?)',
+      [email, hashedPassword, name, role, status]
+    );
     
-    // Create new user with hashed password
-    const newUser = await User.create({
-      name,
-      email,
-      password: hashedPassword,
-      role
-    });
+    // Get the inserted ID
+    const insertId = (result as any)[0].insertId;
+
+    // Get the created user for response
+    const [newUsers] = await pool.query(
+      'SELECT id, email, name, role, status, created_at, updated_at FROM users WHERE id = ?',
+      [insertId]
+    );
     
-    // Remove password from response
-    const userResponse = {
-      _id: newUser._id,
-      name: newUser.name,
-      email: newUser.email,
-      role: newUser.role,
-      createdAt: newUser.createdAt,
-      updatedAt: newUser.updatedAt
-    };
-    
+    const newUser = (newUsers as any[])[0];
+
     return NextResponse.json(
-      { message: 'User created successfully', user: userResponse },
+      { message: 'User created successfully', user: newUser },
       { status: 201 }
     );
   } catch (error) {

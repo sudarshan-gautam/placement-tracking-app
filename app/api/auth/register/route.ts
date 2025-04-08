@@ -1,25 +1,29 @@
 import { NextResponse } from 'next/server';
-import connectDB from '@/lib/mongodb';
-import User from '@/models/User';
 import bcrypt from 'bcrypt';
+import { getPool } from '@/lib/db';
+import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(request: Request) {
   try {
-    const { name, email, password, role, dateOfBirth } = await request.json();
+    const body = await request.json();
+    const { email, password, name, role = 'student' } = body;
 
     // Validate input
-    if (!name || !email || !password) {
+    if (!email || !password || !name) {
       return NextResponse.json(
-        { error: 'Name, email, and password are required' },
+        { error: 'Missing required fields' },
         { status: 400 }
       );
     }
 
-    await connectDB();
-
     // Check if user already exists
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
+    const pool = await getPool();
+    const [existingUsers] = await pool.query(
+      'SELECT * FROM users WHERE email = ?',
+      [email]
+    );
+
+    if ((existingUsers as any[]).length > 0) {
       return NextResponse.json(
         { error: 'User already exists' },
         { status: 400 }
@@ -27,28 +31,32 @@ export async function POST(request: Request) {
     }
 
     // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Create new user
-    const user = await User.create({
-      name,
-      email,
-      password: hashedPassword,
-      role: role || 'student',
-      dateOfBirth: dateOfBirth || null,
-    });
+    // Insert new user with default active status for self-registration
+    const status = 'active';
+    await pool.query(
+      'INSERT INTO users (id, email, password, name, role, status) VALUES (?, ?, ?, ?, ?, ?)',
+      [uuidv4(), email, hashedPassword, name, role, status]
+    );
 
-    // Remove password from response
-    const { password: _, ...userWithoutPassword } = user.toObject();
+    // Get the created user for response
+    const [newUsers] = await pool.query(
+      'SELECT id, email, name, role, status FROM users WHERE email = ?',
+      [email]
+    );
+    
+    const newUser = (newUsers as any[])[0];
 
     return NextResponse.json(
-      { user: userWithoutPassword },
+      { message: 'User created successfully', user: newUser },
       { status: 201 }
     );
   } catch (error) {
     console.error('Registration error:', error);
     return NextResponse.json(
-      { error: 'Error creating user' },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
