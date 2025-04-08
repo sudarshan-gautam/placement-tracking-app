@@ -7,21 +7,17 @@ import {
   GraduationCap, Briefcase, ChevronDown, Download, Upload, Info, HelpCircle
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
+import { useRouter } from 'next/navigation';
 
 // Define User type
 interface User {
-  _id: string;
+  id: string;
   name: string;
   email: string;
   role: 'admin' | 'mentor' | 'student';
-  status?: 'active' | 'pending' | 'inactive';
-  dateJoined?: string;
-  lastActive?: string;
-  assignedStudents?: number;
-  completedActivities?: number;
-  verifiedActivities?: number;
-  createdAt?: string;
-  updatedAt?: string;
+  status: 'active' | 'inactive' | 'pending';
+  created_at: string;
+  updated_at: string;
 }
 
 // Role descriptions for tooltips
@@ -73,7 +69,7 @@ const roleStyles = {
   }
 };
 
-export default function UsersManagementPage() {
+export default function AdminUsersPage() {
   const { user } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -126,9 +122,16 @@ export default function UsersManagementPage() {
     message: '',
     type: 'info'
   });
+  const router = useRouter();
 
   // Fetch users from the database
   useEffect(() => {
+    // Check if user is admin
+    if (user && user.role !== 'admin') {
+      router.push('/dashboard');
+      return;
+    }
+
     const fetchUsers = async () => {
       try {
         setLoading(true);
@@ -149,7 +152,7 @@ export default function UsersManagementPage() {
     };
     
     fetchUsers();
-  }, []);
+  }, [user, router]);
 
   // Filter users based on search term and filters
   const filteredUsers = users.filter((user: User) => {
@@ -181,7 +184,7 @@ export default function UsersManagementPage() {
     if (selectAll) {
       setSelectedUsers([]);
     } else {
-      setSelectedUsers(filteredUsers.map((user: User) => user._id));
+      setSelectedUsers(filteredUsers.map((user: User) => user.id));
     }
     setSelectAll(!selectAll);
   };
@@ -366,7 +369,7 @@ export default function UsersManagementPage() {
         requestBody.password = editFormData.password;
       }
       
-      const response = await fetch(`/api/admin/users/${userToEdit._id}`, {
+      const response = await fetch(`/api/admin/users/${userToEdit.id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json'
@@ -383,7 +386,7 @@ export default function UsersManagementPage() {
       
       // Update users array with the updated user
       setUsers(users.map((user: User) => 
-        user._id === userToEdit._id ? data.user : user
+        user.id === userToEdit.id ? data.user : user
       ));
       
       showToast('User updated successfully', 'success');
@@ -407,7 +410,7 @@ export default function UsersManagementPage() {
     }
     
     try {
-      const response = await fetch(`/api/admin/users/${userToDelete._id}`, {
+      const response = await fetch(`/api/admin/users/${userToDelete.id}`, {
         method: 'DELETE'
       });
       
@@ -417,7 +420,7 @@ export default function UsersManagementPage() {
       }
       
       // Remove user from the users array
-      setUsers(users.filter((user: User) => user._id !== userToDelete._id));
+      setUsers(users.filter((user: User) => user.id !== userToDelete.id));
       
       showToast('User deleted successfully', 'success');
       handleDeleteCancel();
@@ -572,7 +575,7 @@ export default function UsersManagementPage() {
   // Handle export confirm
   const handleExportConfirm = () => {
     const dataToExport = exportSelection === 'selected' && selectedUsers.length > 0
-      ? users.filter(user => selectedUsers.includes(user._id))
+      ? users.filter(user => selectedUsers.includes(user.id))
       : filteredUsers;
     
     // Generate and download file based on selected format
@@ -592,13 +595,13 @@ export default function UsersManagementPage() {
     if (format === 'json') {
       // Format JSON data
       const exportData = data.map(user => ({
-        id: user._id,
+        id: user.id,
         name: user.name,
         email: user.email,
         role: user.role,
         status: user.status,
-        dateJoined: user.dateJoined,
-        lastActive: user.lastActive,
+        dateJoined: user.created_at,
+        lastActive: user.updated_at,
         ...(user.assignedStudents !== undefined ? { assignedStudents: user.assignedStudents } : {}),
         ...(user.completedActivities !== undefined ? { 
           completedActivities: user.completedActivities,
@@ -618,13 +621,13 @@ export default function UsersManagementPage() {
       // Add each row of data
       data.forEach(user => {
         const row = [
-          user._id,
+          user.id,
           `"${user.name.replace(/"/g, '""')}"`, // Escape quotes in names
           `"${user.email}"`,
           user.role,
           user.status,
-          user.dateJoined,
-          user.lastActive,
+          user.created_at,
+          user.updated_at,
           user.assignedStudents !== undefined ? user.assignedStudents : '',
           user.completedActivities !== undefined ? user.completedActivities : '',
           user.verifiedActivities !== undefined ? user.verifiedActivities : ''
@@ -643,13 +646,13 @@ export default function UsersManagementPage() {
       // Add each row of data
       data.forEach(user => {
         const row = [
-          user._id,
+          user.id,
           `"${user.name.replace(/"/g, '""')}"`,
           `"${user.email}"`,
           user.role,
           user.status,
-          user.dateJoined,
-          user.lastActive,
+          user.created_at,
+          user.updated_at,
           user.assignedStudents !== undefined ? user.assignedStudents : '',
           user.completedActivities !== undefined ? user.completedActivities : '',
           user.verifiedActivities !== undefined ? user.verifiedActivities : ''
@@ -702,15 +705,15 @@ export default function UsersManagementPage() {
     if (importFile) {
       // In a real application, this would process the file and import users
       // For demo purposes, we'll just add a sample user and show a success message
-      const newUserId = (Math.max(...users.map(u => parseInt(u._id))) + 1).toString();
+      const newUserId = (Math.max(...users.map(u => parseInt(u.id))) + 1).toString();
       const newUser: User = {
-        _id: newUserId,
+        id: newUserId,
         name: 'Imported User',
         email: `imported${newUserId}@example.com`,
         role: 'student',
         status: 'active',
-        dateJoined: new Date().toISOString().split('T')[0],
-        lastActive: new Date().toISOString().split('T')[0],
+        created_at: new Date().toISOString().split('T')[0],
+        updated_at: new Date().toISOString().split('T')[0],
         completedActivities: 0,
         verifiedActivities: 0
       };
@@ -722,6 +725,24 @@ export default function UsersManagementPage() {
       showToast('Please select a file to import', 'error');
     }
   };
+
+  // Format date for display
+  const formatDate = (dateString: string) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-8 bg-white">

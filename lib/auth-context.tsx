@@ -1,14 +1,14 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User as UserType, UserRole } from '@/models/User';
+import { User, UserRole } from '@/types/user';
 import { useRouter } from 'next/navigation';
 
 interface AuthContextType {
-  user: UserType | null;
+  user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
-  register: (name: string, email: string, password: string, role?: string, dateOfBirth?: string) => Promise<boolean>;
+  register: (name: string, email: string, password: string, role?: string) => Promise<boolean>;
   logout: () => void;
   isAuthenticated: boolean;
   hasRole: (role: UserRole | UserRole[]) => boolean;
@@ -17,7 +17,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<UserType | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -91,7 +91,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const register = async (name: string, email: string, password: string, role?: string, dateOfBirth?: string): Promise<boolean> => {
+  const register = async (name: string, email: string, password: string, role: string = 'student'): Promise<boolean> => {
     try {
       setLoading(true);
       const response = await fetch('/api/auth/register', {
@@ -99,7 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ name, email, password, role, dateOfBirth }),
+        body: JSON.stringify({ name, email, password, role }),
       });
 
       if (!response.ok) {
