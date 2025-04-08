@@ -32,6 +32,16 @@ const qualifications = [
   { id: 3, title: 'Classroom Management Course', institution: 'Online Learning Platform', date: '2023-01-20', verified: false },
 ];
 
+// Consistent date formatter to prevent hydration errors
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
+};
+
 export default function ProfilePage() {
   const { user } = useAuth();
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -234,7 +244,7 @@ export default function ProfilePage() {
                         <h3 className="font-medium">{qualification.title}</h3>
                         <p className="text-sm text-gray-500">{qualification.institution}</p>
                         <p className="text-sm text-gray-500">
-                          {new Date(qualification.date).toLocaleDateString()}
+                          {formatDate(qualification.date)}
                           {qualification.verified && (
                             <span className="ml-2 text-green-600 text-xs">✓ Verified</span>
                           )}
