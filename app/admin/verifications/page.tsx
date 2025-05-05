@@ -258,6 +258,184 @@ const initialVerificationRequests: VerificationRequest[] = [
     },
     priority: 'High',
     rejectionReason: 'The evidence provided does not sufficiently demonstrate the claimed outcomes. Please include more detailed documentation of the development process.'
+  },
+  // Add qualification verification samples
+  {
+    id: 6,
+    student: {
+      id: 106,
+      name: 'David Wilson',
+      email: 'david.wilson@example.com',
+      avatar: '/avatars/david.jpg'
+    },
+    activity: {
+      id: 206,
+      title: 'Bachelor of Education Degree',
+      type: 'Qualification',
+      date: '2023-06-15',
+      duration: 'N/A',
+      description: 'Bachelor of Education degree with specialization in Secondary Science Education from University of Melbourne.',
+      reflection: 'This qualification gave me a strong foundation in educational theory and practice, with specialized knowledge in science teaching methodologies.',
+      outcomes: [
+        'Gained comprehensive knowledge of educational theories',
+        'Developed science-specific teaching strategies',
+        'Learned classroom management techniques'
+      ],
+      evidence: [
+        { name: 'degree_certificate.pdf', type: 'application/pdf', size: '1.1 MB' },
+        { name: 'transcript.pdf', type: 'application/pdf', size: '2.3 MB' }
+      ]
+    },
+    submittedAt: '2023-06-20T09:15:00Z',
+    status: 'pending',
+    mentor: {
+      id: 206,
+      name: 'Prof. Elizabeth Taylor',
+      email: 'elizabeth.taylor@example.com'
+    },
+    priority: 'High'
+  },
+  {
+    id: 7,
+    student: {
+      id: 107,
+      name: 'Sarah Jones',
+      email: 'sarah.jones@example.com',
+      avatar: '/avatars/sarah.jpg'
+    },
+    activity: {
+      id: 207,
+      title: 'First Aid Certification',
+      type: 'Qualification',
+      date: '2023-08-12',
+      duration: '8 hours',
+      description: 'Completed a comprehensive First Aid and CPR certification course, essential for classroom safety procedures.',
+      reflection: 'The hands-on training was invaluable, giving me confidence to respond appropriately in emergency situations that might occur in a school setting.',
+      outcomes: [
+        'Certified in CPR and basic life support',
+        'Learned to assess and respond to medical emergencies',
+        'Developed skills in bandaging and wound care'
+      ],
+      evidence: [
+        { name: 'first_aid_certificate.pdf', type: 'application/pdf', size: '780 KB' },
+        { name: 'training_completion.jpg', type: 'image/jpeg', size: '1.5 MB' }
+      ]
+    },
+    submittedAt: '2023-08-14T16:45:00Z',
+    status: 'approved',
+    mentor: {
+      id: 207,
+      name: 'Dr. Robert Harris',
+      email: 'robert.harris@example.com'
+    },
+    priority: 'Medium',
+    feedback: 'Essential qualification for all teaching staff. Documentation is clear and complete.'
+  },
+  {
+    id: 8,
+    student: {
+      id: 108,
+      name: 'James Miller',
+      email: 'james.miller@example.com',
+      avatar: '/avatars/james.jpg'
+    },
+    activity: {
+      id: 208,
+      title: 'Special Education Needs Specialist Certification',
+      type: 'Qualification',
+      date: '2023-07-05',
+      duration: '40 hours',
+      description: 'Completed specialized training in supporting students with diverse learning needs, including ADHD, autism spectrum disorders, and dyslexia.',
+      reflection: 'This certification has transformed my approach to inclusive teaching. I now have concrete strategies to support all learners in my classroom.',
+      outcomes: [
+        'Learned assessment techniques for identifying learning needs',
+        'Developed skills in creating appropriate accommodations',
+        'Gained understanding of legal requirements for inclusive education'
+      ],
+      evidence: [
+        { name: 'sen_certificate.pdf', type: 'application/pdf', size: '950 KB' },
+        { name: 'course_materials.zip', type: 'application/zip', size: '15.8 MB' }
+      ]
+    },
+    submittedAt: '2023-07-10T11:30:00Z',
+    status: 'pending',
+    mentor: {
+      id: 208,
+      name: 'Dr. Anna Martinez',
+      email: 'anna.martinez@example.com'
+    },
+    priority: 'High'
+  },
+  {
+    id: 9,
+    student: {
+      id: 109,
+      name: 'Emily Thompson',
+      email: 'emily.thompson@example.com',
+      avatar: '/avatars/emily_t.jpg'
+    },
+    activity: {
+      id: 209,
+      title: 'Digital Learning Technologies Certificate',
+      type: 'Qualification',
+      date: '2023-09-02',
+      duration: '24 hours',
+      description: 'Completed certification in implementing digital learning tools and platforms in the classroom environment.',
+      reflection: 'This qualification has equipped me with practical skills to integrate technology meaningfully into my teaching, enhancing student engagement and learning outcomes.',
+      outcomes: [
+        'Mastered key educational technology platforms',
+        'Learned to design effective digital assessments',
+        'Developed strategies for online and blended learning environments'
+      ],
+      evidence: [
+        { name: 'digital_cert.pdf', type: 'application/pdf', size: '1.2 MB' },
+        { name: 'sample_digital_lesson.html', type: 'text/html', size: '3.4 MB' }
+      ]
+    },
+    submittedAt: '2023-09-05T14:20:00Z',
+    status: 'rejected',
+    mentor: {
+      id: 209,
+      name: 'Prof. Samuel Lee',
+      email: 'samuel.lee@example.com'
+    },
+    priority: 'Medium',
+    rejectionReason: 'The evidence provided does not demonstrate sufficient mastery of the platforms. Please provide examples of actual implementation in classroom settings.'
+  },
+  {
+    id: 10,
+    student: {
+      id: 110,
+      name: 'Daniel Garcia',
+      email: 'daniel.garcia@example.com',
+      avatar: '/avatars/daniel.jpg'
+    },
+    activity: {
+      id: 210,
+      title: 'Mathematics Subject Matter Expertise Certification',
+      type: 'Qualification',
+      date: '2023-08-25',
+      duration: '32 hours',
+      description: 'Advanced certification in mathematics teaching methodologies and content knowledge for secondary education.',
+      reflection: 'This specialized training has deepened my understanding of complex mathematical concepts and how to teach them effectively to diverse learners.',
+      outcomes: [
+        'Enhanced knowledge of advanced mathematical concepts',
+        'Developed specialized teaching methods for abstract mathematical topics',
+        'Learned techniques for addressing math anxiety in students'
+      ],
+      evidence: [
+        { name: 'math_certification.pdf', type: 'application/pdf', size: '890 KB' },
+        { name: 'sample_lesson_plans.docx', type: 'application/msword', size: '2.7 MB' }
+      ]
+    },
+    submittedAt: '2023-08-28T10:15:00Z',
+    status: 'pending',
+    mentor: {
+      id: 210,
+      name: 'Dr. Olivia Wang',
+      email: 'olivia.wang@example.com'
+    },
+    priority: 'Low'
   }
 ];
 
@@ -271,6 +449,43 @@ const initialProfileVerifications: ProfileVerificationRequest[] = [
     submittedAt: '2023-09-01T14:30:00Z',
     status: 'pending',
     documentUrl: '/verifications/student_id_1.pdf'
+  },
+  {
+    id: 102,
+    studentId: 2,
+    studentName: 'Emily Johnson',
+    studentEmail: 'emily.johnson@student.example.com',
+    submittedAt: '2023-09-02T10:15:00Z',
+    status: 'approved',
+    documentUrl: '/verifications/student_id_2.pdf'
+  },
+  {
+    id: 103,
+    studentId: 3,
+    studentName: 'Michael Wong',
+    studentEmail: 'michael.wong@student.example.com',
+    submittedAt: '2023-09-03T16:45:00Z',
+    status: 'rejected',
+    documentUrl: '/verifications/student_id_3.pdf',
+    rejectionReason: 'Documents are expired. Please submit current identification.'
+  },
+  {
+    id: 104,
+    studentId: 4,
+    studentName: 'Sarah Jones',
+    studentEmail: 'sarah.jones@student.example.com',
+    submittedAt: '2023-09-05T09:30:00Z',
+    status: 'pending',
+    documentUrl: '/verifications/student_id_4.pdf'
+  },
+  {
+    id: 105,
+    studentId: 5,
+    studentName: 'David Wilson',
+    studentEmail: 'david.wilson@student.example.com',
+    submittedAt: '2023-09-07T14:20:00Z',
+    status: 'pending',
+    documentUrl: '/verifications/student_id_5.pdf'
   }
 ];
 
@@ -307,11 +522,23 @@ export default function AdminVerificationsPage() {
     return savedData ? JSON.parse(savedData) : initialProfileVerifications;
   });
 
-  // State for search and filters
-  const [searchTerm, setSearchTerm] = useState('');
-  const [typeFilter, setTypeFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [priorityFilter, setPriorityFilter] = useState('all');
+  // State for search and filters (separate for each tab)
+  const [activitiesSearchTerm, setActivitiesSearchTerm] = useState('');
+  const [activitiesTypeFilter, setActivitiesTypeFilter] = useState('all');
+  const [activitiesStatusFilter, setActivitiesStatusFilter] = useState('all');
+  const [activitiesPriorityFilter, setActivitiesPriorityFilter] = useState('all');
+
+  const [sessionsSearchTerm, setSessionsSearchTerm] = useState('');
+  const [sessionsStatusFilter, setSessionsStatusFilter] = useState('all');
+  const [sessionsPriorityFilter, setSessionsPriorityFilter] = useState('all');
+
+  const [qualificationsSearchTerm, setQualificationsSearchTerm] = useState('');
+  const [qualificationsStatusFilter, setQualificationsStatusFilter] = useState('all');
+  const [qualificationsPriorityFilter, setQualificationsPriorityFilter] = useState('all');
+
+  const [profileSearchTerm, setProfileSearchTerm] = useState('');
+  const [profileStatusFilter, setProfileStatusFilter] = useState('all');
+
   const [selectedVerification, setSelectedVerification] = useState<number | null>(null);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [currentVerification, setCurrentVerification] = useState<any>(null);
@@ -321,8 +548,8 @@ export default function AdminVerificationsPage() {
   const [currentProfileVerification, setCurrentProfileVerification] = useState<ProfileVerificationRequest | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   
-  // Tab state for switching between activity and profile verifications
-  const [activeTab, setActiveTab] = useState<'activity' | 'profile'>('activity');
+  // Tab state for switching between different verification types
+  const [activeTab, setActiveTab] = useState<'activities' | 'sessions' | 'qualifications' | 'profile'>('activities');
   
   // Get unique activity types for filter
   const activityTypes = ['all', ...Array.from(new Set<string>(verificationRequests.map(req => req.activity.type)))];
@@ -333,18 +560,177 @@ export default function AdminVerificationsPage() {
   // Get unique priorities for filter
   const priorities = ['all', 'High', 'Medium', 'Low'];
 
-  // Add safe filtering for verification requests
+  // Get the current search term based on active tab
+  const getCurrentSearchTerm = () => {
+    switch (activeTab) {
+      case 'activities':
+        return activitiesSearchTerm;
+      case 'sessions':
+        return sessionsSearchTerm;
+      case 'qualifications':
+        return qualificationsSearchTerm;
+      case 'profile':
+        return profileSearchTerm;
+      default:
+        return '';
+    }
+  };
+
+  // Get the current status filter based on active tab
+  const getCurrentStatusFilter = () => {
+    switch (activeTab) {
+      case 'activities':
+        return activitiesStatusFilter;
+      case 'sessions':
+        return sessionsStatusFilter;
+      case 'qualifications':
+        return qualificationsStatusFilter;
+      case 'profile':
+        return profileStatusFilter;
+      default:
+        return 'all';
+    }
+  };
+
+  // Update search term based on active tab
+  const updateSearchTerm = (value: string) => {
+    switch (activeTab) {
+      case 'activities':
+        setActivitiesSearchTerm(value);
+        break;
+      case 'sessions':
+        setSessionsSearchTerm(value);
+        break;
+      case 'qualifications':
+        setQualificationsSearchTerm(value);
+        break;
+      case 'profile':
+        setProfileSearchTerm(value);
+        break;
+    }
+  };
+
+  // Update status filter based on active tab
+  const updateStatusFilter = (value: string) => {
+    switch (activeTab) {
+      case 'activities':
+        setActivitiesStatusFilter(value);
+        break;
+      case 'sessions':
+        setSessionsStatusFilter(value);
+        break;
+      case 'qualifications':
+        setQualificationsStatusFilter(value);
+        break;
+      case 'profile':
+        setProfileStatusFilter(value);
+        break;
+    }
+  };
+
+  // Update priority filter based on active tab
+  const updatePriorityFilter = (value: string) => {
+    switch (activeTab) {
+      case 'activities':
+        setActivitiesPriorityFilter(value);
+        break;
+      case 'sessions':
+        setSessionsPriorityFilter(value);
+        break;
+      case 'qualifications':
+        setQualificationsPriorityFilter(value);
+        break;
+    }
+  };
+
+  // Activities tab - Create specific filter functions for each tab
+  // Create a specific filtered list for activities
+  const filteredActivitiesRequests = verificationRequests.filter(request => {
+    // Only include activities, not teaching or qualification
+    if (['Teaching', 'Qualification'].includes(request.activity.type)) return false;
+    
+    // Apply search filter
+    const matchesSearch = 
+      activitiesSearchTerm === '' || 
+      request.student.name.toLowerCase().includes(activitiesSearchTerm.toLowerCase()) ||
+      request.activity.title.toLowerCase().includes(activitiesSearchTerm.toLowerCase());
+    
+    // Apply status filter
+    const matchesStatus = activitiesStatusFilter === 'all' || request.status === activitiesStatusFilter;
+    
+    // Apply priority filter
+    const matchesPriority = activitiesPriorityFilter === 'all' || request.priority === activitiesPriorityFilter;
+    
+    return matchesSearch && matchesStatus && matchesPriority;
+  });
+
+  // Sessions tab - Modify the VerificationList call to use these specific filtered arrays
+  const filteredSessionsRequests = verificationRequests.filter(request => {
+    // Only include teaching sessions
+    if (request.activity.type !== 'Teaching') return false;
+    
+    // Apply search filter
+    const matchesSearch = 
+      sessionsSearchTerm === '' || 
+      request.student.name.toLowerCase().includes(sessionsSearchTerm.toLowerCase()) ||
+      request.activity.title.toLowerCase().includes(sessionsSearchTerm.toLowerCase());
+    
+    // Apply status filter
+    const matchesStatus = sessionsStatusFilter === 'all' || request.status === sessionsStatusFilter;
+    
+    // Apply priority filter
+    const matchesPriority = sessionsPriorityFilter === 'all' || request.priority === sessionsPriorityFilter;
+    
+    return matchesSearch && matchesStatus && matchesPriority;
+  });
+
+  // Qualifications tab
+  const filteredQualificationsRequests = verificationRequests.filter(request => {
+    // Only include qualifications
+    if (request.activity.type !== 'Qualification') return false;
+    
+    // Apply search filter
+    const matchesSearch = 
+      qualificationsSearchTerm === '' || 
+      request.student.name.toLowerCase().includes(qualificationsSearchTerm.toLowerCase()) ||
+      request.activity.title.toLowerCase().includes(qualificationsSearchTerm.toLowerCase());
+    
+    // Apply status filter
+    const matchesStatus = qualificationsStatusFilter === 'all' || request.status === qualificationsStatusFilter;
+    
+    // Apply priority filter
+    const matchesPriority = qualificationsPriorityFilter === 'all' || request.priority === qualificationsPriorityFilter;
+    
+    return matchesSearch && matchesStatus && matchesPriority;
+  });
+
+  // Filter verification requests
   const filteredVerificationRequests = Array.isArray(verificationRequests) 
     ? verificationRequests.filter((request) => {
         if (!request) return false;
         
-        const matchesSearch = searchTerm === '' || 
-          (request.student?.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-          (request.activity?.title?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+        // Get the appropriate search term based on active tab
+        const currentSearchTerm = getCurrentSearchTerm();
+        const currentStatusFilter = getCurrentStatusFilter();
         
-        const matchesStatus = statusFilter === 'all' || request.status === statusFilter;
+        const matchesSearch = 
+          currentSearchTerm === '' || 
+          (request.student?.name?.toLowerCase() || '').includes(currentSearchTerm.toLowerCase()) ||
+          (request.activity?.title?.toLowerCase() || '').includes(currentSearchTerm.toLowerCase());
         
-        return matchesSearch && matchesStatus;
+        const matchesStatus = currentStatusFilter === 'all' || request.status === currentStatusFilter;
+        
+        // Apply tab-specific priority filters
+        let matchesPriority = true;
+        if (activeTab === 'activities' && activitiesPriorityFilter !== 'all') {
+          matchesPriority = request.priority === activitiesPriorityFilter;
+        } else if (activeTab === 'sessions' && sessionsPriorityFilter !== 'all') {
+          matchesPriority = request.priority === sessionsPriorityFilter;
+        } else if (activeTab === 'qualifications' && qualificationsPriorityFilter !== 'all') {
+          matchesPriority = request.priority === qualificationsPriorityFilter;
+        }
+        
+        return matchesSearch && matchesStatus && matchesPriority;
       })
     : [];
 
@@ -472,7 +858,9 @@ export default function AdminVerificationsPage() {
     localStorage.setItem('profileVerifications', JSON.stringify(updatedVerifications));
     
     // Update student's verification status in localStorage
-    const studentEmail = profileVerifications.find(v => v.id === id)?.studentEmail;
+    const studentVerification = profileVerifications.find(v => v.id === id);
+    const studentEmail = studentVerification?.studentEmail;
+    
     if (studentEmail) {
       // Get all users from localStorage
       const users = localStorage.getItem('users');
@@ -482,7 +870,7 @@ export default function AdminVerificationsPage() {
           // Update the specific user's verification status
           const updatedUsers = parsedUsers.map((user: any) => {
             if (user.email === studentEmail) {
-              return { ...user, isVerified: true };
+              return { ...user, isVerified: true, verificationStatus: 'verified' };
             }
             return user;
           });
@@ -494,12 +882,16 @@ export default function AdminVerificationsPage() {
       
       // Set the individual student's verification status
       localStorage.setItem(`verificationStatus-${studentEmail}`, 'verified');
+      
+      // Also update any other relevant keys in localStorage
+      localStorage.setItem(`userVerified-${studentEmail}`, 'true');
+      localStorage.setItem(`user-${studentEmail}-verified`, 'true');
     }
     
     setShowProfileVerificationModal(false);
     
     // Show toast notification
-    alert(`Profile verification for ${profileVerifications.find(v => v.id === id)?.studentName} has been approved`);
+    alert(`Profile verification for ${studentVerification?.studentName} has been approved`);
   };
   
   // Handle reject profile verification
@@ -609,13 +1001,16 @@ export default function AdminVerificationsPage() {
     return () => clearInterval(interval);
   }, []);
   
-  // Filter profile verifications
+  // Profile tab - Filter function
   const filteredProfileVerifications = profileVerifications.filter(verification => {
+    // Apply search filter
     const matchesSearch = 
-      verification.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      verification.studentEmail.toLowerCase().includes(searchTerm.toLowerCase());
+      profileSearchTerm === '' || 
+      verification.studentName.toLowerCase().includes(profileSearchTerm.toLowerCase()) ||
+      verification.studentEmail.toLowerCase().includes(profileSearchTerm.toLowerCase());
     
-    const matchesStatus = statusFilter === 'all' || verification.status === statusFilter;
+    // Apply status filter
+    const matchesStatus = profileStatusFilter === 'all' || verification.status === profileStatusFilter;
     
     return matchesSearch && matchesStatus;
   });
@@ -629,20 +1024,61 @@ export default function AdminVerificationsPage() {
           Back to Dashboard
         </Link>
         <h1 className="text-3xl font-bold text-gray-900">Verification Management</h1>
-        <p className="text-gray-600">Review, approve, or reject student activity and profile verifications</p>
+        <p className="text-gray-600">Review, approve, or reject student activities, teaching sessions, qualifications, and profile verifications</p>
       </div>
       
       {/* Tabs */}
-      <div className="flex border-b border-gray-200 mb-6">
+      <div className="flex border-b border-gray-200 mb-6 overflow-x-auto">
         <button
           className={`px-4 py-2 font-medium text-sm ${
-            activeTab === 'activity'
+            activeTab === 'activities'
               ? 'text-blue-600 border-b-2 border-blue-600'
               : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
           }`}
-          onClick={() => setActiveTab('activity')}
+          onClick={() => setActiveTab('activities')}
         >
-          Activity Verifications
+          Activities
+          {verificationRequests.filter(v => 
+            !['Teaching', 'Qualification'].includes(v.activity.type) && 
+            v.status === 'pending'
+          ).length > 0 && (
+            <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+              {verificationRequests.filter(v => 
+                !['Teaching', 'Qualification'].includes(v.activity.type) && 
+                v.status === 'pending'
+              ).length}
+            </span>
+          )}
+        </button>
+        <button
+          className={`px-4 py-2 font-medium text-sm ${
+            activeTab === 'sessions'
+              ? 'text-blue-600 border-b-2 border-blue-600'
+              : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
+          }`}
+          onClick={() => setActiveTab('sessions')}
+        >
+          Sessions
+          {verificationRequests.filter(v => v.activity.type === 'Teaching' && v.status === 'pending').length > 0 && (
+            <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+              {verificationRequests.filter(v => v.activity.type === 'Teaching' && v.status === 'pending').length}
+            </span>
+          )}
+        </button>
+        <button
+          className={`px-4 py-2 font-medium text-sm ${
+            activeTab === 'qualifications'
+              ? 'text-blue-600 border-b-2 border-blue-600'
+              : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
+          }`}
+          onClick={() => setActiveTab('qualifications')}
+        >
+          Qualifications
+          {verificationRequests.filter(v => v.activity.type === 'Qualification' && v.status === 'pending').length > 0 && (
+            <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+              {verificationRequests.filter(v => v.activity.type === 'Qualification' && v.status === 'pending').length}
+            </span>
+          )}
         </button>
         <button
           className={`px-4 py-2 font-medium text-sm ${
@@ -661,88 +1097,590 @@ export default function AdminVerificationsPage() {
         </button>
       </div>
       
-      {activeTab === 'activity' ? (
+      {/* Tab content based on selected tab */}
+      {activeTab === 'activities' && (
         <>
-          {/* Filters and Search for Activity Verifications */}
-      <div className="bg-white p-6 rounded-lg shadow-sm mb-6">
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-          {/* Search */}
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-5 w-5 text-gray-400" />
+          {/* Activities Filters and Search */}
+          <div className="bg-white p-6 rounded-lg shadow-md mb-6">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+              <h2 className="text-lg font-medium text-gray-900">Activity Verification Requests</h2>
+              
+              {/* Activities search and filters */}
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Search className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Search by name or title"
+                    value={activitiesSearchTerm}
+                    onChange={(e) => {
+                      setActivitiesSearchTerm(e.target.value);
+                      // Trigger immediate filtering
+                    }}
+                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                
+                <select
+                  value={activitiesStatusFilter}
+                  onChange={(e) => setActivitiesStatusFilter(e.target.value)}
+                  className="w-full md:w-auto pl-3 pr-10 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                >
+                  {statuses.map((status) => (
+                    <option key={status} value={status}>
+                      {status === 'all' ? 'All Statuses' : status.charAt(0).toUpperCase() + status.slice(1)}
+                    </option>
+                  ))}
+                </select>
+                
+                <select
+                  value={activitiesPriorityFilter}
+                  onChange={(e) => setActivitiesPriorityFilter(e.target.value)}
+                  className="w-full md:w-auto pl-3 pr-10 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                >
+                  {priorities.map((priority) => (
+                    <option key={priority} value={priority}>
+                      {priority === 'all' ? 'All Priorities' : priority}
+                    </option>
+                  ))}
+                </select>
+                
+                <select
+                  value={activitiesTypeFilter}
+                  onChange={(e) => setActivitiesTypeFilter(e.target.value)}
+                  className="w-full md:w-auto pl-3 pr-10 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                >
+                  {activityTypes.map((type) => (
+                    <option key={type} value={type}>
+                      {type === 'all' ? 'All Activity Types' : type}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
-            <input
-              type="text"
-              placeholder="Search by name or title"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-            />
           </div>
           
-          {/* Type Filter */}
-          <div>
-            <label htmlFor="type-filter" className="block text-sm font-medium text-gray-700 mb-1">
-              Activity Type
-            </label>
-            <select
-              id="type-filter"
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="block w-full pl-3 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-            >
-              {activityTypes.map((type) => (
-                <option key={type} value={type}>
-                  {type === 'all' ? 'All Activity Types' : type}
-                </option>
-              ))}
-            </select>
+          <VerificationList 
+            verificationRequests={filteredActivitiesRequests}
+            searchTerm={activitiesSearchTerm}
+            setSearchTerm={setActivitiesSearchTerm}
+            statusFilter={activitiesStatusFilter}
+            setStatusFilter={setActivitiesStatusFilter}
+            typeFilter={activitiesTypeFilter}
+            setTypeFilter={setActivitiesTypeFilter}
+            priorityFilter={activitiesPriorityFilter}
+            setPriorityFilter={setActivitiesPriorityFilter}
+            selectedVerification={selectedVerification}
+            setSelectedVerification={setSelectedVerification}
+            handleReview={handleReview}
+            StatusBadge={StatusBadge}
+            PriorityBadge={PriorityBadge}
+            formatDate={formatDate}
+            activityTypes={activityTypes}
+            statuses={statuses}
+            priorities={priorities}
+            showFilters={false}
+          />
+        </>
+      )}
+
+      {activeTab === 'sessions' && (
+        <>
+          {/* Sessions Filters and Search */}
+          <div className="bg-white p-6 rounded-lg shadow-md mb-6">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+              <h2 className="text-lg font-medium text-gray-900">Session Verification Requests</h2>
+              
+              {/* Sessions search and filters */}
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Search className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Search by name or title"
+                    value={sessionsSearchTerm}
+                    onChange={(e) => {
+                      setSessionsSearchTerm(e.target.value);
+                      // Trigger immediate filtering
+                    }}
+                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                
+                <select
+                  value={sessionsStatusFilter}
+                  onChange={(e) => setSessionsStatusFilter(e.target.value)}
+                  className="w-full md:w-auto pl-3 pr-10 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                >
+                  {statuses.map((status) => (
+                    <option key={status} value={status}>
+                      {status === 'all' ? 'All Statuses' : status.charAt(0).toUpperCase() + status.slice(1)}
+                    </option>
+                  ))}
+                </select>
+                
+                <select
+                  value={sessionsPriorityFilter}
+                  onChange={(e) => setSessionsPriorityFilter(e.target.value)}
+                  className="w-full md:w-auto pl-3 pr-10 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                >
+                  {priorities.map((priority) => (
+                    <option key={priority} value={priority}>
+                      {priority === 'all' ? 'All Priorities' : priority}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
           </div>
           
-          {/* Status Filter */}
-          <div>
-            <label htmlFor="status-filter" className="block text-sm font-medium text-gray-700 mb-1">
-              Status
-            </label>
-            <select
-              id="status-filter"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="block w-full pl-3 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-            >
-              {statuses.map((status) => (
-                <option key={status} value={status}>
-                  {status === 'all' ? 'All Statuses' : status.charAt(0).toUpperCase() + status.slice(1)}
-                </option>
-              ))}
-            </select>
+          <VerificationList 
+            verificationRequests={filteredSessionsRequests}
+            searchTerm={sessionsSearchTerm}
+            setSearchTerm={setSessionsSearchTerm}
+            statusFilter={sessionsStatusFilter}
+            setStatusFilter={setSessionsStatusFilter}
+            typeFilter={activitiesTypeFilter} 
+            setTypeFilter={setActivitiesTypeFilter}
+            priorityFilter={sessionsPriorityFilter}
+            setPriorityFilter={setSessionsPriorityFilter}
+            selectedVerification={selectedVerification}
+            setSelectedVerification={setSelectedVerification}
+            handleReview={handleReview}
+            StatusBadge={StatusBadge}
+            PriorityBadge={PriorityBadge}
+            formatDate={formatDate}
+            activityTypes={activityTypes}
+            statuses={statuses}
+            priorities={priorities}
+            showFilters={false}
+          />
+        </>
+      )}
+
+      {activeTab === 'qualifications' && (
+        <>
+          {/* Qualifications Filters and Search */}
+          <div className="bg-white p-6 rounded-lg shadow-md mb-6">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+              <h2 className="text-lg font-medium text-gray-900">Qualification Verification Requests</h2>
+              
+              {/* Qualifications search and filters */}
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Search className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Search by name or title"
+                    value={qualificationsSearchTerm}
+                    onChange={(e) => {
+                      setQualificationsSearchTerm(e.target.value);
+                      // Trigger immediate filtering
+                    }}
+                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                
+                <select
+                  value={qualificationsStatusFilter}
+                  onChange={(e) => setQualificationsStatusFilter(e.target.value)}
+                  className="w-full md:w-auto pl-3 pr-10 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                >
+                  {statuses.map((status) => (
+                    <option key={status} value={status}>
+                      {status === 'all' ? 'All Statuses' : status.charAt(0).toUpperCase() + status.slice(1)}
+                    </option>
+                  ))}
+                </select>
+                
+                <select
+                  value={qualificationsPriorityFilter}
+                  onChange={(e) => setQualificationsPriorityFilter(e.target.value)}
+                  className="w-full md:w-auto pl-3 pr-10 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                >
+                  {priorities.map((priority) => (
+                    <option key={priority} value={priority}>
+                      {priority === 'all' ? 'All Priorities' : priority}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
           </div>
           
-          {/* Priority Filter */}
-          <div>
-            <label htmlFor="priority-filter" className="block text-sm font-medium text-gray-700 mb-1">
-              Priority
-            </label>
-            <select
-              id="priority-filter"
-              value={priorityFilter}
-              onChange={(e) => setPriorityFilter(e.target.value)}
-              className="block w-full pl-3 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-            >
-              {priorities.map((priority) => (
-                <option key={priority} value={priority}>
-                  {priority === 'all' ? 'All Priorities' : priority}
-                </option>
-              ))}
-            </select>
+          <VerificationList 
+            verificationRequests={filteredQualificationsRequests}
+            searchTerm={qualificationsSearchTerm}
+            setSearchTerm={setQualificationsSearchTerm}
+            statusFilter={qualificationsStatusFilter}
+            setStatusFilter={setQualificationsStatusFilter}
+            typeFilter={activitiesTypeFilter} 
+            setTypeFilter={setActivitiesTypeFilter}
+            priorityFilter={qualificationsPriorityFilter}
+            setPriorityFilter={setQualificationsPriorityFilter}
+            selectedVerification={selectedVerification}
+            setSelectedVerification={setSelectedVerification}
+            handleReview={handleReview}
+            StatusBadge={StatusBadge}
+            PriorityBadge={PriorityBadge}
+            formatDate={formatDate}
+            activityTypes={activityTypes}
+            statuses={statuses}
+            priorities={priorities}
+            showFilters={false}
+          />
+        </>
+      )}
+
+      {activeTab === 'profile' && (
+        <>
+          <div className="bg-white p-6 rounded-lg shadow-md mb-6">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+              <h2 className="text-lg font-medium text-gray-900">Profile Verification Requests</h2>
+              
+              {/* Profile search and filter */}
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Search className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Search by name or email"
+                    value={profileSearchTerm}
+                    onChange={(e) => {
+                      setProfileSearchTerm(e.target.value);
+                      // Trigger immediate filtering
+                    }}
+                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Profile verifications table */}
+          <div className="bg-white rounded-lg shadow-md overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Student
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Email
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Submitted
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredProfileVerifications.map((verification) => (
+                  <tr key={verification.id}>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center mr-4">
+                          <User className="h-6 w-6 text-gray-500" />
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">{verification.studentName}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{verification.studentEmail}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {typeof verification.submittedAt === 'string' 
+                          ? formatDate(verification.submittedAt) 
+                          : String(verification.submittedAt)}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {typeof verification.submittedAt === 'string' 
+                          ? formatTime(verification.submittedAt) 
+                          : ''}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <StatusBadge status={verification.status} />
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      {verification.status === 'pending' ? (
+                        <button
+                          onClick={() => handleProfileVerificationReview(verification)}
+                          className="text-blue-600 hover:text-blue-900"
+                        >
+                          Review
+                        </button>
+                      ) : (
+                        <span className="text-gray-400">Reviewed</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+      
+      {/* Verification Review Modal - existing modal for activities */}
+      <VerificationReviewModal
+        isOpen={showReviewModal}
+        onClose={() => setShowReviewModal(false)}
+        onApprove={(id, feedback, rating) => {
+          handleApproveVerification(id, feedback);
+        }}
+        onReject={(id, reason) => {
+          handleRejectVerification(id, reason);
+        }}
+        verification={currentVerification}
+      />
+      
+      {/* Profile Verification Review Modal */}
+      {showProfileVerificationModal && currentProfileVerification && (
+        <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold">Profile Verification Request</h3>
+                <button
+                  onClick={() => setShowProfileVerificationModal(false)}
+                  className="text-gray-400 hover:text-gray-500"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              
+              <div className="border-t border-gray-200 pt-4">
+                <div className="mb-4">
+                  <div className="flex items-center mb-2">
+                    <User className="h-5 w-5 text-gray-400 mr-2" />
+                    <span className="font-medium">Student:</span>
+                    <span className="ml-2">{currentProfileVerification.studentName}</span>
+                  </div>
+                  <div className="flex items-center mb-2">
+                    <Mail className="h-5 w-5 text-gray-400 mr-2" />
+                    <span className="font-medium">Email:</span>
+                    <span className="ml-2">{currentProfileVerification.studentEmail}</span>
+                  </div>
+                  <div className="flex items-center">
+                    <Calendar className="h-5 w-5 text-gray-400 mr-2" />
+                    <span className="font-medium">Submitted:</span>
+                    <span className="ml-2">
+                      {typeof currentProfileVerification.submittedAt === 'string' ? formatDate(currentProfileVerification.submittedAt) : String(currentProfileVerification.submittedAt)}
+                    </span>
+                  </div>
+                </div>
+                
+                <div className="mb-6">
+                  <h4 className="font-medium mb-2">Verification Document</h4>
+                  <div className="border border-gray-300 rounded-md p-4 bg-gray-50 flex items-center justify-between">
+                    <div className="flex items-center">
+                      <FileText className="h-5 w-5 text-blue-500 mr-2" />
+                      <span>Student identity document</span>
+                    </div>
+                    <button className="text-blue-600 hover:text-blue-800 flex items-center">
+                      <ExternalLink className="h-4 w-4 mr-1" />
+                      View Document
+                    </button>
+                  </div>
+                </div>
+                
+                {currentProfileVerification.status === 'pending' && (
+                  <div className="mb-6">
+                    <h4 className="font-medium mb-2">Rejection Reason (optional)</h4>
+                    <textarea
+                      value={rejectionReason}
+                      onChange={(e) => setRejectionReason(e.target.value)}
+                      placeholder="Provide a reason if rejecting this verification request..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      rows={3}
+                    ></textarea>
+                  </div>
+                )}
+                
+                <div className="flex justify-end space-x-4">
+                  <button
+                    onClick={() => setShowProfileVerificationModal(false)}
+                    className="py-2 px-4 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  
+                  {currentProfileVerification.status === 'pending' && (
+                    <>
+                      <button
+                        onClick={() => handleRejectProfileVerification(currentProfileVerification.id, rejectionReason)}
+                        className="py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700"
+                      >
+                        Reject
+                      </button>
+                      <button
+                        onClick={() => handleApproveProfileVerification(currentProfileVerification.id)}
+                        className="py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700"
+                      >
+                        Approve
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      )}
+    </div>
+  );
+}
+
+function VerificationList({
+  verificationRequests,
+  searchTerm,
+  setSearchTerm,
+  statusFilter,
+  setStatusFilter,
+  typeFilter,
+  setTypeFilter,
+  priorityFilter,
+  setPriorityFilter,
+  selectedVerification,
+  setSelectedVerification,
+  handleReview,
+  StatusBadge,
+  PriorityBadge,
+  formatDate,
+  activityTypes,
+  statuses,
+  priorities,
+  showFilters = true
+}: {
+  verificationRequests: VerificationRequest[];
+  searchTerm: string;
+  setSearchTerm: (value: string) => void;
+  statusFilter: string;
+  setStatusFilter: (value: string) => void;
+  typeFilter: string;
+  setTypeFilter: (value: string) => void;
+  priorityFilter: string;
+  setPriorityFilter: (value: string) => void;
+  selectedVerification: number | null;
+  setSelectedVerification: (id: number | null) => void;
+  handleReview: (request: VerificationRequest) => void;
+  StatusBadge: React.FC<{status: 'pending' | 'approved' | 'rejected'}>;
+  PriorityBadge: React.FC<{priority: string}>;
+  formatDate: (date: string) => string;
+  activityTypes: string[];
+  statuses: string[];
+  priorities: string[];
+  showFilters?: boolean;
+}) {
+  // Helper function to safely display dates
+  const safeFormatDate = (dateString: string | number | undefined): string => {
+    if (!dateString) return '';
+    if (typeof dateString === 'string') {
+      return formatDate(dateString);
+    }
+    return String(dateString);
+  };
+
+  return (
+    <>
+      {showFilters && (
+        <div className="bg-white p-6 rounded-lg shadow-sm mb-6">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+            {/* Search */}
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                placeholder="Search by name or title"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              />
+            </div>
+            
+            {/* Type Filter */}
+            <div>
+              <label htmlFor="type-filter" className="block text-sm font-medium text-gray-700 mb-1">
+                Activity Type
+              </label>
+              <select
+                id="type-filter"
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                className="block w-full pl-3 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              >
+                {activityTypes.map((type) => (
+                  <option key={type} value={type}>
+                    {type === 'all' ? 'All Activity Types' : type}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            {/* Status Filter */}
+            <div>
+              <label htmlFor="status-filter" className="block text-sm font-medium text-gray-700 mb-1">
+                Status
+              </label>
+              <select
+                id="status-filter"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="block w-full pl-3 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              >
+                {statuses.map((status) => (
+                  <option key={status} value={status}>
+                    {status === 'all' ? 'All Statuses' : status.charAt(0).toUpperCase() + status.slice(1)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            {/* Priority Filter */}
+            <div>
+              <label htmlFor="priority-filter" className="block text-sm font-medium text-gray-700 mb-1">
+                Priority
+              </label>
+              <select
+                id="priority-filter"
+                value={priorityFilter}
+                onChange={(e) => setPriorityFilter(e.target.value)}
+                className="block w-full pl-3 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              >
+                {priorities.map((priority) => (
+                  <option key={priority} value={priority}>
+                    {priority === 'all' ? 'All Priorities' : priority}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Verification List */}
       <div className="space-y-6">
-        {filteredVerificationRequests.length > 0 ? (
-          filteredVerificationRequests.map((request) => (
+        {verificationRequests.length > 0 ? (
+          verificationRequests.map((request) => (
             <Card key={request.id} className={`overflow-hidden ${selectedVerification === request.id ? 'ring-2 ring-blue-500' : ''}`}>
               <div className="p-6">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
@@ -759,7 +1697,7 @@ export default function AdminVerificationsPage() {
                     <StatusBadge status={request.status} />
                     <PriorityBadge priority={request.priority} />
                     <div className="text-sm text-gray-500">
-                      Submitted: {formatDate(request.submittedAt)}
+                      Submitted: {safeFormatDate(request.submittedAt)}
                     </div>
                     <button
                       onClick={() => setSelectedVerification(selectedVerification === request.id ? null : request.id)}
@@ -776,7 +1714,7 @@ export default function AdminVerificationsPage() {
                   <div className="flex flex-wrap gap-y-1 gap-x-4 text-sm text-gray-500 mb-2">
                     <div className="flex items-center">
                       <Calendar className="h-4 w-4 mr-1 text-gray-400" />
-                      {formatDate(request.activity.date)}
+                      {safeFormatDate(request.activity.date)}
                     </div>
                     <div className="flex items-center">
                       <Clock className="h-4 w-4 mr-1 text-gray-400" />
@@ -865,233 +1803,11 @@ export default function AdminVerificationsPage() {
             </Card>
           ))
         ) : (
-          <div className="bg-white p-8 text-center rounded-lg shadow-sm">
-            <div className="mx-auto h-12 w-12 text-gray-400">
-              <FileText className="h-12 w-12" />
-            </div>
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No verifications found</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              No verification requests match your current filters.
-            </p>
+          <div className="bg-white rounded-lg shadow p-6 text-center">
+            <p className="text-gray-500">No verification requests found matching your filters.</p>
           </div>
         )}
-          </div>
-        </>
-      ) : (
-        <>
-          {/* Filters and Search for Profile Verifications */}
-          <div className="bg-white p-6 rounded-lg shadow-sm mb-6">
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {/* Search */}
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Search className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  type="text"
-                  placeholder="Search by name or email"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                />
       </div>
-      
-              {/* Status Filter */}
-              <div>
-                <label htmlFor="profile-status-filter" className="block text-sm font-medium text-gray-700 mb-1">
-                  Status
-                </label>
-                <select
-                  id="profile-status-filter"
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="block w-full pl-3 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                >
-                  <option value="all">All Statuses</option>
-                  <option value="pending">Pending</option>
-                  <option value="approved">Approved</option>
-                  <option value="rejected">Rejected</option>
-                </select>
-              </div>
-            </div>
-          </div>
-          
-          {/* Profile Verification Table */}
-          <Card>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Student
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Submitted
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredProfileVerifications.length > 0 ? (
-                      filteredProfileVerifications.map((verification) => (
-                        <tr key={verification.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <div className="flex-shrink-0 h-10 w-10 bg-gray-100 rounded-full flex items-center justify-center">
-                                <User className="h-6 w-6 text-gray-400" />
-                              </div>
-                              <div className="ml-4">
-                                <div className="text-sm font-medium text-gray-900">{verification.studentName}</div>
-                                <div className="text-sm text-gray-500">{verification.studentEmail}</div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">{formatDate(String(verification.submittedAt))}</div>
-                            <div className="text-sm text-gray-500">{formatTime(String(verification.submittedAt))}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <StatusBadge status={verification.status} />
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            {verification.status === 'pending' ? (
-                              <button
-                                onClick={() => handleProfileVerificationReview(verification)}
-                                className="text-blue-600 hover:text-blue-900 ml-4"
-                              >
-                                Review
-                              </button>
-                            ) : (
-                              <div className="text-gray-400 ml-4">
-                                {verification.status === 'approved' ? 'Approved' : 'Rejected'}
-                              </div>
-                            )}
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={4} className="px-6 py-4 text-center text-sm text-gray-500">
-                          No profile verification requests found
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        </>
-      )}
-      
-      {/* Verification Review Modal - existing modal for activities */}
-        <VerificationReviewModal
-          isOpen={showReviewModal}
-          onClose={() => setShowReviewModal(false)}
-        onApprove={(feedback) => handleApproveVerification(currentVerification?.id, feedback)}
-        onReject={(reason) => handleRejectVerification(currentVerification?.id, reason)}
-          verification={currentVerification}
-      />
-      
-      {/* Profile Verification Review Modal */}
-      {showProfileVerificationModal && currentProfileVerification && (
-        <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold">Profile Verification Request</h3>
-                <button
-                  onClick={() => setShowProfileVerificationModal(false)}
-                  className="text-gray-400 hover:text-gray-500"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-              
-              <div className="border-t border-gray-200 pt-4">
-                <div className="mb-4">
-                  <div className="flex items-center mb-2">
-                    <User className="h-5 w-5 text-gray-400 mr-2" />
-                    <span className="font-medium">Student:</span>
-                    <span className="ml-2">{currentProfileVerification.studentName}</span>
-                  </div>
-                  <div className="flex items-center mb-2">
-                    <Mail className="h-5 w-5 text-gray-400 mr-2" />
-                    <span className="font-medium">Email:</span>
-                    <span className="ml-2">{currentProfileVerification.studentEmail}</span>
-                  </div>
-                  <div className="flex items-center">
-                    <Calendar className="h-5 w-5 text-gray-400 mr-2" />
-                    <span className="font-medium">Submitted:</span>
-                    <span className="ml-2">
-                      {formatDate(String(currentProfileVerification.submittedAt))} at {formatTime(String(currentProfileVerification.submittedAt))}
-                    </span>
-                  </div>
-                </div>
-                
-                <div className="mb-6">
-                  <h4 className="font-medium mb-2">Verification Document</h4>
-                  <div className="border border-gray-300 rounded-md p-4 bg-gray-50 flex items-center justify-between">
-                    <div className="flex items-center">
-                      <FileText className="h-5 w-5 text-blue-500 mr-2" />
-                      <span>Student identity document</span>
-                    </div>
-                    <button className="text-blue-600 hover:text-blue-800 flex items-center">
-                      <ExternalLink className="h-4 w-4 mr-1" />
-                      View Document
-                    </button>
-                  </div>
-                </div>
-                
-                {currentProfileVerification.status === 'pending' && (
-                  <div className="mb-6">
-                    <h4 className="font-medium mb-2">Rejection Reason (optional)</h4>
-                    <textarea
-                      value={rejectionReason}
-                      onChange={(e) => setRejectionReason(e.target.value)}
-                      placeholder="Provide a reason if rejecting this verification request..."
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      rows={3}
-                    ></textarea>
-                  </div>
-                )}
-                
-                <div className="flex justify-end space-x-4">
-                  <button
-                    onClick={() => setShowProfileVerificationModal(false)}
-                    className="py-2 px-4 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
-                  >
-                    Cancel
-                  </button>
-                  
-                  {currentProfileVerification.status === 'pending' && (
-                    <>
-                      <button
-                        onClick={() => handleRejectProfileVerification(currentProfileVerification.id, rejectionReason)}
-                        className="py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700"
-                      >
-                        Reject
-                      </button>
-                      <button
-                        onClick={() => handleApproveProfileVerification(currentProfileVerification.id)}
-                        className="py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700"
-                      >
-                        Approve
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+    </>
   );
 } 

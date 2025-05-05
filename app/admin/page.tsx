@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/lib/auth-context';
 import { Card, CardHeader, CardTitle, CardContent, ClickableCard } from '@/components/ui/card';
-import { User, Settings, Shield, Users, ClipboardCheck, Bell, BarChart2, Server, Plus } from 'lucide-react';
+import { User, Settings, Shield, Users, ClipboardCheck, Bell, BarChart2, Server, Plus, Calendar } from 'lucide-react';
 import { LineChart, ResponsiveContainer, Line, XAxis, YAxis, Tooltip, Legend } from 'recharts';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
@@ -735,13 +735,10 @@ export default function AdminDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{dashboardData.stats.totalUsers}</div>
-                <div className="absolute bottom-2 right-2 h-24 w-24 opacity-10">
-                  <Users className="h-full w-full text-blue-600" />
-                </div>
               </CardContent>
             </ClickableCard>
             
-            <ClickableCard href="/admin/activities" className="relative overflow-hidden">
+            <ClickableCard href="/admin/sessions" className="relative overflow-hidden">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Teaching Sessions</CardTitle>
                 <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
@@ -750,9 +747,6 @@ export default function AdminDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{dashboardData.stats.sessions}</div>
-                <div className="absolute bottom-2 right-2 h-24 w-24 opacity-10">
-                  <ClipboardCheck className="h-full w-full text-green-600" />
-                </div>
               </CardContent>
             </ClickableCard>
             
@@ -765,9 +759,6 @@ export default function AdminDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{dashboardData.stats.activities}</div>
-                <div className="absolute bottom-2 right-2 h-24 w-24 opacity-10">
-                  <BarChart2 className="h-full w-full text-purple-600" />
-                </div>
               </CardContent>
             </ClickableCard>
             
@@ -780,9 +771,6 @@ export default function AdminDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{dashboardData.stats.pendingVerifications}</div>
-                <div className="absolute bottom-2 right-2 h-24 w-24 opacity-10">
-                  <Shield className="h-full w-full text-amber-600" />
-                </div>
               </CardContent>
             </ClickableCard>
           </div>
@@ -1124,6 +1112,10 @@ export default function AdminDashboard() {
                     <Link href="/admin/users" className="flex items-center gap-2 p-3 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors">
                       <Users className="h-5 w-5" />
                       <span>Manage Users</span>
+                    </Link>
+                    <Link href="/admin/sessions" className="flex items-center gap-2 p-3 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors">
+                      <Calendar className="h-5 w-5" />
+                      <span>Manage Sessions</span>
                     </Link>
                     <Link href="/admin/verifications" className="flex items-center gap-2 p-3 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors">
                       <ClipboardCheck className="h-5 w-5" />

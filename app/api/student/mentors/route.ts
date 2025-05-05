@@ -5,7 +5,7 @@ import { getPool } from '@/lib/db';
 
 export async function GET() {
   try {
-    // Get the session to check authentication and get the mentor's ID
+    // Get the session to check authentication and get the student's ID
     const session = await getServerSession(authOptions);
 
     if (!session || !session.user) {
@@ -15,37 +15,37 @@ export async function GET() {
     // Get the user data from the session token
     const user = session.user as { id?: string; role?: string; };
     
-    if (user.role !== 'mentor') {
-      return NextResponse.json({ error: 'Unauthorized: User is not a mentor' }, { status: 401 });
+    if (user.role !== 'student') {
+      return NextResponse.json({ error: 'Unauthorized: User is not a student' }, { status: 401 });
     }
 
-    const mentorId = user.id;
-    if (!mentorId) {
+    const studentId = user.id;
+    if (!studentId) {
       return NextResponse.json({ error: 'User ID not found in session' }, { status: 400 });
     }
 
     const pool = await getPool();
 
-    // Query to get all students assigned to this mentor
-    const [students] = await pool.query(`
+    // Query to get all mentors assigned to this student
+    const [mentors] = await pool.query(`
       SELECT 
-        student.id as id,
-        student.name as name,
-        student.email as email,
+        mentor.id as id,
+        mentor.name as name,
+        mentor.email as email,
         ms.assigned_date as assignedDate
       FROM mentor_students ms
-      JOIN users student ON ms.student_id = student.id
-      WHERE ms.mentor_id = ?
-      ORDER BY student.name
-    `, [mentorId]);
+      JOIN users mentor ON ms.mentor_id = mentor.id
+      WHERE ms.student_id = ?
+      ORDER BY mentor.name
+    `, [studentId]);
 
     return NextResponse.json({ 
-      assignedStudents: students || [] 
+      assignedMentors: mentors || [] 
     });
   } catch (error) {
-    console.error('Error fetching assigned students:', error);
+    console.error('Error fetching assigned mentors:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch assigned students', assignedStudents: [] },
+      { error: 'Failed to fetch assigned mentors', assignedMentors: [] },
       { status: 500 }
     );
   }

@@ -27,6 +27,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Check if user is stored in localStorage on initial load
     const storedUser = localStorage.getItem('user');
+    
+    // For development: if no user exists, create a mock admin user
+    if (!storedUser) {
+      console.log('Creating mock admin user for development');
+      const mockAdminUser: User = {
+        id: 1,
+        name: 'Admin User',
+        email: 'admin@example.com',
+        role: 'admin' as UserRole,
+        profileImage: '/placeholder-profile.jpg',
+        status: 'active'
+      };
+      localStorage.setItem('user', JSON.stringify(mockAdminUser));
+      setUser(mockAdminUser);
+      setLoading(false);
+      return;
+    }
+    
     if (storedUser) {
       try {
         const userData = JSON.parse(storedUser);

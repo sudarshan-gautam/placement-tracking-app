@@ -662,13 +662,23 @@ export function Header() {
                         Jobs
                       </Link>
                     )}
-                    <Link
-                      href="/settings"
-                      className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
-                    >
-                      <Settings className="mr-2 h-4 w-4" />
-                      Settings
-                    </Link>
+                    {user?.role === 'admin' ? (
+                      <Link
+                        href="/admin/settings"
+                        className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
+                      >
+                        <Settings className="mr-2 h-4 w-4" />
+                        Settings
+                      </Link>
+                    ) : (
+                      <Link
+                        href="/settings"
+                        className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
+                      >
+                        <Settings className="mr-2 h-4 w-4" />
+                        Settings
+                      </Link>
+                    )}
                     <Link
                       href="/help"
                       className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"

@@ -9,7 +9,7 @@ import { useToast } from '@/components/ui/use-toast';
 
 interface Session {
   id: string;
-  displayId?: number;
+  displayId: number;
   title: string;
   description: string;
   date: string;
@@ -21,7 +21,7 @@ interface Session {
   };
 }
 
-export default function MentorSessionsPage() {
+export default function AdminSessionsPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -39,8 +39,9 @@ export default function MentorSessionsPage() {
       try {
         setIsLoading(true);
         
-        // Make a real API call to fetch sessions from the database
-        const response = await fetch('/api/mentor/sessions', {
+        // Make API call to fetch sessions from the database
+        console.log('Attempting to fetch sessions from API...');
+        const response = await fetch('/api/admin/sessions', {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
             'Content-Type': 'application/json'
@@ -52,14 +53,14 @@ export default function MentorSessionsPage() {
         }
         
         const data = await response.json();
-        
-        // Use the data from the API response
+        console.log('Successfully fetched sessions from API:', data.sessions?.length || 0);
         setSessions(data.sessions || []);
         setFilteredSessions(data.sessions || []);
         setTotalSessions(data.sessions?.length || 0);
         setIsLoading(false);
       } catch (error) {
         console.error('Error fetching sessions:', error);
+        console.log('Falling back to sample data');
         toast({
           title: 'Error',
           description: 'Failed to load sessions',
@@ -107,13 +108,34 @@ export default function MentorSessionsPage() {
             location: 'Computer Lab',
             status: 'planned',
             student: { id: 4, name: 'Bob Wilson' }
+          },
+          {
+            id: 'sample-id-5',
+            displayId: 5,
+            title: 'Reading Assistance',
+            description: 'Guided reading for struggling readers',
+            date: '2023-09-18',
+            location: 'Library',
+            status: 'completed',
+            student: { id: 5, name: 'Charlie Brown' }
+          },
+          {
+            id: 'sample-id-6',
+            displayId: 6,
+            title: 'Art Workshop',
+            description: 'Painting techniques for beginners',
+            date: '2023-09-28',
+            location: 'Art Room',
+            status: 'planned',
+            student: { id: 6, name: 'Diana Prince' }
           }
         ];
         
-        // Use sample data as fallback
+        console.log('Using sample data with', sampleSessions.length, 'sessions');
         setSessions(sampleSessions);
         setFilteredSessions(sampleSessions);
         setTotalSessions(sampleSessions.length);
+      } finally {
         setIsLoading(false);
       }
     };
@@ -199,7 +221,7 @@ export default function MentorSessionsPage() {
     <div className="container mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Teaching Sessions</h1>
-        <Link href="/mentor/sessions/new" className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+        <Link href="/admin/sessions/new" className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
           <Plus className="h-4 w-4 mr-2" />
           New Session
         </Link>
@@ -316,13 +338,13 @@ export default function MentorSessionsPage() {
                           </td>
                           <td className="px-4 py-3 space-x-2">
                             <Link 
-                              href={`/mentor/sessions/${session.id}`}
+                              href={`/admin/sessions/${session.id}`}
                               className="text-blue-600 hover:text-blue-900"
                             >
                               View
                             </Link>
                             <Link 
-                              href={`/mentor/sessions/${session.id}/edit`}
+                              href={`/admin/sessions/${session.id}/edit`}
                               className="text-green-600 hover:text-green-900"
                             >
                               Edit

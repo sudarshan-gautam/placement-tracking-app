@@ -180,6 +180,29 @@ export function addReflection(id: number, reflection: string): Activity | null {
 }
 
 /**
+ * Get statistics about activities
+ */
+export function getActivityStats() {
+  const activities = getAllActivities();
+  
+  // Count activities by status
+  const verifiedActivities = activities.filter(activity => activity.status === 'verified').length;
+  const pendingActivities = activities.filter(activity => activity.status === 'pending').length;
+  const rejectedActivities = activities.filter(activity => activity.status === 'rejected').length;
+  
+  // Count unique activity types
+  const activityTypes = new Set(activities.map(activity => activity.type)).size;
+  
+  return {
+    totalActivities: activities.length,
+    verifiedActivities,
+    pendingActivities,
+    rejectedActivities,
+    activityTypes
+  };
+}
+
+/**
  * Reset the activities database back to the initial sample data
  * Useful for development and testing
  */

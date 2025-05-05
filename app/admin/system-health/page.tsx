@@ -17,7 +17,7 @@ const currentMetrics = {
   memoryUsage: '62%',
   diskSpace: '47%',
   uptime: '99.98%',
-  activeSessions: 48,
+  teachingActivities: 48,
   databaseConnections: 24,
   cpuUtilization: '38%',
   averageRequestTime: '95ms'
@@ -306,7 +306,7 @@ export default function SystemHealthPage() {
                   { name: 'Memory Usage', value: currentMetrics.memoryUsage, target: '<60%', status: 'warning' },
                   { name: 'Disk Space', value: currentMetrics.diskSpace, target: '<70%', status: 'good' },
                   { name: 'Uptime', value: currentMetrics.uptime, target: '>99.9%', status: 'good' },
-                  { name: 'Active Sessions', value: currentMetrics.activeSessions, target: '<60', status: 'good' },
+                  { name: 'Teaching Activities', value: currentMetrics.teachingActivities, target: '<60', status: 'good' },
                   { name: 'Database Connections', value: currentMetrics.databaseConnections, target: '<40', status: 'good' },
                   { name: 'CPU Utilization', value: currentMetrics.cpuUtilization, target: '<50%', status: 'good' },
                   { name: 'Average Request Time', value: currentMetrics.averageRequestTime, target: '<100ms', status: 'warning' }

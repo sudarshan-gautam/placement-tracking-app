@@ -1,6 +1,36 @@
 import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { getPool } from './db';
+import { JWT } from 'next-auth/jwt';
+
+// Get the JWT secret from environment variables or use a default for development
+const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET || 'secure_nextauth_secret_for_placement_app';
+
+// Extend User type to include custom fields
+declare module "next-auth" {
+  interface User {
+    id: string;
+    role: string;
+  }
+  
+  interface Session {
+    user: {
+      id: string;
+      name?: string | null;
+      email?: string | null;
+      image?: string | null;
+      role: string;
+    }
+  }
+}
+
+// Extend JWT type to include custom fields
+declare module "next-auth/jwt" {
+  interface JWT {
+    id: string;
+    role: string;
+  }
+}
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -50,8 +80,8 @@ export const authOptions: NextAuthOptions = {
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = token.id as string;
-        session.user.role = token.role as string;
+        session.user.id = token.id;
+        session.user.role = token.role;
       }
       return session;
     }
@@ -64,5 +94,6 @@ export const authOptions: NextAuthOptions = {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: NEXTAUTH_SECRET,
+  debug: process.env.NODE_ENV === 'development',
 }; 

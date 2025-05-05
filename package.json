@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "setup-db": "node scripts/db-setup.js"
+    "setup-db": "node scripts/db-setup.js",
+    "setup-messaging": "node scripts/add-messaging-tables.js",
+    "add-data": "node scripts/add-more-sample-data.js",
+    "db-full-setup": "node scripts/db-full-setup.js"
   },
   "dependencies": {
     "@ngrok/ngrok": "^1.4.1",
