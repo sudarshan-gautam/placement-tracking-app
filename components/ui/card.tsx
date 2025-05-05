@@ -1,5 +1,6 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
+import Link from 'next/link'
 
 const Card = React.forwardRef<
   HTMLDivElement,
@@ -15,6 +16,44 @@ const Card = React.forwardRef<
   />
 ))
 Card.displayName = "Card"
+
+// Clickable Card that can be used as a link or with onClick
+interface ClickableCardProps extends React.HTMLAttributes<HTMLDivElement> {
+  href?: string;
+  onClick?: React.MouseEventHandler<HTMLDivElement>;
+}
+
+const ClickableCard = React.forwardRef<
+  HTMLDivElement,
+  ClickableCardProps
+>(({ className, href, onClick, ...props }, ref) => {
+  const cardClassNames = cn(
+    "rounded-lg border bg-card text-card-foreground shadow-sm transition-all hover:shadow-md cursor-pointer",
+    className
+  );
+
+  if (href) {
+    return (
+      <Link href={href} passHref>
+        <div
+          ref={ref}
+          className={cardClassNames}
+          {...props}
+        />
+      </Link>
+    );
+  }
+
+  return (
+    <div
+      ref={ref}
+      className={cardClassNames}
+      onClick={onClick}
+      {...props}
+    />
+  );
+})
+ClickableCard.displayName = "ClickableCard"
 
 const CardHeader = React.forwardRef<
   HTMLDivElement,
@@ -51,4 +90,16 @@ const CardContent = React.forwardRef<
 ))
 CardContent.displayName = "CardContent"
 
-export { Card, CardHeader, CardTitle, CardContent } 
+const CardFooter = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div 
+    ref={ref} 
+    className={cn("flex items-center p-6 pt-0", className)} 
+    {...props} 
+  />
+))
+CardFooter.displayName = "CardFooter"
+
+export { Card, ClickableCard, CardHeader, CardTitle, CardContent, CardFooter } 
