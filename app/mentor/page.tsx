@@ -190,8 +190,8 @@ export default function MentorDashboard() {
               </div>
             </div>
             <div className="mt-2">
-              <Link href="/mentor/calendar" className="text-sm text-blue-600 hover:text-blue-800 flex items-center">
-                View calendar
+              <Link href="/mentor/sessions" className="text-sm text-blue-600 hover:text-blue-800 flex items-center">
+                View sessions
                 <ArrowRight className="h-4 w-4 ml-1" />
               </Link>
             </div>
@@ -352,8 +352,8 @@ export default function MentorDashboard() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-xl font-bold">Upcoming Events</CardTitle>
-              <Link href="/mentor/calendar" className="text-sm text-blue-600 hover:text-blue-800">
-                View Calendar
+              <Link href="/mentor/sessions" className="text-sm text-blue-600 hover:text-blue-800">
+                View Sessions
               </Link>
             </CardHeader>
             <CardContent>
@@ -387,17 +387,17 @@ export default function MentorDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                <Link href="/activities/new" className="flex items-center p-3 bg-blue-50 rounded-md text-blue-700 hover:bg-blue-100">
+                <Link href="/activities" className="flex items-center p-3 bg-blue-50 rounded-md text-blue-700 hover:bg-blue-100">
                   <FileText className="h-5 w-5 mr-3" />
-                  <span>Create New Activity</span>
+                  <span>Activities</span>
                 </Link>
                 <Link href="/mentor/verifications" className="flex items-center p-3 bg-green-50 rounded-md text-green-700 hover:bg-green-100">
                   <CheckCircle className="h-5 w-5 mr-3" />
                   <span>Review Verifications</span>
                 </Link>
-                <Link href="/reports" className="flex items-center p-3 bg-purple-50 rounded-md text-purple-700 hover:bg-purple-100">
-                  <BarChart2 className="h-5 w-5 mr-3" />
-                  <span>Generate Reports</span>
+                <Link href="/mentor/students" className="flex items-center p-3 bg-purple-50 rounded-md text-purple-700 hover:bg-purple-100">
+                  <Users className="h-5 w-5 mr-3" />
+                  <span>View Students</span>
                 </Link>
                 <Link href="/mentor/messages" className="flex items-center p-3 bg-yellow-50 rounded-md text-yellow-700 hover:bg-yellow-100">
                   <MessageSquare className="h-5 w-5 mr-3" />

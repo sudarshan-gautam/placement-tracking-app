@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Plus, Award, BookOpen, Calendar, BarChart2, FileText, Edit, X, User, Settings, Shield, ClipboardCheck, Server, Briefcase, CheckCircle, MessageCircle } from 'lucide-react';
+import { Plus, Award, BookOpen, Calendar, BarChart2, FileText, Edit, X, User, Settings, Shield, ClipboardCheck, Server, Briefcase, CheckCircle, MessageCircle, Folder } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 
 interface QuickActionsModalProps {
@@ -35,9 +35,9 @@ export function QuickActionsModal({ isOpen, onClose }: QuickActionsModalProps) {
       bgColor: 'bg-green-600 hover:bg-green-700'
     },
     {
-      href: '/admin/settings',
-      icon: Settings,
-      label: 'System Settings',
+      href: '/admin/sessions',
+      icon: Calendar,
+      label: 'Sessions',
       bgColor: 'bg-indigo-600 hover:bg-indigo-700'
     },
     {
@@ -47,9 +47,9 @@ export function QuickActionsModal({ isOpen, onClose }: QuickActionsModalProps) {
       bgColor: 'bg-orange-600 hover:bg-orange-700'
     },
     {
-      href: '/admin',
-      icon: Shield,
-      label: 'Dashboard',
+      href: '/activities',
+      icon: Folder,
+      label: 'Activities',
       bgColor: 'bg-teal-600 hover:bg-teal-700'
     }
   ];
@@ -61,6 +61,12 @@ export function QuickActionsModal({ isOpen, onClose }: QuickActionsModalProps) {
       icon: FileText,
       label: 'Activities',
       bgColor: 'bg-blue-600 hover:bg-blue-700'
+    },
+    {
+      href: '/mentor/sessions',
+      icon: Calendar,
+      label: 'Sessions',
+      bgColor: 'bg-green-600 hover:bg-green-700'
     },
     {
       href: '/mentor/students',
@@ -115,9 +121,9 @@ export function QuickActionsModal({ isOpen, onClose }: QuickActionsModalProps) {
       bgColor: 'bg-orange-600 hover:bg-orange-700'
     },
     {
-      href: '/activities/session',
-      icon: BookOpen,
-      label: 'Teaching Activities',
+      href: '/sessions',
+      icon: Calendar,
+      label: 'Teaching Sessions',
       bgColor: 'bg-yellow-600 hover:bg-yellow-700'
     },
     {
