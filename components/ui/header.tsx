@@ -637,13 +637,31 @@ export function Header() {
                       <FileText className="mr-2 h-4 w-4" />
                       Activities
                     </Link>
-                    <Link
-                      href="/jobs"
-                      className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
-                    >
-                      <Briefcase className="mr-2 h-4 w-4" />
-                      Jobs
-                    </Link>
+                    {user?.role === 'admin' ? (
+                      <Link
+                        href="/admin/jobs"
+                        className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
+                      >
+                        <Briefcase className="mr-2 h-4 w-4" />
+                        Jobs
+                      </Link>
+                    ) : user?.role === 'mentor' ? (
+                      <Link
+                        href="/mentor/jobs"
+                        className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
+                      >
+                        <Briefcase className="mr-2 h-4 w-4" />
+                        Jobs
+                      </Link>
+                    ) : (
+                      <Link
+                        href="/jobs"
+                        className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
+                      >
+                        <Briefcase className="mr-2 h-4 w-4" />
+                        Jobs
+                      </Link>
+                    )}
                     <Link
                       href="/settings"
                       className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
