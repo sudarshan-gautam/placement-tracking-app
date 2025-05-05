@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Bell, User, Settings, LogOut, ChevronDown, 
-  LayoutDashboard, HelpCircle, Mail, Shield, BookOpen, AlertCircle, FileText, Briefcase, UserCog, ArrowLeft } from 'lucide-react';
+  LayoutDashboard, HelpCircle, Mail, Shield, BookOpen, AlertCircle, FileText, Briefcase, UserCog, ArrowLeft, File } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
@@ -94,12 +94,14 @@ interface Notification {
 
 interface SearchResult {
   id: number;
-  type: 'page' | 'competency' | 'session';
+  type: 'page' | 'activity' | 'session';
   title: string;
   link: string;
 }
 
 export function Header() {
+  const [isOpen, setIsOpen] = useState(false);
+  const [showMessages, setShowMessages] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
@@ -110,14 +112,14 @@ export function Header() {
     {
       id: 1,
       type: 'info',
-      message: 'New competency framework available',
+      message: 'New activity framework available',
       time: '5 mins ago',
       read: false
     },
     {
       id: 2,
       type: 'warning',
-      message: 'Session review pending',
+      message: 'Activity review pending',
       time: '1 hour ago',
       read: false
     },
@@ -169,20 +171,20 @@ export function Header() {
         {
           id: 1,
           type: 'page' as const,
-          title: 'Role Competency',
-          link: '/competencies'
+          title: 'Role Activity',
+          link: '/activities'
         },
         {
           id: 2,
           type: 'session' as const,
-          title: 'Recent Teaching Session',
-          link: '/sessions'
+          title: 'Recent Teaching Activity',
+          link: '/activities/session'
         },
         {
           id: 3,
-          type: 'competency' as const,
+          type: 'activity' as const,
           title: 'Classroom Management',
-          link: '/competencies#classroom-management'
+          link: '/activities#classroom-management'
         }
       ].filter(result => 
         result.title.toLowerCase().includes(searchQuery.toLowerCase())

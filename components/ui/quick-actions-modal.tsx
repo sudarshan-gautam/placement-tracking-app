@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Plus, Award, BookOpen, Calendar, BarChart2, FileText, Edit, X, User, Settings, Shield, ClipboardCheck, Server, Briefcase, CheckCircle } from 'lucide-react';
+import { Plus, Award, BookOpen, Calendar, BarChart2, FileText, Edit, X, User, Settings, Shield, ClipboardCheck, Server, Briefcase, CheckCircle, MessageCircle } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 
 interface QuickActionsModalProps {
@@ -29,6 +29,12 @@ export function QuickActionsModal({ isOpen, onClose }: QuickActionsModalProps) {
       bgColor: 'bg-purple-600 hover:bg-purple-700'
     },
     {
+      href: '/admin/messages',
+      icon: MessageCircle,
+      label: 'Messages',
+      bgColor: 'bg-green-600 hover:bg-green-700'
+    },
+    {
       href: '/admin/settings',
       icon: Settings,
       label: 'System Settings',
@@ -44,12 +50,6 @@ export function QuickActionsModal({ isOpen, onClose }: QuickActionsModalProps) {
       href: '/admin',
       icon: Shield,
       label: 'Dashboard',
-      bgColor: 'bg-green-600 hover:bg-green-700'
-    },
-    {
-      href: '/profile',
-      icon: User,
-      label: 'My Profile',
       bgColor: 'bg-teal-600 hover:bg-teal-700'
     }
   ];
@@ -57,9 +57,9 @@ export function QuickActionsModal({ isOpen, onClose }: QuickActionsModalProps) {
   // Mentor-specific actions
   const mentorActions = [
     {
-      href: '/activities/new',
-      icon: Plus,
-      label: 'New Activity',
+      href: '/activities',
+      icon: FileText,
+      label: 'Activities',
       bgColor: 'bg-blue-600 hover:bg-blue-700'
     },
     {
@@ -75,15 +75,15 @@ export function QuickActionsModal({ isOpen, onClose }: QuickActionsModalProps) {
       bgColor: 'bg-purple-600 hover:bg-purple-700'
     },
     {
-      href: '/mentor',
-      icon: BarChart2,
-      label: 'Dashboard',
+      href: '/mentor/jobs',
+      icon: Briefcase,
+      label: 'Jobs',
       bgColor: 'bg-orange-600 hover:bg-orange-700'
     },
     {
-      href: '/profile',
-      icon: User,
-      label: 'Edit Profile',
+      href: '/mentor/messages',
+      icon: MessageCircle,
+      label: 'Messages',
       bgColor: 'bg-indigo-600 hover:bg-indigo-700'
     }
   ];
@@ -115,16 +115,22 @@ export function QuickActionsModal({ isOpen, onClose }: QuickActionsModalProps) {
       bgColor: 'bg-orange-600 hover:bg-orange-700'
     },
     {
+      href: '/activities/session',
+      icon: BookOpen,
+      label: 'Teaching Activities',
+      bgColor: 'bg-yellow-600 hover:bg-yellow-700'
+    },
+    {
       href: '/documents',
       icon: FileText,
       label: 'Generate CV',
-      bgColor: 'bg-teal-600 hover:bg-teal-700'
+      bgColor: 'bg-indigo-600 hover:bg-indigo-700'
     },
     {
-      href: '/dashboard',
-      icon: BarChart2,
-      label: 'Dashboard',
-      bgColor: 'bg-indigo-600 hover:bg-indigo-700'
+      href: '/student/messages',
+      icon: MessageCircle,
+      label: 'Messages',
+      bgColor: 'bg-teal-600 hover:bg-teal-700'
     }
   ];
 

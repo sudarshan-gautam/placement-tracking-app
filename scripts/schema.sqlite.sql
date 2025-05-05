@@ -86,32 +86,30 @@ CREATE TABLE IF NOT EXISTS qualifications (
     FOREIGN KEY (verified_by) REFERENCES users(id) ON DELETE SET NULL
 );
 
--- Competencies table
-CREATE TABLE IF NOT EXISTS competencies (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    description TEXT NOT NULL,
-    category TEXT NOT NULL,
-    level INTEGER CHECK(level BETWEEN 1 AND 5) DEFAULT 1,
-    created_at TEXT DEFAULT (datetime('now')),
-    updated_at TEXT DEFAULT (datetime('now'))
+-- Notifications table
+CREATE TABLE IF NOT EXISTS notifications (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  type TEXT CHECK(type IN ('info', 'warning', 'success', 'error')) DEFAULT 'info',
+  read BOOLEAN DEFAULT FALSE,
+  action_url TEXT,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now')),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
--- Student Competencies table (junction table)
-CREATE TABLE IF NOT EXISTS student_competencies (
-    id TEXT PRIMARY KEY,
-    student_id TEXT NOT NULL,
-    competency_id TEXT NOT NULL,
-    self_rating INTEGER CHECK(self_rating BETWEEN 1 AND 5),
-    mentor_rating INTEGER CHECK(mentor_rating BETWEEN 1 AND 5),
-    evidence TEXT,
-    notes TEXT,
-    assessment_date TEXT DEFAULT (datetime('now')),
-    created_at TEXT DEFAULT (datetime('now')),
-    updated_at TEXT DEFAULT (datetime('now')),
-    FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (competency_id) REFERENCES competencies(id) ON DELETE CASCADE,
-    UNIQUE(student_id, competency_id)
+-- Activity logs
+CREATE TABLE IF NOT EXISTS activity_logs (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  item_id TEXT,
+  item_type TEXT CHECK(item_type IN ('qualification', 'session', 'application', 'other')) NOT NULL,
+  action TEXT NOT NULL,
+  details TEXT,
+  created_at TEXT DEFAULT (datetime('now')),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 -- Teaching Sessions table
@@ -192,16 +190,6 @@ END;
 CREATE TRIGGER IF NOT EXISTS qualifications_updated_at AFTER UPDATE ON qualifications
 BEGIN
     UPDATE qualifications SET updated_at = datetime('now') WHERE id = NEW.id;
-END;
-
-CREATE TRIGGER IF NOT EXISTS competencies_updated_at AFTER UPDATE ON competencies
-BEGIN
-    UPDATE competencies SET updated_at = datetime('now') WHERE id = NEW.id;
-END;
-
-CREATE TRIGGER IF NOT EXISTS student_competencies_updated_at AFTER UPDATE ON student_competencies
-BEGIN
-    UPDATE student_competencies SET updated_at = datetime('now') WHERE id = NEW.id;
 END;
 
 CREATE TRIGGER IF NOT EXISTS sessions_updated_at AFTER UPDATE ON sessions

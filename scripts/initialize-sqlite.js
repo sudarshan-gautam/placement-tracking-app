@@ -189,38 +189,6 @@ async function createTables() {
     )
   `);
   
-  // Competencies table
-  await runQuery(`
-    CREATE TABLE IF NOT EXISTS competencies (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      description TEXT NOT NULL,
-      category TEXT NOT NULL,
-      level INTEGER CHECK(level BETWEEN 1 AND 5) DEFAULT 1,
-      created_at TEXT DEFAULT (datetime('now')),
-      updated_at TEXT DEFAULT (datetime('now'))
-    )
-  `);
-  
-  // Student Competencies table
-  await runQuery(`
-    CREATE TABLE IF NOT EXISTS student_competencies (
-      id TEXT PRIMARY KEY,
-      student_id TEXT NOT NULL,
-      competency_id TEXT NOT NULL,
-      self_rating INTEGER CHECK(self_rating BETWEEN 1 AND 5),
-      mentor_rating INTEGER CHECK(mentor_rating BETWEEN 1 AND 5),
-      evidence TEXT,
-      notes TEXT,
-      assessment_date TEXT DEFAULT (datetime('now')),
-      created_at TEXT DEFAULT (datetime('now')),
-      updated_at TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE,
-      FOREIGN KEY (competency_id) REFERENCES competencies(id) ON DELETE CASCADE,
-      UNIQUE(student_id, competency_id)
-    )
-  `);
-  
   // Teaching Sessions table
   await runQuery(`
     CREATE TABLE IF NOT EXISTS sessions (
@@ -301,20 +269,6 @@ async function createTables() {
     CREATE TRIGGER IF NOT EXISTS qualifications_updated_at AFTER UPDATE ON qualifications
     BEGIN
       UPDATE qualifications SET updated_at = datetime('now') WHERE id = NEW.id;
-    END
-  `);
-  
-  await runQuery(`
-    CREATE TRIGGER IF NOT EXISTS competencies_updated_at AFTER UPDATE ON competencies
-    BEGIN
-      UPDATE competencies SET updated_at = datetime('now') WHERE id = NEW.id;
-    END
-  `);
-  
-  await runQuery(`
-    CREATE TRIGGER IF NOT EXISTS student_competencies_updated_at AFTER UPDATE ON student_competencies
-    BEGIN
-      UPDATE student_competencies SET updated_at = datetime('now') WHERE id = NEW.id;
     END
   `);
   
@@ -496,7 +450,8 @@ async function insertSampleUsers() {
 
 // Insert various sample data
 async function insertSampleData() {
-  // Get user IDs by role
+  console.log('Inserting sample data...');
+  
   const students = await getAllRows(`SELECT id, name FROM users WHERE role = 'student'`);
   const mentors = await getAllRows(`SELECT id, name FROM users WHERE role = 'mentor'`);
   
@@ -522,14 +477,8 @@ async function insertSampleData() {
   // Insert events
   await insertEvents();
 
-  // Insert sessions
+  // Insert sessions (now considered activities)
   await insertSessions(students);
-
-  // Insert competencies
-  await insertCompetencies();
-
-  // Insert student competencies
-  await insertStudentCompetencies(students);
 
   console.log('All sample data inserted successfully');
 }
@@ -875,95 +824,6 @@ async function insertSessions(students) {
   }
   
   console.log(`Inserted ${sessionCount} teaching sessions`);
-}
-
-// Insert competencies
-async function insertCompetencies() {
-  console.log('Inserting competencies...');
-  
-  const competencies = [
-    { name: 'Classroom Management', description: 'Ability to maintain an orderly and effective learning environment', category: 'Teaching Skills', level: 3 },
-    { name: 'Lesson Planning', description: 'Creating structured and effective lesson plans', category: 'Teaching Skills', level: 4 },
-    { name: 'Student Assessment', description: 'Evaluating student progress and providing feedback', category: 'Assessment', level: 3 },
-    { name: 'Differentiated Instruction', description: 'Adapting teaching to meet individual student needs', category: 'Teaching Skills', level: 4 },
-    { name: 'Technology Integration', description: 'Using technology to enhance teaching and learning', category: 'Digital Skills', level: 3 },
-    { name: 'Communication Skills', description: 'Clear and effective communication with students and colleagues', category: 'Soft Skills', level: 4 },
-    { name: 'Subject Knowledge', description: 'Deep understanding of subject matter', category: 'Content Knowledge', level: 5 },
-    { name: 'Behavior Management', description: 'Strategies for handling challenging behaviors', category: 'Teaching Skills', level: 3 },
-    { name: 'Parent Communication', description: 'Effective engagement with parents and guardians', category: 'Soft Skills', level: 3 },
-    { name: 'Professional Ethics', description: 'Understanding and adhering to professional standards', category: 'Professional Conduct', level: 5 },
-    { name: 'Inclusive Teaching', description: 'Creating inclusive learning environments for all students', category: 'Teaching Skills', level: 4 },
-    { name: 'Critical Thinking', description: 'Promoting higher-order thinking skills', category: 'Teaching Skills', level: 4 },
-    { name: 'Time Management', description: 'Efficient use of instructional time', category: 'Organization', level: 3 },
-    { name: 'Collaborative Teaching', description: 'Working effectively with teaching assistants and colleagues', category: 'Soft Skills', level: 3 },
-    { name: 'Educational Research', description: 'Applying evidence-based practices', category: 'Professional Development', level: 4 }
-  ];
-  
-  for (const competency of competencies) {
-    await runQuery(
-      `INSERT INTO competencies (id, name, description, category, level)
-       VALUES (?, ?, ?, ?, ?)`,
-      [
-        generateUUID(),
-        competency.name,
-        competency.description,
-        competency.category,
-        competency.level
-      ]
-    );
-  }
-  
-  console.log(`Inserted ${competencies.length} competencies`);
-}
-
-// Insert student competencies
-async function insertStudentCompetencies(students) {
-  console.log('Inserting student competencies...');
-  
-  // Get all competencies
-  const competencies = await getAllRows(`SELECT id, name FROM competencies`);
-  
-  if (competencies.length === 0) {
-    console.log('No competencies found, skipping student competencies insertion');
-    return;
-  }
-  
-  for (const student of students) {
-    // Each student gets assessed on 5-10 random competencies
-    const numCompetencies = 5 + Math.floor(Math.random() * 6);
-    const selectedCompetencies = [...competencies];
-    
-    // Shuffle and select a subset
-    for (let i = selectedCompetencies.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [selectedCompetencies[i], selectedCompetencies[j]] = [selectedCompetencies[j], selectedCompetencies[i]];
-    }
-    
-    const studentCompetencies = selectedCompetencies.slice(0, numCompetencies);
-    
-    for (const competency of studentCompetencies) {
-      const selfRating = Math.floor(Math.random() * 5) + 1;
-      const mentorRating = Math.floor(Math.random() * 5) + 1;
-      const evidence = `The student has demonstrated this competency through ${['classroom observations', 'lesson plans', 'student feedback', 'peer assessments', 'portfolio evidence'][Math.floor(Math.random() * 5)]}.`;
-      const notes = `${['Good progress in this area', 'Needs more development', 'Showing significant improvement', 'Consistently strong', 'Developing well'][Math.floor(Math.random() * 5)]}.`;
-      
-      await runQuery(
-        `INSERT INTO student_competencies (id, student_id, competency_id, self_rating, mentor_rating, evidence, notes)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [
-          generateUUID(),
-          student.id,
-          competency.id,
-          selfRating,
-          mentorRating,
-          evidence,
-          notes
-        ]
-      );
-    }
-  }
-  
-  console.log(`Inserted competency assessments for ${students.length} students`);
 }
 
 // Run the initialization
