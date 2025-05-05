@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import bcrypt from 'bcrypt';
-import db, { getPool } from '@/lib/db';
+import db, { getDb, findUserByEmail, validateUser } from '@/lib/db';
 
 export async function POST(request: Request) {
   try {
@@ -16,22 +15,12 @@ export async function POST(request: Request) {
       );
     }
 
-    // Find user by email
-    const pool = await getPool();
-    console.log("DB pool obtained");
-    
+    // Find and validate user
     try {
-      const [rows] = await pool.execute(
-        'SELECT * FROM users WHERE email = ?',
-        [email]
-      );
-      console.log("Query executed, results:", rows);
+      const user = await validateUser(email, password);
       
-      const users = rows as any[];
-      const user = users[0];
-
       if (!user) {
-        console.log("No user found with email:", email);
+        console.log("Invalid credentials for email:", email);
         return NextResponse.json(
           { error: 'Invalid email or password' },
           { status: 401 }
@@ -39,19 +28,6 @@ export async function POST(request: Request) {
       }
 
       console.log("User found:", { id: user.id, email: user.email, role: user.role });
-
-      // Compare passwords
-      console.log("Stored password hash:", user.password);
-      const isPasswordValid = await bcrypt.compare(password, user.password);
-      console.log("Password valid:", isPasswordValid);
-      
-      if (!isPasswordValid) {
-        console.log("Invalid password for user:", email);
-        return NextResponse.json(
-          { error: 'Invalid email or password' },
-          { status: 401 }
-        );
-      }
 
       // Create a sanitized user object without the password
       const { password: _, ...userWithoutPassword } = user;

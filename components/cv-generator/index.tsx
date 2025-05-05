@@ -3,7 +3,17 @@
 import React, { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { FileText, Download, Edit, Upload } from 'lucide-react';
-import { CVData, Statement } from '@/types/overview';
+import { Statement } from '@/types/overview';
+import { Qualification } from '@/types/qualification';
+import { Session } from '@/types/session';
+import { Competency } from '@/types/competency';
+
+interface CVData {
+  qualifications: Qualification[];
+  experience: Session[];
+  competencies: Competency[];
+  statements: Statement[];
+}
 
 interface CVGeneratorProps {
   cvData: CVData;

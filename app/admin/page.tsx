@@ -5,9 +5,10 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { User, Settings, Shield, Users, ClipboardCheck, Bell, BarChart2, Server, Plus } from 'lucide-react';
 import { LineChart, ResponsiveContainer, Line, XAxis, YAxis, Tooltip, Legend } from 'recharts';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { VerificationReviewModal } from '@/components/ui/verification-review-modal';
 import { QuickActionsModal } from '@/components/ui/quick-actions-modal';
+import { useToast } from '@/components/ui/use-toast';
 
 // Define verification request type
 interface VerificationRequest {
@@ -20,6 +21,47 @@ interface VerificationRequest {
   description?: string;
   attachments?: string[];
   status: string;
+}
+
+// Define activity type
+interface Activity {
+  id: number;
+  type: string;
+  action: string;
+  details: string;
+  time: string;
+}
+
+// Define user type for better type checking
+interface UserData {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+  status: string;
+  joined: string;
+}
+
+// Define dashboard data type
+interface DashboardData {
+  stats: {
+    totalUsers: number;
+    activeSessions: number;
+    pendingVerifications: number;
+    highPriorityCount: number;
+  };
+  chartData: {
+    usersByMonth: any[];
+  };
+  applicationsByStatus: any[];
+  recentActivities: Activity[];
+  recentUsers: UserData[];
+  systemMetrics: {
+    id: number;
+    name: string;
+    value: string;
+    status: string;
+  }[];
 }
 
 // Sample data for charts
@@ -120,23 +162,83 @@ const systemMetrics = [
 
 export default function AdminDashboard() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [selectedPeriod, setSelectedPeriod] = useState('monthly');
   const [verificationFilter, setVerificationFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedVerification, setSelectedVerification] = useState<VerificationRequest | null>(null);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
-  const [verificationList, setVerificationList] = useState<VerificationRequest[]>(() => {
-    // Check if we have saved verification data in localStorage
-    const savedVerifications = typeof window !== 'undefined' ? localStorage.getItem('verificationList') : null;
-    
-    // If we have saved data, use it; otherwise use the default
-    return savedVerifications ? JSON.parse(savedVerifications) : verificationRequests;
-  });
+  const [verificationList, setVerificationList] = useState<VerificationRequest[]>([]);
   const [userSearchQuery, setUserSearchQuery] = useState('');
-  const [filteredUsers, setFilteredUsers] = useState(recentUsers);
+  const [filteredUsers, setFilteredUsers] = useState<UserData[]>([]);
   const [isUserEditModalOpen, setIsUserEditModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<typeof recentUsers[0] | null>(null);
   const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [dashboardData, setDashboardData] = useState<DashboardData>({
+    stats: {
+      totalUsers: 0,
+      activeSessions: 0,
+      pendingVerifications: 0,
+      highPriorityCount: 0
+    },
+    chartData: {
+      usersByMonth: []
+    },
+    applicationsByStatus: [],
+    recentActivities: [],
+    recentUsers: [],
+    systemMetrics: []
+  });
+
+  // Fetch dashboard data
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch('/api/admin/dashboard');
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch dashboard data');
+        }
+        
+        const data = await response.json();
+        setDashboardData(data);
+        
+        // Fetch verifications
+        const verificationResponse = await fetch('/api/admin/verifications');
+        
+        if (!verificationResponse.ok) {
+          throw new Error('Failed to fetch verifications');
+        }
+        
+        const verificationData = await verificationResponse.json();
+        setVerificationList(verificationData);
+        
+        // Fetch users
+        const userResponse = await fetch('/api/admin/users');
+        
+        if (!userResponse.ok) {
+          throw new Error('Failed to fetch users');
+        }
+        
+        const userData = await userResponse.json();
+        setFilteredUsers(userData as UserData[]);
+        
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load dashboard data',
+          variant: 'destructive'
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchDashboardData();
+  }, [toast]);
 
   const handlePeriodChange = (period: string) => {
     setSelectedPeriod(period);
@@ -208,55 +310,110 @@ export default function AdminDashboard() {
   };
 
   // Handle approve verification
-  const handleApproveVerification = (id: number, feedback: string) => {
-    // Update the verification status
-    const updatedList = verificationList.map(v => 
-      v.id === id ? { ...v, status: 'approved' } : v
-    );
-    
-    // Update state and save to localStorage
-    setVerificationList(updatedList);
-    localStorage.setItem('verificationList', JSON.stringify(updatedList));
-    
-    setIsReviewModalOpen(false);
-    
-    // Show success message
-    if (feedback) {
-      alert(`Verification #${id} has been approved\nFeedback: ${feedback}`);
-    } else {
-      alert(`Verification #${id} has been approved`);
+  const handleApproveVerification = async (id: number, feedback: string) => {
+    try {
+      const response = await fetch('/api/admin/verifications', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          id,
+          status: 'approved',
+          feedback
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to approve verification');
+      }
+      
+      // Update the verification list
+      setVerificationList(prevList => 
+        prevList.map(v => v.id === id ? { ...v, status: 'approved' } : v)
+      );
+      
+      setIsReviewModalOpen(false);
+      
+      toast({
+        title: 'Success',
+        description: `Verification #${id} has been approved`,
+        variant: 'default'
+      });
+    } catch (error) {
+      console.error('Error approving verification:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to approve verification',
+        variant: 'destructive'
+      });
     }
   };
 
   // Handle reject verification
-  const handleRejectVerification = (id: number, reason: string) => {
-    // Update the verification status
-    const updatedList = verificationList.map(v => 
-      v.id === id ? { ...v, status: 'rejected' } : v
-    );
-    
-    // Update state and save to localStorage
-    setVerificationList(updatedList);
-    localStorage.setItem('verificationList', JSON.stringify(updatedList));
-    
-    setIsReviewModalOpen(false);
-    
-    // Show rejection message
-    alert(`Verification #${id} has been rejected\nReason: ${reason}`);
+  const handleRejectVerification = async (id: number, reason: string) => {
+    try {
+      const response = await fetch('/api/admin/verifications', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          id,
+          status: 'rejected',
+          feedback: reason
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to reject verification');
+      }
+      
+      // Update the verification list
+      setVerificationList(prevList => 
+        prevList.map(v => v.id === id ? { ...v, status: 'rejected' } : v)
+      );
+      
+      setIsReviewModalOpen(false);
+      
+      toast({
+        title: 'Success',
+        description: `Verification #${id} has been rejected`,
+        variant: 'default'
+      });
+    } catch (error) {
+      console.error('Error rejecting verification:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to reject verification',
+        variant: 'destructive'
+      });
+    }
   };
 
   // Handle user search
   const handleUserSearch = () => {
     if (!userSearchQuery.trim()) {
-      setFilteredUsers(recentUsers);
+      // If the search query is empty, reset to the original list
+      fetch('/api/admin/users')
+        .then(res => res.json())
+        .then(data => setFilteredUsers(data as UserData[]))
+        .catch(error => {
+          console.error('Error fetching users:', error);
+          toast({
+            title: 'Error',
+            description: 'Failed to fetch users',
+            variant: 'destructive'
+          });
+        });
       return;
     }
     
+    // Filter users by name or email
     const query = userSearchQuery.toLowerCase();
-    const filtered = recentUsers.filter(user => 
+    const filtered = filteredUsers.filter(user => 
       user.name.toLowerCase().includes(query) || 
-      user.email.toLowerCase().includes(query) ||
-      user.role.toLowerCase().includes(query)
+      user.email.toLowerCase().includes(query)
     );
     
     setFilteredUsers(filtered);
@@ -277,363 +434,470 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-6 pb-40">
-      {/* 1. HEADER SECTION */}
-      <div className="mb-8">
-        <div className="flex items-center">
-          <div className="flex items-center">
-            <div className="h-16 w-16 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden mr-4">
-              {user?.profileImage ? (
-                <img src={user.profileImage} alt={user?.name} className="h-full w-full object-cover" />
-              ) : (
-                <User className="h-8 w-8 text-gray-600" />
-              )}
-            </div>
-            <div>
-              <p className="text-xl font-medium text-gray-900">{user?.name}</p>
-              <p className="text-sm text-gray-500">
-                {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-              </p>
-            </div>
-          </div>
+      {/* Display a loading state */}
+      {isLoading ? (
+        <div className="flex items-center justify-center h-full min-h-[400px]">
+          <div className="animate-spin h-10 w-10 border-4 border-blue-600 rounded-full border-t-transparent"></div>
         </div>
-      </div>
+      ) : (
+        <>
+          {/* Header Section - Removed */}
 
-      {/* 2. OVERVIEW METRICS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-            <User className="h-4 w-4 text-gray-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">120</div>
-            <p className="text-xs text-gray-500">+15% from last month</p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Active Sessions</CardTitle>
-            <BarChart2 className="h-4 w-4 text-gray-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">48</div>
-            <p className="text-xs text-gray-500">+8 today</p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Pending Verifications</CardTitle>
-            <ClipboardCheck className="h-4 w-4 text-gray-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">24</div>
-            <p className="text-xs text-gray-500">6 high priority</p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">System Health</CardTitle>
-            <Server className="h-4 w-4 text-gray-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">Healthy</div>
-            <p className="text-xs text-gray-500">All systems operational</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* 3. USER ACTIVITY CHART */}
-      <div className="bg-white p-6 rounded-lg shadow mb-8">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-lg font-semibold">User Activity</h2>
-          <div className="flex space-x-2">
-            <button className={getButtonStyle('monthly')} onClick={() => handlePeriodChange('monthly')}>Monthly</button>
-            <button className={getButtonStyle('weekly')} onClick={() => handlePeriodChange('weekly')}>Weekly</button>
-            <button className={getButtonStyle('daily')} onClick={() => handlePeriodChange('daily')}>Daily</button>
-          </div>
-        </div>
-        <div className="h-80">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={getActivityData()}>
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Line type="monotone" dataKey="registrations" stroke="#3b82f6" strokeWidth={2} />
-              <Line type="monotone" dataKey="sessions" stroke="#10b981" strokeWidth={2} />
-              <Line type="monotone" dataKey="verifications" stroke="#f59e0b" strokeWidth={2} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* 4. VERIFICATION QUEUE */}
-      <div className="bg-white p-6 rounded-lg shadow mb-8">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold">Verifications</h2>
-          <div className="flex space-x-2">
-            <button className={getVerificationButtonStyle('all')} onClick={() => handleVerificationFilterChange('all')}>All</button>
-            <button className={getVerificationButtonStyle('qualification')} onClick={() => handleVerificationFilterChange('qualification')}>Qualifications</button>
-            <button className={getVerificationButtonStyle('competency')} onClick={() => handleVerificationFilterChange('competency')}>Competencies</button>
-            <button className={getVerificationButtonStyle('session')} onClick={() => handleVerificationFilterChange('session')}>Sessions</button>
-          </div>
-        </div>
-        
-        {getFilteredVerifications().length === 0 ? (
-          <div className="text-center py-8">
-            <ClipboardCheck className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No verifications</h3>
-            <p className="mt-1 text-sm text-gray-500">There are no pending verifications in this category.</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {getFilteredVerifications().map((request) => (
-                  <tr key={request.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.type}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{request.title}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.user}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.date}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                        ${request.priority === 'High' ? 'bg-red-100 text-red-800' : 
-                          request.priority === 'Medium' ? 'bg-yellow-100 text-yellow-800' : 
-                          'bg-green-100 text-green-800'}`}>
-                        {request.priority}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                        ${request.status === 'approved' ? 'bg-green-100 text-green-800' : 
-                          request.status === 'rejected' ? 'bg-red-100 text-red-800' : 
-                          'bg-blue-100 text-blue-800'}`}>
-                        {request.status === 'pending' ? 'Pending' : 
-                        request.status === 'approved' ? 'Approved' : 'Rejected'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {request.status === 'pending' ? (
-                        <button 
-                          className="text-blue-600 hover:text-blue-900" 
-                          onClick={() => handleReviewClick(request.id)}
-                        >
-                          Review
-                        </button>
-                      ) : (
-                        <button 
-                          className="text-blue-600 hover:text-blue-900" 
-                          onClick={() => handleReviewClick(request.id)}
-                        >
-                          Edit
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-        
-        {/* Review Modal */}
-        <VerificationReviewModal
-          isOpen={isReviewModalOpen}
-          onClose={() => setIsReviewModalOpen(false)}
-          verification={selectedVerification}
-          onApprove={handleApproveVerification}
-          onReject={handleRejectVerification}
-        />
-      </div>
-
-      {/* 5 & 6. RECENT ACTIVITIES AND USER MANAGEMENT */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        {/* RECENT ACTIVITIES */}
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-lg font-semibold">Recent Activities</h2>
-            <Link href="/admin/activities" className="text-sm text-blue-600 hover:text-blue-800">View All</Link>
-          </div>
-          <div className="space-y-4">
-            {recentActivities.map((activity) => (
-              <div key={activity.id} className="flex items-start space-x-4 p-3 rounded-md hover:bg-gray-50">
-                <div className={`p-2 rounded-full 
-                  ${activity.type === 'User' ? 'bg-blue-100 text-blue-600' : 
-                    activity.type === 'System' ? 'bg-green-100 text-green-600' : 
-                    'bg-purple-100 text-purple-600'}`}>
-                  {activity.type === 'User' ? <User className="h-5 w-5" /> : 
-                   activity.type === 'System' ? <Server className="h-5 w-5" /> : 
-                   <Shield className="h-5 w-5" />}
+          {/* Stats Overview */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Total Users</p>
+                    <h3 className="text-3xl font-bold">{dashboardData.stats.totalUsers}</h3>
+                    <p className="text-xs text-gray-500">+15% from last month</p>
+                  </div>
+                  <div className="h-12 w-12 bg-blue-50 rounded-full flex items-center justify-center">
+                    <Users className="h-6 w-6 text-blue-600" />
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium">{activity.action}</p>
-                  <p className="text-xs text-gray-500">{activity.details}</p>
-                  <p className="text-xs text-gray-400 mt-1">{activity.time}</p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Active Sessions</p>
+                    <h3 className="text-3xl font-bold">{dashboardData.stats.activeSessions}</h3>
+                    <p className="text-xs text-gray-500">+8 today</p>
+                  </div>
+                  <div className="h-12 w-12 bg-green-50 rounded-full flex items-center justify-center">
+                    <User className="h-6 w-6 text-green-600" />
+                  </div>
                 </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Pending Verifications</p>
+                    <h3 className="text-3xl font-bold">{dashboardData.stats.pendingVerifications}</h3>
+                    <p className="text-xs text-gray-500">{dashboardData.stats.highPriorityCount} high priority</p>
+                  </div>
+                  <div className="h-12 w-12 bg-yellow-50 rounded-full flex items-center justify-center">
+                    <ClipboardCheck className="h-6 w-6 text-yellow-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">System Health</p>
+                    <h3 className="text-3xl font-bold">Healthy</h3>
+                    <p className="text-xs text-gray-500">All systems operational</p>
+                  </div>
+                  <div className="h-12 w-12 bg-purple-50 rounded-full flex items-center justify-center">
+                    <Server className="h-6 w-6 text-purple-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          
+          {/* Chart */}
+          <Card className="mb-6">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>User Activity</CardTitle>
+              <div className="flex space-x-2">
+                <button 
+                  onClick={() => handlePeriodChange('daily')}
+                  className={getButtonStyle('daily')}
+                >
+                  Daily
+                </button>
+                <button 
+                  onClick={() => handlePeriodChange('weekly')}
+                  className={getButtonStyle('weekly')}
+                >
+                  Weekly
+                </button>
+                <button 
+                  onClick={() => handlePeriodChange('monthly')}
+                  className={getButtonStyle('monthly')}
+                >
+                  Monthly
+                </button>
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* USER MANAGEMENT */}
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-lg font-semibold">User Overview</h2>
-            <div className="flex space-x-2">
-              <input 
-                type="text" 
-                placeholder="Search users..." 
-                className="px-3 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                value={userSearchQuery}
-                onChange={(e) => setUserSearchQuery(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleUserSearch()}
-              />
-              <button 
-                className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                onClick={handleUserSearch}
-              >
-                Search
-              </button>
-            </div>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Joined</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredUsers.map((user) => (
-                  <tr key={user.id}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
-                          <User className="h-4 w-4 text-gray-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={getActivityData()}>
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Line 
+                      type="monotone" 
+                      dataKey="registrations" 
+                      stroke="#2563EB" 
+                      strokeWidth={2} 
+                      dot={{ r: 4 }}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="sessions" 
+                      stroke="#10B981" 
+                      strokeWidth={2} 
+                      dot={{ r: 4 }}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="verifications" 
+                      stroke="#F59E0B" 
+                      strokeWidth={2} 
+                      dot={{ r: 4 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+          
+          {/* Main Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Verifications Section */}
+            <div className="lg:col-span-2">
+              <Card className="mb-6">
+                <CardHeader className="pb-2">
+                  <div className="flex justify-between items-center">
+                    <CardTitle>Verifications</CardTitle>
+                    <div className="flex space-x-2">
+                      <button 
+                        onClick={() => handleVerificationFilterChange('all')}
+                        className={getVerificationButtonStyle('all')}
+                      >
+                        All
+                      </button>
+                      <button 
+                        onClick={() => handleVerificationFilterChange('qualification')}
+                        className={getVerificationButtonStyle('qualification')}
+                      >
+                        Qualifications
+                      </button>
+                      <button 
+                        onClick={() => handleVerificationFilterChange('competency')}
+                        className={getVerificationButtonStyle('competency')}
+                      >
+                        Competencies
+                      </button>
+                      <button 
+                        onClick={() => handleVerificationFilterChange('session')}
+                        className={getVerificationButtonStyle('session')}
+                      >
+                        Sessions
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex mt-4 space-x-2">
+                    <button 
+                      onClick={() => handleStatusFilterChange('all')}
+                      className={getStatusButtonStyle('all')}
+                    >
+                      All Status
+                    </button>
+                    <button 
+                      onClick={() => handleStatusFilterChange('pending')}
+                      className={getStatusButtonStyle('pending')}
+                    >
+                      Pending
+                    </button>
+                    <button 
+                      onClick={() => handleStatusFilterChange('approved')}
+                      className={getStatusButtonStyle('approved')}
+                    >
+                      Approved
+                    </button>
+                    <button 
+                      onClick={() => handleStatusFilterChange('rejected')}
+                      className={getStatusButtonStyle('rejected')}
+                    >
+                      Rejected
+                    </button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left text-gray-500">
+                      <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+                        <tr>
+                          <th scope="col" className="px-4 py-3">Type</th>
+                          <th scope="col" className="px-4 py-3">Title</th>
+                          <th scope="col" className="px-4 py-3">User</th>
+                          <th scope="col" className="px-4 py-3">Date</th>
+                          <th scope="col" className="px-4 py-3">Priority</th>
+                          <th scope="col" className="px-4 py-3">Status</th>
+                          <th scope="col" className="px-4 py-3">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {getFilteredVerifications().slice(0, 4).map((request) => (
+                          <tr key={request.id} className="bg-white border-b hover:bg-gray-50">
+                            <td className="px-4 py-3">{request.type}</td>
+                            <td className="px-4 py-3 font-medium text-gray-900">
+                              {request.title}
+                            </td>
+                            <td className="px-4 py-3">{request.user}</td>
+                            <td className="px-4 py-3">
+                              {/* Date display removed */}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span 
+                                className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full
+                                  ${request.priority === 'High' 
+                                    ? 'bg-red-100 text-red-800' 
+                                    : request.priority === 'Medium'
+                                      ? 'bg-yellow-100 text-yellow-800'
+                                      : 'bg-green-100 text-green-800'
+                                  }`}
+                              >
+                                {request.priority}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span 
+                                className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full
+                                  ${request.status === 'pending' 
+                                    ? 'bg-blue-100 text-blue-800' 
+                                    : request.status === 'approved'
+                                      ? 'bg-green-100 text-green-800'
+                                      : 'bg-red-100 text-red-800'
+                                  }`}
+                              >
+                                {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <button
+                                onClick={() => handleReviewClick(request.id)}
+                                className="text-blue-600 hover:text-blue-900"
+                              >
+                                Review
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="flex justify-end mt-4">
+                    <Link href="/admin/verifications" className="text-sm text-blue-600 hover:text-blue-800">
+                      View All Verifications →
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              {/* Recent Activities Section */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Recent Activities</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {dashboardData.recentActivities.map((activity, index) => (
+                      <div key={index} className="flex items-start pb-4 last:pb-0 border-b last:border-0">
+                        <div className={`mr-3 rounded-full p-2 
+                          ${activity.type === 'User' 
+                            ? 'bg-blue-100 text-blue-500' 
+                            : activity.type === 'System' 
+                              ? 'bg-green-100 text-green-500' 
+                              : 'bg-purple-100 text-purple-500'
+                          }`}
+                        >
+                          {activity.type === 'User' && <User className="h-4 w-4" />}
+                          {activity.type === 'System' && <Server className="h-4 w-4" />}
+                          {activity.type === 'Admin' && <Shield className="h-4 w-4" />}
                         </div>
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">{user.name}</div>
-                          <div className="text-sm text-gray-500">{user.email}</div>
+                        <div className="flex-1">
+                          <div className="flex justify-between">
+                            <p className="text-sm font-medium">{activity.action}</p>
+                            <span className="text-xs text-gray-500">
+                              {typeof activity.time === 'string' && activity.time.includes('ago')
+                                ? activity.time
+                                : new Date(activity.time).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-500">{activity.details}</p>
                         </div>
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">{user.role}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                        ${user.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
-                        {user.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.joined}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <Link 
-                        href={`/admin/users/edit/${user.id}`} 
-                        className="text-blue-600 hover:text-blue-900"
-                      >
-                        Edit
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      {/* 7 & 8. SYSTEM HEALTH AND QUICK ACTIONS */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* SYSTEM HEALTH */}
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h2 className="text-lg font-semibold mb-6">System Health</h2>
-          <div className="space-y-4">
-            {systemMetrics.map((metric) => (
-              <div key={metric.id} className="flex items-center justify-between p-3 border-b border-gray-100">
-                <div className="flex items-center">
-                  <div className={`h-3 w-3 rounded-full mr-3 
-                    ${metric.status === 'good' ? 'bg-green-500' : 
-                      metric.status === 'warning' ? 'bg-yellow-500' : 'bg-red-500'}`}></div>
-                  <span className="text-sm font-medium">{metric.name}</span>
-                </div>
-                <span className="text-sm text-gray-500">{metric.value}</span>
-              </div>
-            ))}
-          </div>
-          <div className="mt-6">
-            <Link href="/admin/system-health" className="block w-full text-center py-2 bg-gray-100 text-gray-700 rounded-md text-sm font-medium hover:bg-gray-200">
-              View Detailed Report
-            </Link>
-          </div>
-        </div>
-
-        {/* QUICK ACTIONS */}
-        <div className="lg:col-span-2 bg-white p-6 rounded-lg shadow">
-          <h2 className="text-lg font-semibold mb-6">Quick Actions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div 
-              className="p-4 bg-white rounded-lg shadow border border-gray-200"
-            >
-              <div className="flex items-center">
-                <User className="h-5 w-5 mr-2 text-blue-500" />
-                <span>Add User</span>
-              </div>
+                    ))}
+                  </div>
+                  <div className="flex justify-end mt-4">
+                    <Link href="/admin/activity-log" className="text-sm text-blue-600 hover:text-blue-800">
+                      View All Activity →
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
             
-            <Link href="/admin/roles" className="p-4 bg-white rounded-lg shadow hover:shadow-md transition-shadow border border-gray-200">
-              <div className="flex items-center">
-                <Shield className="h-5 w-5 mr-2 text-blue-500" />
-                <span>Modify Roles</span>
-              </div>
-            </Link>
-            
-            <Link href="/admin/reset-password" className="p-4 bg-white rounded-lg shadow hover:shadow-md transition-shadow border border-gray-200">
-              <div className="flex items-center">
-                <Settings className="h-5 w-5 mr-2 text-blue-500" />
-                <span>Reset Credentials</span>
-              </div>
-            </Link>
-            
-            <Link href="/admin/resources" className="p-4 bg-white rounded-lg shadow hover:shadow-md transition-shadow border border-gray-200">
-              <div className="flex items-center">
-                <BarChart2 className="h-5 w-5 mr-2 text-green-500" />
-                <span>Update Resources</span>
-              </div>
-            </Link>
-            
-            <Link href="/admin/templates" className="p-4 bg-white rounded-lg shadow hover:shadow-md transition-shadow border border-gray-200">
-              <div className="flex items-center">
-                <ClipboardCheck className="h-5 w-5 mr-2 text-green-500" />
-                <span>Manage Templates</span>
-              </div>
-            </Link>
-            
-            <Link href="/admin/reports" className="p-4 bg-white rounded-lg shadow hover:shadow-md transition-shadow border border-gray-200">
-              <div className="flex items-center">
-                <Server className="h-5 w-5 mr-2 text-green-500" />
-                <span>Generate Reports</span>
-              </div>
-            </Link>
+            {/* Right Column */}
+            <div>
+              {/* User Overview Section */}
+              <Card className="mb-6">
+                <CardHeader>
+                  <div className="flex justify-between items-center">
+                    <CardTitle>User Overview</CardTitle>
+                    <Link href="/admin/users" className="text-sm text-blue-600 hover:text-blue-800">
+                      View All
+                    </Link>
+                  </div>
+                  <div className="mt-2">
+                    <div className="relative">
+                      <input 
+                        type="text"
+                        placeholder="Search users..."
+                        value={userSearchQuery}
+                        onChange={(e) => setUserSearchQuery(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleUserSearch()}
+                        className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-md"
+                      />
+                      <div className="absolute inset-y-0 left-0 flex items-center pl-3">
+                        <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                      </div>
+                      <button 
+                        onClick={handleUserSearch}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1 bg-blue-600 text-white text-xs rounded"
+                      >
+                        Search
+                      </button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {filteredUsers.slice(0, 3).map((user) => (
+                      <div key={user.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-center">
+                          <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center text-gray-700 uppercase font-bold">
+                            {user.name.charAt(0)}
+                          </div>
+                          <div className="ml-3">
+                            <p className="text-sm font-medium text-gray-900">{user.name}</p>
+                            <p className="text-xs text-gray-500">{user.email}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center">
+                          <span className={`px-2 py-1 text-xs rounded-full 
+                            ${user.role === 'admin' 
+                              ? 'bg-purple-100 text-purple-800' 
+                              : user.role === 'mentor' 
+                                ? 'bg-blue-100 text-blue-800' 
+                                : 'bg-green-100 text-green-800'
+                            }`}
+                          >
+                            {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                          </span>
+                          <button
+                            onClick={() => {
+                              setSelectedUser(user);
+                              setIsUserEditModalOpen(true);
+                            }}
+                            className="ml-3 text-blue-600 hover:text-blue-800 text-sm"
+                          >
+                            Edit
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+              
+              {/* System Health Section */}
+              <Card className="mb-6">
+                <CardHeader>
+                  <CardTitle>System Health</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {dashboardData.systemMetrics.map((metric) => (
+                      <div key={metric.id} className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <div className={`h-3 w-3 rounded-full mr-2 
+                            ${metric.status === 'good' 
+                              ? 'bg-green-500' 
+                              : metric.status === 'warning' 
+                                ? 'bg-yellow-500' 
+                                : 'bg-red-500'
+                            }`}
+                          ></div>
+                          <span className="text-sm text-gray-700">{metric.name}</span>
+                        </div>
+                        <span className="text-sm font-medium">{metric.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <Link 
+                      href="/admin/system"
+                      className="text-sm text-blue-600 hover:text-blue-800 flex items-center justify-center"
+                    >
+                      View Detailed Report
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              {/* Quick Actions */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Quick Actions</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 gap-3">
+                    <Link href="/admin/users" className="flex items-center gap-2 p-3 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors">
+                      <Users className="h-5 w-5" />
+                      <span>Manage Users</span>
+                    </Link>
+                    <Link href="/admin/verifications" className="flex items-center gap-2 p-3 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors">
+                      <ClipboardCheck className="h-5 w-5" />
+                      <span>Review Verifications</span>
+                    </Link>
+                    <Link href="/admin/settings" className="flex items-center gap-2 p-3 bg-purple-50 text-purple-600 rounded-lg hover:bg-purple-100 transition-colors">
+                      <Settings className="h-5 w-5" />
+                      <span>System Settings</span>
+                    </Link>
+                    <button 
+                      onClick={() => setIsQuickActionsOpen(true)}
+                      className="flex items-center gap-2 p-3 bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+                    >
+                      <Plus className="h-5 w-5" />
+                      <span>More Actions</span>
+                    </button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
-        </div>
-      </div>
+          
+          {/* Add modals */}
+          {selectedVerification && (
+            <VerificationReviewModal 
+              isOpen={isReviewModalOpen}
+              onClose={() => setIsReviewModalOpen(false)}
+              verification={selectedVerification}
+              onApprove={handleApproveVerification}
+              onReject={handleRejectVerification}
+            />
+          )}
+        </>
+      )}
 
       {/* Add the QuickActionsModal */}
       <QuickActionsModal 

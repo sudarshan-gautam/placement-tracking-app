@@ -18,121 +18,36 @@ import {
   User
 } from 'lucide-react';
 import Link from 'next/link';
+import { 
+  getAllActivities, 
+  updateActivity, 
+  deleteActivity,
+  addReflection,
+  Activity,
+  Feedback
+} from '@/lib/activities-service';
 
-// Sample activity data - in a real app, this would come from an API
-const activitiesData = [
-  {
-    id: 1,
-    title: 'Primary School Teaching Session',
-    type: 'Teaching',
-    date: '2023-07-15',
-    duration: 120,
-    description: 'Taught a Year 3 class on basic mathematics concepts including addition, subtraction, and simple multiplication.',
-    reflection: 'Students engaged well with the interactive elements. Need to work on pacing for future sessions.',
-    status: 'completed',
-    verified: true,
-    verifiedBy: {
-      name: 'Dr. Sarah Johnson',
-      role: 'Mentor',
-      date: '2023-07-18',
-      comments: 'Well-executed teaching session with clear learning objectives. Good classroom management observed.'
-    },
-    evidence: [
-      { id: 1, name: 'Lesson Plan.pdf', type: 'document', url: '#' },
-      { id: 2, name: 'Student Feedback.docx', type: 'document', url: '#' },
-      { id: 3, name: 'Class Photo.jpg', type: 'image', url: '#' }
-    ],
-    competencies: [
-      { id: 1, name: 'Curriculum Knowledge', level: 'Developing' },
-      { id: 2, name: 'Classroom Management', level: 'Proficient' },
-      { id: 3, name: 'Assessment Techniques', level: 'Developing' }
-    ],
-    feedback: [
-      {
-        id: 1,
-        author: 'Dr. Sarah Johnson',
-        role: 'Mentor',
-        date: '2023-07-18',
-        content: 'Good use of visual aids to support learning. Consider incorporating more pair work to increase student engagement.'
-      }
-    ]
-  },
-  {
-    id: 2,
-    title: 'Classroom Management Workshop',
-    type: 'Professional Development',
-    date: '2023-07-10',
-    duration: 180,
-    description: 'Attended a workshop on effective classroom management techniques for primary school settings.',
-    reflection: 'Learned valuable strategies for managing disruptive behavior. Will implement the "quiet signal" technique in my next session.',
-    status: 'completed',
-    verified: true,
-    verifiedBy: {
-      name: 'Prof. Michael Brown',
-      role: 'Workshop Facilitator',
-      date: '2023-07-12',
-      comments: 'Active participation throughout the workshop with thoughtful questions and contributions.'
-    },
-    evidence: [
-      { id: 1, name: 'Workshop Certificate.pdf', type: 'document', url: '#' },
-      { id: 2, name: 'Workshop Notes.pdf', type: 'document', url: '#' }
-    ],
-    competencies: [
-      { id: 1, name: 'Behavior Management', level: 'Proficient' },
-      { id: 2, name: 'Professional Knowledge', level: 'Advanced' }
-    ],
-    feedback: [
-      {
-        id: 1,
-        author: 'Prof. Michael Brown',
-        role: 'Workshop Facilitator',
-        date: '2023-07-12',
-        content: 'Demonstrated excellent understanding of behavior management principles. Your contributions to group discussions were valuable.'
-      }
-    ]
-  },
-  {
-    id: 3,
-    title: 'Curriculum Planning Meeting',
-    type: 'Planning',
-    date: '2023-07-08',
-    duration: 90,
-    description: 'Participated in a team meeting to plan the science curriculum for the upcoming term.',
-    reflection: 'Contributed ideas for hands-on experiments. Need to follow up with resources for the water cycle unit.',
-    status: 'completed',
-    verified: false,
-    evidence: [
-      { id: 1, name: 'Meeting Minutes.docx', type: 'document', url: '#' },
-      { id: 2, name: 'Draft Curriculum Plan.pdf', type: 'document', url: '#' }
-    ],
-    competencies: [
-      { id: 1, name: 'Curriculum Planning', level: 'Developing' },
-      { id: 2, name: 'Collaboration', level: 'Proficient' }
-    ],
-    feedback: []
-  },
-  {
-    id: 4,
-    title: 'Parent-Teacher Conference',
-    type: 'Communication',
-    date: '2023-07-20',
-    duration: 30,
-    description: 'Scheduled meeting with parents to discuss student progress and address any concerns.',
-    reflection: '',
-    status: 'planned',
-    verified: false,
-    evidence: [],
-    competencies: [
-      { id: 1, name: 'Parent Communication', level: 'Not Assessed' }
-    ],
-    feedback: []
-  }
+// Sample evidence and competency data since these aren't in our activities service yet
+const sampleEvidenceData = [
+  { id: 1, name: 'Lesson Plan.pdf', type: 'document', url: '#' },
+  { id: 2, name: 'Student Feedback.docx', type: 'document', url: '#' },
+  { id: 3, name: 'Class Photo.jpg', type: 'image', url: '#' }
+];
+
+const sampleCompetencyData = [
+  { id: 1, name: 'Curriculum Knowledge', level: 'Developing' },
+  { id: 2, name: 'Classroom Management', level: 'Proficient' },
+  { id: 3, name: 'Assessment Techniques', level: 'Developing' }
 ];
 
 export default function ActivityDetailsPage({ params }: { params: { id: string } }) {
   const { user } = useAuth();
   const router = useRouter();
-  const [activity, setActivity] = useState<any>(null);
+  const [activity, setActivity] = useState<Activity & { 
+    evidence?: any[]; 
+    competencies?: any[];
+    verifiedBy?: any;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [showReflectionForm, setShowReflectionForm] = useState(false);
   const [reflection, setReflection] = useState('');
@@ -141,28 +56,55 @@ export default function ActivityDetailsPage({ params }: { params: { id: string }
   const [feedback, setFeedback] = useState('');
 
   useEffect(() => {
-    // In a real app, this would be an API call
+    // Load the activity from localStorage
     const activityId = parseInt(params.id);
-    const foundActivity = activitiesData.find(a => a.id === activityId);
+    const activities = getAllActivities();
+    const foundActivity = activities.find(a => a.id === activityId);
     
     if (foundActivity) {
-      setActivity(foundActivity);
+      // Add sample evidence and competencies since they're not in our activity service
+      const enrichedActivity = {
+        ...foundActivity,
+        evidence: sampleEvidenceData,
+        competencies: sampleCompetencyData,
+        feedback: foundActivity.feedback || [],
+        verifiedBy: foundActivity.status === 'verified' ? {
+          name: foundActivity.mentor,
+          role: 'Mentor',
+          date: new Date().toISOString().split('T')[0],
+          comments: 'Activity verified as completed successfully.'
+        } : null
+      };
+      
+      setActivity(enrichedActivity);
       setReflection(foundActivity.reflection || '');
+    } else {
+      // Activity not found
+      alert('Activity not found');
+      router.push('/activities');
     }
     setLoading(false);
-  }, [params.id]);
+  }, [params.id, router]);
 
   const handleReflectionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setReflection(e.target.value);
   };
 
   const handleSaveReflection = () => {
-    // In a real app, this would call an API to save the reflection
-    setActivity({
-      ...activity,
-      reflection: reflection
-    });
-    setShowReflectionForm(false);
+    if (!activity) return;
+    
+    // Save reflection to localStorage
+    const updatedActivity = addReflection(activity.id, reflection);
+    
+    if (updatedActivity) {
+      // Update local state with the updated activity
+      setActivity({
+        ...activity,
+        reflection: reflection,
+        reflectionCompleted: true
+      });
+      setShowReflectionForm(false);
+    }
   };
 
   const handleFeedbackChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -170,35 +112,71 @@ export default function ActivityDetailsPage({ params }: { params: { id: string }
   };
 
   const handleSubmitFeedback = () => {
-    // In a real app, this would call an API to save the feedback
-    const newFeedback = {
-      id: activity.feedback.length + 1,
+    if (!activity) return;
+    
+    const newFeedback: Feedback = {
+      id: (activity.feedback?.length || 0) + 1,
       author: user?.name || 'Current User',
       role: user?.role || 'Mentor',
       date: new Date().toISOString().split('T')[0],
       content: feedback
     };
     
-    setActivity({
-      ...activity,
-      feedback: [...activity.feedback, newFeedback]
-    });
+    const updatedFeedback = [...(activity.feedback || []), newFeedback];
+    
+    // Update the activity in localStorage with proper typing
+    const result = updateActivity(activity.id, {
+      feedback: updatedFeedback
+    } as Partial<Activity>);
+    
+    if (result) {
+      // Update local state
+      setActivity({
+        ...activity,
+        feedback: updatedFeedback
+      });
+    }
     
     setFeedback('');
     setShowFeedbackForm(false);
   };
 
   const handleRequestVerification = () => {
-    // In a real app, this would call an API to request verification
+    if (!activity) return;
+    
+    // In a real app, this would send a notification to the mentor
     alert('Verification request has been sent to your mentor.');
   };
 
+  const handleDeleteActivity = () => {
+    if (!activity) return;
+    
+    if (window.confirm('Are you sure you want to delete this activity?')) {
+      // Delete from localStorage
+      const deleted = deleteActivity(activity.id);
+      
+      if (deleted) {
+        alert('Activity deleted successfully');
+        router.push('/activities');
+      }
+    }
+  };
+
   const handleMarkAsCompleted = () => {
-    // In a real app, this would call an API to mark the activity as completed
-    setActivity({
-      ...activity,
-      status: 'completed'
+    if (!activity) return;
+    
+    // Update status to 'completed' or equivalent in our activity model
+    const updatedActivity = updateActivity(activity.id, {
+      status: 'pending' // Set to pending to require verification
     });
+    
+    if (updatedActivity) {
+      setActivity({
+        ...activity,
+        status: 'pending'
+      });
+      alert('Activity marked as completed and ready for verification');
+    }
   };
 
   if (loading) {

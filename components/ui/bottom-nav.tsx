@@ -16,14 +16,14 @@ export function BottomNav() {
   if (pathname === '/' || pathname.startsWith('/auth')) return null;
 
   // Admin-specific navigation
-  if (user?.role === 'admin' && pathname.startsWith('/admin')) {
+  if (user?.role === 'admin') {
     return (
       <>
         <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-50">
           <div className="flex justify-around items-center max-w-4xl mx-auto relative">
             <Link href="/admin" className={`flex flex-col items-center ${pathname === '/admin' ? 'text-blue-600' : 'text-gray-600 hover:text-blue-600'}`}>
               <Home className="h-6 w-6" />
-              <span className="text-xs">Admin Home</span>
+              <span className="text-xs">Dashboard</span>
             </Link>
             <Link href="/admin/users" className={`flex flex-col items-center ${pathname.startsWith('/admin/users') ? 'text-blue-600' : 'text-gray-600 hover:text-blue-600'}`}>
               <Users className="h-6 w-6" />
@@ -37,13 +37,17 @@ export function BottomNav() {
                 <Plus className="h-8 w-8" />
               </button>
             </div>
+            <Link href="/admin/jobs" className={`flex flex-col items-center ${pathname.startsWith('/admin/jobs') ? 'text-blue-600' : 'text-gray-600 hover:text-blue-600'}`}>
+              <Briefcase className="h-6 w-6" />
+              <span className="text-xs">Jobs</span>
+            </Link>
             <Link href="/admin/verifications" className={`flex flex-col items-center ${pathname.startsWith('/admin/verifications') ? 'text-blue-600' : 'text-gray-600 hover:text-blue-600'}`}>
               <ClipboardCheck className="h-6 w-6" />
               <span className="text-xs">Verifications</span>
             </Link>
-            <Link href="/admin/settings" className={`flex flex-col items-center ${pathname.startsWith('/admin/settings') ? 'text-blue-600' : 'text-gray-600 hover:text-blue-600'}`}>
-              <Settings className="h-6 w-6" />
-              <span className="text-xs">Settings</span>
+            <Link href="/profile" className={`flex flex-col items-center ${pathname === '/profile' ? 'text-blue-600' : 'text-gray-600 hover:text-blue-600'}`}>
+              <User className="h-6 w-6" />
+              <span className="text-xs">Profile</span>
             </Link>
           </div>
         </nav>
@@ -62,7 +66,7 @@ export function BottomNav() {
       <>
         <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-50">
           <div className="flex justify-around items-center max-w-4xl mx-auto relative">
-            <Link href="/mentor" className={`flex flex-col items-center ${pathname.startsWith('/mentor') && !pathname.startsWith('/mentor/students') && !pathname.startsWith('/mentor/verifications') ? 'text-blue-600' : 'text-gray-600 hover:text-blue-600'}`}>
+            <Link href="/mentor" className={`flex flex-col items-center ${pathname === '/mentor' ? 'text-blue-600' : 'text-gray-600 hover:text-blue-600'}`}>
               <Home className="h-6 w-6" />
               <span className="text-xs">Dashboard</span>
             </Link>
@@ -78,11 +82,15 @@ export function BottomNav() {
                 <Plus className="h-8 w-8" />
               </button>
             </div>
+            <Link href="/mentor/jobs" className={`flex flex-col items-center ${pathname.startsWith('/mentor/jobs') ? 'text-blue-600' : 'text-gray-600 hover:text-blue-600'}`}>
+              <Briefcase className="h-6 w-6" />
+              <span className="text-xs">Jobs</span>
+            </Link>
             <Link href="/mentor/verifications" className={`flex flex-col items-center ${pathname.startsWith('/mentor/verifications') ? 'text-blue-600' : 'text-gray-600 hover:text-blue-600'}`}>
               <ClipboardCheck className="h-6 w-6" />
               <span className="text-xs">Verifications</span>
             </Link>
-            <Link href="/profile" className={`flex flex-col items-center ${pathname.startsWith('/profile') ? 'text-blue-600' : 'text-gray-600 hover:text-blue-600'}`}>
+            <Link href="/profile" className={`flex flex-col items-center ${pathname === '/profile' ? 'text-blue-600' : 'text-gray-600 hover:text-blue-600'}`}>
               <User className="h-6 w-6" />
               <span className="text-xs">Profile</span>
             </Link>
@@ -102,13 +110,13 @@ export function BottomNav() {
     <>
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-50">
         <div className="flex justify-around items-center max-w-4xl mx-auto relative">
-          <Link href="/dashboard" className="flex flex-col items-center text-gray-600 hover:text-blue-600">
+          <Link href="/dashboard" className={`flex flex-col items-center ${pathname === '/dashboard' ? 'text-blue-600' : 'text-gray-600 hover:text-blue-600'}`}>
             <Home className="h-6 w-6" />
             <span className="text-xs">Dashboard</span>
           </Link>
-          <Link href="/profile" className={`flex flex-col items-center ${pathname.startsWith('/profile') ? 'text-blue-600' : 'text-gray-600 hover:text-blue-600'}`}>
-            <User className="h-6 w-6" />
-            <span className="text-xs">Profile</span>
+          <Link href="/activities" className={`flex flex-col items-center ${pathname.startsWith('/activities') ? 'text-blue-600' : 'text-gray-600 hover:text-blue-600'}`}>
+            <FileText className="h-6 w-6" />
+            <span className="text-xs">Activities</span>
           </Link>
           <div className="relative -top-0">
             <button 
@@ -122,9 +130,13 @@ export function BottomNav() {
             <Briefcase className="h-6 w-6" />
             <span className="text-xs">Jobs</span>
           </Link>
-          <Link href="/activities" className={`flex flex-col items-center ${pathname.startsWith('/activities') ? 'text-blue-600' : 'text-gray-600 hover:text-blue-600'}`}>
+          <Link href="/documents" className={`flex flex-col items-center ${pathname.startsWith('/documents') ? 'text-blue-600' : 'text-gray-600 hover:text-blue-600'}`}>
             <FileText className="h-6 w-6" />
-            <span className="text-xs">Activities</span>
+            <span className="text-xs">Documents</span>
+          </Link>
+          <Link href="/profile" className={`flex flex-col items-center ${pathname === '/profile' ? 'text-blue-600' : 'text-gray-600 hover:text-blue-600'}`}>
+            <User className="h-6 w-6" />
+            <span className="text-xs">Profile</span>
           </Link>
         </div>
       </nav>

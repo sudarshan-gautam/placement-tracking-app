@@ -17,16 +17,10 @@ export function QuickActionsModal({ isOpen, onClose }: QuickActionsModalProps) {
   // Admin-specific actions
   const adminActions = [
     {
-      href: '/admin/users/new',
+      href: '/admin/users',
       icon: User,
-      label: 'Add User',
+      label: 'Manage Users',
       bgColor: 'bg-blue-600 hover:bg-blue-700'
-    },
-    {
-      href: '/admin/roles',
-      icon: Shield,
-      label: 'Modify Roles',
-      bgColor: 'bg-green-600 hover:bg-green-700'
     },
     {
       href: '/admin/verifications',
@@ -35,21 +29,27 @@ export function QuickActionsModal({ isOpen, onClose }: QuickActionsModalProps) {
       bgColor: 'bg-purple-600 hover:bg-purple-700'
     },
     {
-      href: '/admin/reports',
-      icon: BarChart2,
-      label: 'Generate Reports',
-      bgColor: 'bg-orange-600 hover:bg-orange-700'
-    },
-    {
       href: '/admin/settings',
       icon: Settings,
       label: 'System Settings',
       bgColor: 'bg-indigo-600 hover:bg-indigo-700'
     },
     {
-      href: '/admin/backup',
-      icon: Server,
-      label: 'Backup Data',
+      href: '/admin/reports',
+      icon: BarChart2,
+      label: 'Generate Reports',
+      bgColor: 'bg-orange-600 hover:bg-orange-700'
+    },
+    {
+      href: '/admin',
+      icon: Shield,
+      label: 'Dashboard',
+      bgColor: 'bg-green-600 hover:bg-green-700'
+    },
+    {
+      href: '/profile',
+      icon: User,
+      label: 'My Profile',
       bgColor: 'bg-teal-600 hover:bg-teal-700'
     }
   ];
@@ -63,21 +63,21 @@ export function QuickActionsModal({ isOpen, onClose }: QuickActionsModalProps) {
       bgColor: 'bg-blue-600 hover:bg-blue-700'
     },
     {
-      href: '/students',
+      href: '/mentor/students',
       icon: User,
       label: 'View Students',
       bgColor: 'bg-green-600 hover:bg-green-700'
     },
     {
-      href: '/activities',
-      icon: FileText,
-      label: 'View Activities',
+      href: '/mentor/verifications',
+      icon: ClipboardCheck,
+      label: 'Verifications',
       bgColor: 'bg-purple-600 hover:bg-purple-700'
     },
     {
-      href: '/reports',
+      href: '/mentor',
       icon: BarChart2,
-      label: 'View Reports',
+      label: 'Dashboard',
       bgColor: 'bg-orange-600 hover:bg-orange-700'
     },
     {
@@ -99,7 +99,7 @@ export function QuickActionsModal({ isOpen, onClose }: QuickActionsModalProps) {
     {
       href: '/profile',
       icon: User,
-      label: 'Edit Profile',
+      label: 'My Profile',
       bgColor: 'bg-green-600 hover:bg-green-700'
     },
     {
@@ -111,20 +111,20 @@ export function QuickActionsModal({ isOpen, onClose }: QuickActionsModalProps) {
     {
       href: '/activities',
       icon: FileText,
-      label: 'View Activities',
+      label: 'My Activities',
       bgColor: 'bg-orange-600 hover:bg-orange-700'
     },
     {
-      href: '/reports',
-      icon: BarChart2,
-      label: 'View Reports',
-      bgColor: 'bg-indigo-600 hover:bg-indigo-700'
-    },
-    {
-      href: '/documents/cv',
+      href: '/documents',
       icon: FileText,
       label: 'Generate CV',
       bgColor: 'bg-teal-600 hover:bg-teal-700'
+    },
+    {
+      href: '/dashboard',
+      icon: BarChart2,
+      label: 'Dashboard',
+      bgColor: 'bg-indigo-600 hover:bg-indigo-700'
     }
   ];
 

@@ -1,12 +1,13 @@
-// Mock database for user authentication
-import bcrypt from 'bcrypt';
-import mysql from 'mysql2/promise';
+// SQLite database interface for user authentication
+import sqlite3 from 'sqlite3';
+import path from 'path';
+import { promisify } from 'util';
 
 // User types
 export type UserRole = 'admin' | 'mentor' | 'student';
 
 export interface User {
-  id: string | number;
+  id: string;
   email: string;
   password: string;
   role: UserRole;
@@ -14,58 +15,88 @@ export interface User {
   profileImage?: string;
 }
 
-let pool: mysql.Pool;
-
-// Function to get or create the pool
+// Mock the getPool function for compatibility with MySQL code
+// This allows us to keep the same API while using SQLite underneath
 export async function getPool() {
-  if (!pool) {
-    try {
-      // Configure the database connection
-      pool = mysql.createPool({
-        host: process.env.MYSQL_HOST || 'localhost',
-        user: process.env.MYSQL_USER || 'root',
-        password: process.env.MYSQL_PASSWORD || '12345678',
-        database: process.env.MYSQL_DATABASE || 'placement_tracking',
-        waitForConnections: true,
-        connectionLimit: 10,
-        queueLimit: 0
-      });
-      
-      // Test the connection
-      const [result] = await pool.query('SELECT 1');
-      console.log('MySQL connection successful');
-    } catch (error) {
-      console.error('Error creating MySQL pool:', error);
-      console.error('Please make sure your MySQL server is running and credentials are correct.');
+  // Return an object that mimics a MySQL pool but uses our SQLite functions
+  return {
+    query: async (sql: string, params: any[] = []) => {
+      if (sql.toLowerCase().startsWith('select')) {
+        const results = await getAll(sql, params);
+        return [results, []];
+      } else {
+        const result = await runQuery(sql, params);
+        return [result, []];
+      }
     }
-  }
-  return pool;
+  };
 }
 
-// Initialize the pool
-getPool();
+// Database singleton
+let db: sqlite3.Database | null = null;
+
+// Function to get the database connection
+export function getDb(): sqlite3.Database {
+  if (!db) {
+    try {
+      // Enable verbose mode in development
+      if (process.env.NODE_ENV === 'development') {
+        sqlite3.verbose();
+      }
+      
+      // Create or connect to the SQLite database
+      const dbPath = path.join(process.cwd(), 'database.sqlite');
+      db = new sqlite3.Database(dbPath, (err) => {
+        if (err) {
+          console.error('Could not connect to database', err);
+        } else {
+          console.log('SQLite connection successful');
+          // Enable foreign keys
+          db?.run('PRAGMA foreign_keys = ON');
+        }
+      });
+    } catch (error) {
+      console.error('Error connecting to SQLite database:', error);
+      throw new Error('Database connection failed');
+    }
+  }
+  return db;
+}
+
+// Helper to promisify database queries
+export function runQuery(query: string, params: any[] = []): Promise<any> {
+  return new Promise((resolve, reject) => {
+    getDb().run(query, params, function(err) {
+      if (err) return reject(err);
+      resolve(this);
+    });
+  });
+}
+
+// Helper to get a single row
+export function getOne<T>(query: string, params: any[] = []): Promise<T | null> {
+  return new Promise((resolve, reject) => {
+    getDb().get(query, params, (err, row) => {
+      if (err) return reject(err);
+      resolve(row as T || null);
+    });
+  });
+}
+
+// Helper to get multiple rows
+export function getAll<T>(query: string, params: any[] = []): Promise<T[]> {
+  return new Promise((resolve, reject) => {
+    getDb().all(query, params, (err, rows) => {
+      if (err) return reject(err);
+      resolve(rows as T[] || []);
+    });
+  });
+}
 
 // Function to find a user by email
 export async function findUserByEmail(email: string): Promise<User | null> {
   try {
-    const db = await getPool();
-    const [rows] = await db.execute(
-      'SELECT * FROM users WHERE email = ?',
-      [email]
-    );
-    const users = rows as User[];
-    
-    if (users.length === 0) {
-      return null;
-    }
-    
-    // Convert numeric ID to string if needed
-    const user = users[0];
-    if (typeof user.id === 'number') {
-      user.id = user.id.toString();
-    }
-    
-    return user;
+    return await getOne<User>('SELECT * FROM users WHERE email = ?', [email]);
   } catch (error) {
     console.error('Error finding user:', error);
     return null;
@@ -82,10 +113,10 @@ export async function validateUser(email: string, password: string): Promise<Use
       return null;
     }
     
-    console.log(`Found user: ${user.email}, password hash: ${user.password.substring(0, 10)}...`);
+    console.log(`Found user: ${user.email}, role: ${user.role}`);
     
-    // Compare passwords
-    const isValid = await bcrypt.compare(password, user.password);
+    // Simple string comparison instead of bcrypt
+    const isValid = user.password === password;
     console.log(`Password validation result: ${isValid}`);
     
     if (!isValid) {
@@ -99,9 +130,27 @@ export async function validateUser(email: string, password: string): Promise<Use
   }
 }
 
-// Export the pool accessor
+// Function to close the database connection
+export function closeDb() {
+  if (db) {
+    db.close((err) => {
+      if (err) {
+        console.error('Error closing database:', err);
+      } else {
+        console.log('Database connection closed');
+      }
+    });
+    db = null;
+  }
+}
+
+// Export the database functions
 export default {
-  getPool,
+  getDb,
   findUserByEmail,
-  validateUser
+  validateUser,
+  closeDb,
+  runQuery,
+  getOne,
+  getAll
 }; 

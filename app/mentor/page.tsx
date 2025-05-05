@@ -13,90 +13,50 @@ import {
   BarChart2, 
   MessageSquare, 
   ArrowRight,
-  User
+  User,
+  Search,
+  Filter,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import Link from 'next/link';
 
-// Sample data
-const pendingVerifications = [
-  {
-    id: 1,
-    student: 'John Smith',
-    activity: 'Primary School Teaching Session',
-    date: '2023-07-15',
-    type: 'Teaching',
-  },
-  {
-    id: 2,
-    student: 'Emma Johnson',
-    activity: 'Curriculum Planning Meeting',
-    date: '2023-07-08',
-    type: 'Planning',
-  },
-  {
-    id: 3,
-    student: 'Michael Wong',
-    activity: 'Parent-Teacher Conference',
-    date: '2023-07-20',
-    type: 'Communication',
-  },
-];
+// Define TypeScript interface for verification data
+interface Verification {
+  id: number | string;
+  student: string;
+  activity: string;
+  date: string;
+  type?: string;
+  priority?: string;
+  description?: string;
+}
 
-const studentActivities = [
-  {
-    id: 1,
-    student: 'John Smith',
-    completed: 15,
-    pending: 3,
-    recent: 'Secondary Science Lesson',
-  },
-  {
-    id: 2,
-    student: 'Emma Johnson',
-    completed: 12,
-    pending: 2,
-    recent: 'Professional Development Workshop',
-  },
-  {
-    id: 3,
-    student: 'Michael Wong',
-    completed: 8,
-    pending: 5,
-    recent: 'Team Planning Session',
-  },
-  {
-    id: 4,
-    student: 'Sarah Taylor',
-    completed: 20,
-    pending: 1,
-    recent: 'Assessment Review',
-  },
-];
+// Define TypeScript interface for student activity data
+interface StudentActivity {
+  id: number | string;
+  student: string;
+  recent?: string;
+  completed?: number;
+  pending?: number;
+}
 
-const upcomingEvents = [
-  {
-    id: 1,
-    title: 'Student Progress Review',
-    date: '2023-08-05',
-    time: '10:00 AM - 12:00 PM',
-  },
-  {
-    id: 2,
-    title: 'Training Webinar',
-    date: '2023-08-10',
-    time: '2:00 PM - 3:30 PM',
-  },
-  {
-    id: 3,
-    title: 'Mentorship Program Meeting',
-    date: '2023-08-15',
-    time: '9:30 AM - 11:00 AM',
-  },
-];
+// Define TypeScript interface for event data
+interface Event {
+  id: number | string;
+  title: string;
+  date: string;
+  time?: string;
+}
 
 export default function MentorDashboard() {
   const { user } = useAuth();
   const router = useRouter();
+  const [pendingVerifications, setPendingVerifications] = useState<Verification[]>([]);
+  const [studentActivities, setStudentActivities] = useState<StudentActivity[]>([]);
+  const [upcomingEvents, setUpcomingEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expandedVerification, setExpandedVerification] = useState<number | string | null>(null);
 
   useEffect(() => {
     // Redirect if not authenticated or not a mentor
@@ -111,7 +71,56 @@ export default function MentorDashboard() {
     }
   }, [user, router]);
 
-  if (!user || user.role !== 'mentor') {
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Fetch pending verifications
+        const verificationRes = await fetch('/api/mentor/verifications');
+        if (verificationRes.ok) {
+          const verificationData = await verificationRes.json();
+          setPendingVerifications(Array.isArray(verificationData.pendingVerifications) ? verificationData.pendingVerifications : []);
+        } else {
+          console.error('Failed to fetch verifications');
+          setPendingVerifications([]);
+        }
+
+        // Fetch student activities
+        const activitiesRes = await fetch('/api/mentor/student-activities');
+        if (activitiesRes.ok) {
+          const activitiesData = await activitiesRes.json();
+          setStudentActivities(Array.isArray(activitiesData.studentActivities) ? activitiesData.studentActivities : []);
+        } else {
+          console.error('Failed to fetch student activities');
+          setStudentActivities([]);
+        }
+
+        // Fetch upcoming events
+        const eventsRes = await fetch('/api/mentor/events');
+        if (eventsRes.ok) {
+          const eventsData = await eventsRes.json();
+          setUpcomingEvents(Array.isArray(eventsData.events) ? eventsData.events : []);
+        } else {
+          console.error('Failed to fetch events');
+          setUpcomingEvents([]);
+        }
+
+        setLoading(false);
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        setLoading(false);
+        // Set empty arrays for all data to avoid null/undefined issues
+        setPendingVerifications([]);
+        setStudentActivities([]);
+        setUpcomingEvents([]);
+      }
+    };
+
+    if (user && user.role === 'mentor') {
+      fetchData();
+    }
+  }, [user]);
+
+  if (!user || user.role !== 'mentor' || loading) {
     return (
       <div className="flex justify-center items-center h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -196,51 +205,96 @@ export default function MentorDashboard() {
         <div className="lg:col-span-2">
           <Card className="mb-6">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-xl font-bold">Pending Verifications</CardTitle>
-              <Link href="/mentor/verifications" className="text-sm text-blue-600 hover:text-blue-800">
-                View All
-              </Link>
+              <div>
+                <CardTitle className="text-xl font-bold">Recent Verifications</CardTitle>
+                <p className="text-sm text-gray-500">Review and manage verification requests</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Link href="/mentor/verifications" className="text-sm text-blue-600 hover:text-blue-800">
+                  View All
+                </Link>
+              </div>
             </CardHeader>
             <CardContent>
-              {pendingVerifications.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm text-left">
-                    <thead className="text-xs text-gray-700 uppercase bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3">Student</th>
-                        <th className="px-6 py-3">Activity</th>
-                        <th className="px-6 py-3">Date</th>
-                        <th className="px-6 py-3">Type</th>
-                        <th className="px-6 py-3">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {pendingVerifications.map((verification) => (
-                        <tr key={verification.id} className="bg-white border-b hover:bg-gray-50">
-                          <td className="px-6 py-4 font-medium text-gray-900">
-                            {verification.student}
-                          </td>
-                          <td className="px-6 py-4">
-                            {verification.activity}
-                          </td>
-                          <td className="px-6 py-4">
-                            {new Date(verification.date).toLocaleDateString()}
-                          </td>
-                          <td className="px-6 py-4">
-                            {verification.type}
-                          </td>
-                          <td className="px-6 py-4">
-                            <Link href={`/activities/${verification.id}`} className="text-blue-600 hover:text-blue-800 font-medium">
-                              Review
-                            </Link>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+              {/* Verifications List */}
+              <div className="space-y-4">
+                {pendingVerifications.length > 0 ? (
+                  pendingVerifications.slice(0, 5).map((verification) => (
+                    <div 
+                      key={verification.id} 
+                      className="border border-gray-200 rounded-lg overflow-hidden"
+                    >
+                      <div 
+                        className="p-4 cursor-pointer hover:bg-gray-50"
+                        onClick={() => setExpandedVerification(expandedVerification === verification.id ? null : verification.id)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-4">
+                            <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center">
+                              <User className="h-5 w-5 text-gray-600" />
+                            </div>
+                            <div>
+                              <h3 className="font-medium text-gray-900">{verification.student}</h3>
+                              <p className="text-sm text-gray-500">{verification.activity}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-4">
+                            <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">
+                              {verification.priority || 'Low'}
+                            </span>
+                            <span className="text-sm text-gray-500">
+                              {new Date(verification.date).toLocaleDateString()}
+                            </span>
+                            <ChevronDown 
+                              className={`h-5 w-5 text-gray-400 transition-transform ${
+                                expandedVerification === verification.id ? 'transform rotate-180' : ''
+                              }`}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Expanded View */}
+                      {expandedVerification === verification.id && (
+                        <div className="p-4 bg-gray-50 border-t border-gray-200">
+                          <div className="space-y-4">
+                            <div>
+                              <h4 className="text-sm font-medium text-gray-900">Description</h4>
+                              <p className="mt-1 text-sm text-gray-600">
+                                {verification.description || `This is a ${verification.type || 'verification'} request.`}
+                              </p>
+                            </div>
+                            <div className="flex justify-end space-x-3">
+                              <Link
+                                href={`/activities/${verification.id}`}
+                                className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                              >
+                                Review Details
+                              </Link>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center p-6 bg-gray-50 rounded-lg">
+                    <p className="text-gray-500">No pending verifications found</p>
+                  </div>
+                )}
+              </div>
+
+              {/* View All Link */}
+              {pendingVerifications.length > 5 && (
+                <div className="mt-4 text-center">
+                  <Link 
+                    href="/mentor/verifications" 
+                    className="text-blue-600 hover:text-blue-800 inline-flex items-center"
+                  >
+                    View all {pendingVerifications.length} verifications
+                    <ArrowRight className="h-4 w-4 ml-1" />
+                  </Link>
                 </div>
-              ) : (
-                <p className="text-gray-500 text-center py-6">No pending verifications to review.</p>
               )}
             </CardContent>
           </Card>
@@ -255,32 +309,38 @@ export default function MentorDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {studentActivities.map((student) => (
-                  <div key={student.id} className="p-4 border border-gray-200 rounded-lg flex justify-between items-center">
-                    <div className="flex items-center">
-                      <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center mr-4">
-                        <User className="h-6 w-6 text-gray-500" />
+                {studentActivities.length > 0 ? (
+                  studentActivities.map((student) => (
+                    <div key={student.id} className="p-4 border border-gray-200 rounded-lg flex justify-between items-center">
+                      <div className="flex items-center">
+                        <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center mr-4">
+                          <User className="h-6 w-6 text-gray-500" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">{student.student}</p>
+                          <p className="text-xs text-gray-500">Recent: {student.recent || 'No recent activity'}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium text-gray-900">{student.student}</p>
-                        <p className="text-xs text-gray-500">Recent: {student.recent}</p>
+                      <div className="flex items-center space-x-4">
+                        <div className="text-center">
+                          <p className="text-sm font-medium text-gray-900">{student.completed || 0}</p>
+                          <p className="text-xs text-gray-500">Completed</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-sm font-medium text-gray-900">{student.pending || 0}</p>
+                          <p className="text-xs text-gray-500">Pending</p>
+                        </div>
+                        <Link href={`/mentor/students/${student.id}`} className="ml-4">
+                          <ArrowRight className="h-5 w-5 text-gray-400 hover:text-blue-600" />
+                        </Link>
                       </div>
                     </div>
-                    <div className="flex items-center space-x-4">
-                      <div className="text-center">
-                        <p className="text-sm font-medium text-gray-900">{student.completed}</p>
-                        <p className="text-xs text-gray-500">Completed</p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-sm font-medium text-gray-900">{student.pending}</p>
-                        <p className="text-xs text-gray-500">Pending</p>
-                      </div>
-                      <Link href={`/mentor/students/${student.id}`} className="ml-4">
-                        <ArrowRight className="h-5 w-5 text-gray-400 hover:text-blue-600" />
-                      </Link>
-                    </div>
+                  ))
+                ) : (
+                  <div className="text-center p-6 bg-gray-50 rounded-lg">
+                    <p className="text-gray-500">No student activities found</p>
                   </div>
-                ))}
+                )}
               </div>
             </CardContent>
           </Card>
@@ -298,18 +358,24 @@ export default function MentorDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {upcomingEvents.map((event) => (
-                  <div key={event.id} className="flex items-start">
-                    <div className="bg-blue-100 p-2 rounded-md mr-4">
-                      <Calendar className="h-5 w-5 text-blue-600" />
+                {upcomingEvents.length > 0 ? (
+                  upcomingEvents.map((event) => (
+                    <div key={event.id} className="flex items-start">
+                      <div className="bg-blue-100 p-2 rounded-md mr-4">
+                        <Calendar className="h-5 w-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">{event.title}</p>
+                        <p className="text-sm text-gray-500">{event.date}</p>
+                        <p className="text-xs text-gray-500">{event.time}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium text-gray-900">{event.title}</p>
-                      <p className="text-sm text-gray-500">{event.date}</p>
-                      <p className="text-xs text-gray-500">{event.time}</p>
-                    </div>
+                  ))
+                ) : (
+                  <div className="text-center p-4">
+                    <p className="text-gray-500">No upcoming events</p>
                   </div>
-                ))}
+                )}
               </div>
             </CardContent>
           </Card>

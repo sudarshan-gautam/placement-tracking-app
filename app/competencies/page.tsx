@@ -31,7 +31,11 @@ import {
   Info,
   ExternalLink,
   Upload,
-  Plus
+  Plus,
+  ArrowUpRight,
+  Check,
+  Clock,
+  ArrowRight
 } from 'lucide-react';
 import { Competency } from '@/types/competency';
 import { ResearchEvidenceViewer } from '@/components/research-evidence';
@@ -39,7 +43,7 @@ import { ResearchMetrics } from '@/components/research-metrics';
 import { ResearchUpload } from '@/components/research-upload';
 import { ClientOnly } from '@/components/ui/client-only';
 
-const CompetencyPage = () => {
+const CompetenciesPage = () => {
   const [competencies] = useState<Competency[]>([
     {
       id: 1,
@@ -165,261 +169,212 @@ const CompetencyPage = () => {
   return (
     <div className="min-h-screen bg-gray-50 p-6 pb-40">
       {/* Header */}
-      <div className="mb-8">
-        <div className="flex justify-between items-start">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-              <BookOpen className="h-8 w-8" />
-              Role Competency
-            </h1>
-            <p className="text-gray-600">Track your professional competencies and research alignment</p>
-          </div>
-          <button
-            onClick={() => setShowResearchUpload(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            <Upload className="h-5 w-5" />
-            Add Research Evidence
-          </button>
-        </div>
+      <div className="mb-6">
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Competency Framework</h1>
+        <p className="text-gray-600">Track and develop your professional competencies</p>
       </div>
 
-      {/* Research Metrics */}
-      <div className="mb-8">
-        <ResearchMetrics competencyData={metricsData} />
-      </div>
-
-      {/* Research Alignment Overview */}
-      <Card className="mb-8">
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle className="flex items-center gap-2">
-              <BookOpen className="h-5 w-5" />
-              Research-Informed Practice
-            </CardTitle>
-            <Link 
-              href="/overview#research" 
-              className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
-            >
-              <ExternalLink className="h-4 w-4" />
-              View Full Analysis
-            </Link>
-          </div>
+      {/* Competency Overview */}
+      <div className="grid md:grid-cols-2 gap-6 mb-6">
+        {/* Radar Chart */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg">Competency Overview</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <div className="h-16 w-16 rounded-full bg-purple-100 flex items-center justify-center">
-                  <span className="text-xl font-bold text-purple-600">85%</span>
-                </div>
-                <div>
-                  <h3 className="font-medium">Overall Research Alignment</h3>
-                  <p className="text-sm text-gray-600">Based on evidence-based practice indicators</p>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <h4 className="text-sm font-medium">Key Research Areas</h4>
-                <ul className="space-y-1">
-                  <li className="flex items-center gap-2 text-sm text-gray-600">
-                    <CheckCircle className="h-4 w-4 text-green-500" />
-                    Evidence-based teaching methods
-                  </li>
-                  <li className="flex items-center gap-2 text-sm text-gray-600">
-                    <CheckCircle className="h-4 w-4 text-green-500" />
-                    Student engagement strategies
-                  </li>
-                  <li className="flex items-center gap-2 text-sm text-gray-600">
-                    <CheckCircle className="h-4 w-4 text-green-500" />
-                    Assessment techniques
-                  </li>
-                </ul>
-              </div>
-            </div>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={progressData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
+                <RadarChart outerRadius={90} data={radarData}>
+                  <PolarGrid />
+                  <PolarAngleAxis dataKey="subject" fontSize={10} />
+                  <PolarRadiusAxis angle={30} domain={[0, 10]} />
+                  <Radar name="Self Assessment" dataKey="selfScore" stroke="#4F46E5" fill="#4F46E5" fillOpacity={0.6} />
+                  <Radar name="Supervisor Assessment" dataKey="supervisorScore" stroke="#10B981" fill="#10B981" fillOpacity={0.3} />
                   <Tooltip />
-                  <Legend />
-                  <Area 
-                    type="monotone" 
-                    dataKey="score" 
-                    name="Competency Score" 
-                    stroke="#2563eb" 
-                    fill="#3b82f6" 
-                    fillOpacity={0.6} 
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="alignment" 
-                    name="Research Alignment %" 
-                    stroke="#16a34a" 
-                    fill="#22c55e" 
-                    fillOpacity={0.6} 
-                  />
-                </AreaChart>
+                </RadarChart>
               </ResponsiveContainer>
             </div>
-          </div>
-          <div className="border-t pt-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="p-4 bg-blue-50 rounded-lg">
-                <h4 className="text-sm font-medium text-blue-900">Implementation Progress</h4>
-                <p className="text-2xl font-bold text-blue-600">78%</p>
-                <p className="text-sm text-blue-700">Research-based methods applied</p>
+            <div className="flex justify-center mt-2 gap-6">
+              <div className="flex items-center">
+                <div className="w-3 h-3 rounded-full bg-blue-600 mr-2" />
+                <span className="text-xs">Self</span>
               </div>
-              <div className="p-4 bg-green-50 rounded-lg">
-                <h4 className="text-sm font-medium text-green-900">Evidence Sources</h4>
-                <p className="text-2xl font-bold text-green-600">12</p>
-                <p className="text-sm text-green-700">Research papers integrated</p>
-              </div>
-              <div className="p-4 bg-purple-50 rounded-lg">
-                <h4 className="text-sm font-medium text-purple-900">Practice Impact</h4>
-                <p className="text-2xl font-bold text-purple-600">92%</p>
-                <p className="text-sm text-purple-700">Positive outcome correlation</p>
-              </div>
+              <div className="flex items-center">
+                <div className="w-3 h-3 rounded-full bg-green-500 mr-2" />
+                <span className="text-xs">Supervisor</span>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Competency Radar */}
-      <Card className="mb-8">
-        <CardHeader>
-          <CardTitle>Competency Overview</CardTitle>
+        {/* Competency Stats */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg">Competency Stats</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-96">
-            <ResponsiveContainer width="100%" height="100%">
-              <RadarChart data={radarData}>
-                <PolarGrid />
-                <PolarAngleAxis dataKey="subject" />
-                <PolarRadiusAxis angle={30} domain={[0, 10]} />
-                <Radar
-                  name="Self Assessment"
-                  dataKey="selfScore"
-                  stroke="#2563eb"
-                  fill="#3b82f6"
-                  fillOpacity={0.6}
-                />
-                <Radar
-                  name="Supervisor Assessment"
-                  dataKey="supervisorScore"
-                  stroke="#16a34a"
-                  fill="#22c55e"
-                  fillOpacity={0.6}
-                />
-                <Radar
-                  name="Research Alignment"
-                  dataKey="researchAlignment"
-                  stroke="#8b5cf6"
-                  fill="#a78bfa"
-                  fillOpacity={0.4}
-                />
-                <Legend />
-                <Tooltip />
-              </RadarChart>
-            </ResponsiveContainer>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <p className="text-sm text-gray-500">Overall Rating</p>
+                  <p className="text-2xl font-bold text-blue-700">4.2/5</p>
+                  <p className="text-xs text-gray-500">Based on self-assessment</p>
+                </div>
+                <div className="bg-green-50 p-4 rounded-lg">
+                  <p className="text-sm text-gray-500">Supervisor Rating</p>
+                  <p className="text-2xl font-bold text-green-700">4.0/5</p>
+                  <p className="text-xs text-gray-500">Average across areas</p>
+                </div>
+          </div>
+              
+              <div className="pt-4">
+                <h3 className="text-sm font-medium mb-2">Strongest Areas</h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                    <span className="text-sm">Classroom Management</span>
+                    <span className="text-sm font-medium">7.0</span>
+                  </div>
+                  <div className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                    <span className="text-sm">Assessment Methods</span>
+                    <span className="text-sm font-medium">6.0</span>
+                  </div>
+                </div>
+                    </div>
+              
+              <div className="pt-2">
+                <h3 className="text-sm font-medium mb-2">Development Areas</h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                    <span className="text-sm">Lesson Planning</span>
+                    <span className="text-sm font-medium">8.0</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+                </div>
+
+      {/* Recent Assessments */}
+      <Card className="mb-6">
+        <CardHeader className="pb-2 flex flex-row items-center justify-between">
+          <CardTitle className="text-lg">Recent Assessments</CardTitle>
+          <Link 
+            href="/competencies/assess" 
+            className="text-sm text-blue-600 hover:text-blue-800 inline-flex items-center"
+          >
+            New Assessment
+            <ArrowUpRight className="h-4 w-4 ml-1" />
+          </Link>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {competencies.map((assessment) => (
+              <div key={assessment.id} className="border rounded-lg p-4 hover:border-blue-500 transition-colors">
+                <div className="flex justify-between mb-2">
+                  <h3 className="font-medium">{assessment.name}</h3>
+                  <span className="text-sm text-gray-500">Updated: {assessment.lastUpdated}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-4 mb-3">
+                  <div className="flex items-center">
+                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-2">
+                      <Check className="h-4 w-4 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Self Score</p>
+                      <p className="font-medium">{assessment.selfScore}/10</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center mr-2">
+                      <Check className="h-4 w-4 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Supervisor Score</p>
+                      <p className="font-medium">{assessment.supervisorScore}/10</p>
+                    </div>
+                  </div>
+                </div>
+                <p className="text-sm text-gray-600 mb-3">{assessment.feedback}</p>
+                <Link
+                  href={`/competencies/${assessment.id}`}
+                  className="text-sm text-blue-600 hover:text-blue-800 inline-flex items-center"
+                >
+                  View Details
+                  <ArrowRight className="h-4 w-4 ml-1" />
+                </Link>
+              </div>
+            ))}
           </div>
         </CardContent>
       </Card>
 
-      {/* Detailed Competencies */}
-      <div className="space-y-6 mb-28">
-        {competencies.map((comp) => (
-          <Card key={comp.id}>
-            <CardContent className="p-6">
-              <div className="space-y-4">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="text-lg font-medium">{comp.name}</h3>
-                    <p className="text-sm text-gray-500">Last updated: {comp.lastUpdated}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="text-center px-3 py-1 bg-purple-100 text-purple-800 rounded-full">
-                      <span className="text-sm font-medium">{comp.researchAlignment}% Research Aligned</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex items-center gap-2">
-                    <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
-                      <span className="text-blue-600 font-bold">{comp.selfScore}</span>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Self Score</p>
-                      <p className="text-xs text-gray-500">Your assessment</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
-                      <span className="text-green-600 font-bold">{comp.supervisorScore}</span>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Supervisor Score</p>
-                      <p className="text-xs text-gray-500">Professional assessment</p>
-                    </div>
-                  </div>
-                </div>
-
+      {/* Action Items */}
+      <Card className="mb-28">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg">Action Items</CardTitle>
+        </CardHeader>
+        <CardContent>
                 <div className="space-y-3">
-                  <div className="flex items-start gap-2">
-                    <MessageCircle className="h-5 w-5 text-blue-500 mt-1" />
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div className="flex items-center">
+                <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center mr-3">
+                  <Clock className="h-4 w-4 text-amber-600" />
+                  </div>
                     <div>
-                      <p className="text-sm font-medium">Feedback</p>
-                      <p className="text-sm text-gray-600">{comp.feedback}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="h-5 w-5 text-orange-500 mt-1" />
-                    <div>
-                      <p className="text-sm font-medium">Areas for Development</p>
-                      <p className="text-sm text-gray-600">{comp.suggestions}</p>
-                    </div>
-                  </div>
+                  <p className="font-medium">Complete Self-Assessment</p>
+                  <p className="text-sm text-gray-500">Due: 2025-03-01</p>
                 </div>
-
-                <div className="bg-purple-50 rounded-lg p-4">
-                  <h4 className="text-sm font-medium text-purple-900 mb-2 flex items-center gap-2">
-                    <Info className="h-4 w-4" />
-                    Research Evidence
-                  </h4>
-                  <ul className="space-y-2">
-                    {comp.researchEvidence.map((evidence, index) => (
-                      <li key={index} className="flex items-start gap-2">
-                        <CheckCircle className="h-4 w-4 text-purple-500 mt-1" />
-                        <span className="text-sm text-purple-900">{evidence}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="mt-3 pt-3 border-t border-purple-200">
-                    <p className="text-sm font-medium text-purple-900">Development Plan</p>
-                    <p className="text-sm text-purple-800">{comp.developmentPlan}</p>
+              </div>
+              <Link
+                href="/competencies/assess"
+                className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+              >
+                Start
+              </Link>
                   </div>
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div className="flex items-center">
+                <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center mr-3">
+                  <Clock className="h-4 w-4 text-amber-600" />
                 </div>
-
-                <div className="flex justify-end gap-3">
-                  <button 
-                    className="flex items-center gap-1 text-sm text-gray-600 hover:text-blue-600"
-                    onClick={() => handleViewEvidence(comp)}
-                  >
-                    <FileText className="h-4 w-4" />
-                    View Evidence
-                  </button>
-                  <button className="flex items-center gap-1 text-sm text-gray-600 hover:text-blue-600">
-                    <ExternalLink className="h-4 w-4" />
-                    Research Links
-                  </button>
+                <div>
+                  <p className="font-medium">Update Development Plan</p>
+                  <p className="text-sm text-gray-500">Due: 2025-03-10</p>
+                </div>
+              </div>
+              <Link
+                href="/competencies/development-plan"
+                className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+              >
+                Update
+              </Link>
                 </div>
               </div>
             </CardContent>
           </Card>
-        ))}
+
+      {/* Navigation Menu */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-10">
+        <div className="flex justify-around max-w-4xl mx-auto">
+          <Link href="/dashboard" className="flex flex-col items-center text-gray-600 hover:text-blue-600">
+            <User className="h-6 w-6" />
+            <span className="text-xs">Home</span>
+          </Link>
+          <Link href="/sessions" className="flex flex-col items-center text-gray-600 hover:text-blue-600">
+            <Calendar className="h-6 w-6" />
+            <span className="text-xs">Sessions</span>
+          </Link>
+          <Link href="/qualifications" className="flex flex-col items-center text-gray-600 hover:text-blue-600">
+            <Award className="h-6 w-6" />
+            <span className="text-xs">Qualifications</span>
+          </Link>
+          <Link href="/competencies" className="flex flex-col items-center text-blue-600">
+            <BookOpen className="h-6 w-6" />
+            <span className="text-xs">Competencies</span>
+          </Link>
       </div>
+      </nav>
 
       {/* Research Evidence Viewer Modal */}
       {showResearchEvidence && selectedCompetency && (
@@ -440,50 +395,8 @@ const CompetencyPage = () => {
           onClose={() => setShowResearchUpload(false)}
         />
       )}
-
-      {/* Quick Actions */}
-      <div className="fixed bottom-20 left-0 right-0 bg-white border-t border-gray-200 p-4">
-        <div className="max-w-4xl mx-auto flex justify-around">
-          <button className="flex items-center gap-2 text-blue-600 hover:text-blue-700">
-            <TrendingUp className="h-5 w-5" />
-            Update Scores
-          </button>
-          <button className="flex items-center gap-2 text-green-600 hover:text-green-700">
-            <MessageCircle className="h-5 w-5" />
-            Request Feedback
-          </button>
-          <button className="flex items-center gap-2 text-purple-600 hover:text-purple-700">
-            <AlertCircle className="h-5 w-5" />
-            View Development Plan
-          </button>
-        </div>
-      </div>
-
-      {/* Navigation Menu */}
-      <ClientOnly>
-        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4">
-          <div className="flex justify-around max-w-4xl mx-auto">
-            <Link href="/" className="flex flex-col items-center text-gray-600 hover:text-blue-600">
-              <User className="h-6 w-6" />
-              <span className="text-xs">Home</span>
-            </Link>
-            <Link href="/qualifications" className="flex flex-col items-center text-gray-600 hover:text-blue-600">
-              <Award className="h-6 w-6" />
-              <span className="text-xs">Quals + Experience</span>
-            </Link>
-            <Link href="/competencies" className="flex flex-col items-center text-blue-600">
-              <BookOpen className="h-6 w-6" />
-              <span className="text-xs">Role Competency</span>
-            </Link>
-            <Link href="/sessions" className="flex flex-col items-center text-gray-600 hover:text-blue-600">
-              <Calendar className="h-6 w-6" />
-              <span className="text-xs">Session Library</span>
-            </Link>
-          </div>
-        </nav>
-      </ClientOnly>
     </div>
   );
 };
 
-export default CompetencyPage; 
+export default CompetenciesPage; 

@@ -2,10 +2,87 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Bell, User, Settings, LogOut, ChevronDown, 
-  LayoutDashboard, HelpCircle, Mail, Shield, BookOpen, AlertCircle, FileText, Briefcase } from 'lucide-react';
+  LayoutDashboard, HelpCircle, Mail, Shield, BookOpen, AlertCircle, FileText, Briefcase, UserCog, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
+import Image from 'next/image';
+import UserSwitcher from '@/components/user-switcher';
+
+// Client-side only component for the return button
+function ClientSideReturnButton() {
+  const [originalUser, setOriginalUser] = useState<any>(null);
+  const [mounted, setMounted] = useState(false);
+  
+  // Only run after component is mounted in the browser
+  useEffect(() => {
+    setMounted(true);
+    
+    try {
+      const storedOriginalUser = localStorage.getItem('original_user');
+      if (storedOriginalUser) {
+        const parsedUser = JSON.parse(storedOriginalUser);
+        setOriginalUser(parsedUser);
+      }
+    } catch (error) {
+      console.error('Error parsing original user:', error);
+    }
+  }, []);
+  
+  // Don't render anything during SSR
+  if (!mounted) return null;
+  
+  // Don't render if there's no original user
+  if (!localStorage.getItem('original_user')) return null;
+  
+  const handleReturnToOriginal = () => {
+    try {
+      const storedOriginalUser = localStorage.getItem('original_user');
+      if (!storedOriginalUser) {
+        return;
+      }
+      
+      const originalUser = JSON.parse(storedOriginalUser);
+      
+      // Restore original user
+      localStorage.setItem('user', JSON.stringify(originalUser));
+      
+      // Clear temporary flags
+      localStorage.removeItem('original_user');
+      localStorage.removeItem('is_temporary_user');
+      
+      // Redirect to appropriate dashboard based on the original user's role
+      if (originalUser.role === 'admin') {
+        // If the admin was in the user management section, return there
+        const currentPath = window.location.pathname;
+        if (currentPath.includes('/admin/users')) {
+          window.location.href = '/admin/users';
+        } else {
+          window.location.href = '/admin';
+        }
+      } else if (originalUser.role === 'mentor') {
+        window.location.href = '/mentor';
+      } else {
+        window.location.href = '/dashboard';
+      }
+    } catch (error) {
+      console.error('Error returning to original user:', error);
+    }
+  };
+  
+  return (
+    <>
+      <div className="border-t border-gray-200 my-1"></div>
+      <button 
+        onClick={handleReturnToOriginal}
+        className="flex w-full items-center px-4 py-2 text-sm text-blue-600 hover:bg-blue-50"
+      >
+        <ArrowLeft className="mr-2 h-4 w-4" />
+        Return to {originalUser?.name || 'Original User'}
+      </button>
+    </>
+  );
+}
 
 interface Notification {
   id: number;
@@ -28,6 +105,7 @@ export function Header() {
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [isImpersonating, setIsImpersonating] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([
     {
       id: 1,
@@ -115,6 +193,89 @@ export function Header() {
     }
   }, [searchQuery]);
 
+  // Debug: Log the user object to see if profile image is loaded
+  useEffect(() => {
+    if (user) {
+      console.log('User in header:', user);
+      console.log('Profile image:', user.profileImage);
+    }
+  }, [user]);
+
+  // Force refresh when localStorage changes
+  useEffect(() => {
+    // Create a function to refresh user data from localStorage
+    const handleStorageChange = () => {
+      const storedUser = localStorage.getItem('user');
+      if (storedUser && isAuthenticated) {
+        try {
+          const userData = JSON.parse(storedUser);
+          // Update user state if there are changes
+          if (JSON.stringify(userData) !== JSON.stringify(user)) {
+            console.log('User data changed in localStorage, refreshing...');
+            window.location.reload(); // Force page reload to update all components
+          }
+        } catch (error) {
+          console.error('Error parsing stored user:', error);
+        }
+      }
+    };
+
+    // Set up storage event listener
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Clean up
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [user, isAuthenticated]);
+  
+  // Listen for user-updated event
+  useEffect(() => {
+    const handleUserUpdate = () => {
+      console.log('User updated event received in header');
+      // Simply force re-render by getting the latest user data
+      const storedUser = localStorage.getItem('user');
+      if (storedUser && isAuthenticated) {
+        try {
+          const userData = JSON.parse(storedUser);
+          // No need to check if different, we know it was updated
+          window.location.reload(); // Force page reload to update all components
+        } catch (error) {
+          console.error('Error parsing stored user:', error);
+        }
+      }
+    };
+
+    // Add event listener
+    window.addEventListener('user-updated', handleUserUpdate);
+    
+    // Clean up
+    return () => {
+      window.removeEventListener('user-updated', handleUserUpdate);
+    };
+  }, [isAuthenticated]);
+
+  // Check if the user is impersonating another user
+  useEffect(() => {
+    const checkImpersonating = () => {
+      if (typeof window !== 'undefined') {
+        const hasOriginalUser = localStorage.getItem('original_user') !== null;
+        setIsImpersonating(hasOriginalUser);
+      }
+    };
+    
+    checkImpersonating();
+    
+    // Also listen for storage events
+    if (typeof window !== 'undefined') {
+      window.addEventListener('storage', checkImpersonating);
+      
+      return () => {
+        window.removeEventListener('storage', checkImpersonating);
+      };
+    }
+  }, []);
+
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
   };
@@ -139,6 +300,37 @@ export function Header() {
         return <AlertCircle className="h-5 w-5 text-red-500" />;
       default:
         return <Bell className="h-5 w-5 text-gray-500" />;
+    }
+  };
+
+  // Add a function to handle logout properly
+  const handleLogout = () => {
+    // Check if user is impersonating someone
+    if (typeof window !== 'undefined' && localStorage.getItem('original_user')) {
+      // If impersonating, restore the original user instead of logging out completely
+      const originalUser = JSON.parse(localStorage.getItem('original_user') || '{}');
+      
+      // Restore original user
+      localStorage.setItem('user', JSON.stringify(originalUser));
+      
+      // Clear temporary flags
+      localStorage.removeItem('original_user');
+      localStorage.removeItem('is_temporary_user');
+      
+      // Redirect to appropriate dashboard based on role
+      if (originalUser.role === 'admin') {
+        window.location.href = '/admin';
+      } else if (originalUser.role === 'mentor') {
+        window.location.href = '/mentor';
+      } else {
+        window.location.href = '/dashboard';
+      }
+      
+      // Force reload to ensure state is refreshed
+      window.location.reload();
+    } else {
+      // Normal logout if not impersonating
+      logout();
     }
   };
 
@@ -173,7 +365,7 @@ export function Header() {
                     {user?.role === 'admin' ? 'Admin Dashboard' : user?.role === 'mentor' ? 'Mentor Dashboard' : 'Dashboard'}
                   </Link>
                   <button
-                    onClick={logout}
+                    onClick={handleLogout}
                     className="text-gray-500 hover:text-gray-700"
                   >
                     Sign out
@@ -257,7 +449,7 @@ export function Header() {
               >
                 <Search className="h-5 w-5" />
               </button>
-
+              
               {showSearch && (
                 <div className="absolute right-0 mt-2 w-96 rounded-md bg-white shadow-lg">
                   <div className="p-4">
@@ -272,7 +464,7 @@ export function Header() {
                     {searchResults.length > 0 && (
                       <div className="mt-4 space-y-2">
                         {searchResults.map((result) => (
-                          <Link 
+                          <Link
                             key={result.id}
                             href={result.link}
                             className="block rounded-md p-2 hover:bg-gray-100"
@@ -307,7 +499,7 @@ export function Header() {
                   <div className="p-4">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="text-lg font-semibold">Notifications</h3>
-                      <button
+                      <button 
                         onClick={markAllAsRead}
                         className="text-sm text-blue-600 hover:text-blue-800"
                       >
@@ -316,8 +508,8 @@ export function Header() {
                     </div>
                     <div className="space-y-4">
                       {notifications.map((notification) => (
-                        <div
-                          key={notification.id}
+                        <div 
+                          key={notification.id} 
                           className={`flex items-start space-x-4 p-3 rounded-md ${
                             notification.read ? 'opacity-75' : 'bg-gray-50'
                           }`}
@@ -341,14 +533,63 @@ export function Header() {
                 onClick={() => setShowProfile(!showProfile)}
                 className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-200 disabled:pointer-events-none disabled:opacity-50 hover:bg-gray-100 h-9 px-2 py-2"
               >
-                <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
-                  <User className="h-5 w-5 text-gray-600" />
+                <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
+                  {user?.profileImage ? (
+                    <Image
+                      src={user.profileImage}
+                      alt="Profile"
+                      width={32}
+                      height={32}
+                      className="h-full w-full object-cover"
+                      onError={(e) => {
+                        // If image fails to load, fall back to User icon
+                        const target = e.target as HTMLImageElement;
+                        if (target) {
+                          target.style.display = 'none';
+                          // Create and show User icon instead
+                          const parent = target.parentElement;
+                          if (parent) {
+                            // Remove any existing SVG elements to prevent duplication
+                            const existingSvgs = parent.querySelectorAll('svg');
+                            existingSvgs.forEach(svg => {
+                              parent.removeChild(svg);
+                            });
+                            
+                            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                            svg.setAttribute('viewBox', '0 0 24 24');
+                            svg.setAttribute('width', '20');
+                            svg.setAttribute('height', '20');
+                            svg.setAttribute('fill', 'none');
+                            svg.setAttribute('stroke', 'currentColor');
+                            svg.setAttribute('stroke-width', '2');
+                            svg.setAttribute('stroke-linecap', 'round');
+                            svg.setAttribute('stroke-linejoin', 'round');
+                            svg.classList.add('h-5', 'w-5', 'text-gray-600');
+                            
+                            const path1 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                            path1.setAttribute('d', 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2');
+                            
+                            const path2 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                            path2.setAttribute('cx', '12');
+                            path2.setAttribute('cy', '7');
+                            path2.setAttribute('r', '4');
+                            
+                            svg.appendChild(path1);
+                            svg.appendChild(path2);
+                            parent.appendChild(svg);
+                          }
+                        }
+                      }}
+                    />
+                  ) : (
+                    <User className="h-5 w-5 text-gray-600" />
+                  )}
                 </div>
                 <span className="ml-2 text-gray-700 hidden md:inline-block">{user?.name}</span>
                 <span className="ml-1 text-xs text-gray-500 capitalize hidden md:inline-block">({user?.role})</span>
                 <ChevronDown className="ml-1 h-4 w-4 text-gray-500" />
               </button>
-
+              
               {showProfile && (
                 <div className="absolute right-0 mt-2 w-56 rounded-md bg-white shadow-lg">
                   <div className="py-1">
@@ -415,9 +656,13 @@ export function Header() {
                       <HelpCircle className="mr-2 h-4 w-4" />
                       Help & Support
                     </Link>
+                    
+                    {/* Always include the return button - it will only render on the client if needed */}
+                    <ClientSideReturnButton />
+                    
                     <div className="border-t border-gray-200"></div>
-                    <button
-                      onClick={logout}
+                    <button 
+                      onClick={handleLogout}
                       className="flex w-full items-center px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
                     >
                       <LogOut className="mr-2 h-4 w-4" />

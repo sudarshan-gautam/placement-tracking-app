@@ -8,4 +8,5 @@ export interface Qualification {
   expiryDate: string;
   status: QualificationStatus;
   certificate: string;
+  rejectionReason?: string;
 } 

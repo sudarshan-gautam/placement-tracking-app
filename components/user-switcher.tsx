@@ -5,9 +5,10 @@ import { useAuth } from '@/lib/auth-context';
 import userProfiles from '@/lib/user-profiles';
 import { getJobsForUser } from '@/lib/jobs-service';
 import { User, UserRole, UserStatus } from '@/types/user';
-import { UserCog, ArrowLeftRight, ShieldCheck, GraduationCap, UserCheck, Eye, EyeOff } from 'lucide-react';
+import { UserCog, ArrowLeftRight, ShieldCheck, GraduationCap, UserCheck, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { getStudentsForMentor, isStudentAssignedToMentor } from '@/lib/mentor-student-service';
 
+// This component is now only used in the dropdown menu of the header
 export default function UserSwitcher() {
   const { user, setUser } = useAuth();
   const [mode, setMode] = useState<'role' | 'user'>('role');
@@ -30,6 +31,16 @@ export default function UserSwitcher() {
       }
     }
   }, [originalUser]);
+  
+  // Exit early if not admin or mentor (only they should have access to this component)
+  if (!user || (user.role !== 'admin' && user.role !== 'mentor')) {
+    return null;
+  }
+  
+  // Also exit if we're already impersonating - this component is only for initial user switching
+  if (typeof window !== 'undefined' && localStorage.getItem('original_user')) {
+    return null;
+  }
   
   const toggleDropdown = () => {
     setIsOpen(!isOpen);
@@ -244,6 +255,21 @@ export default function UserSwitcher() {
     
     // Close dropdown after return
     setIsOpen(false);
+    
+    // Redirect to appropriate dashboard based on the original user's role
+    if (originalUser.role === 'admin') {
+      // If the admin was in the user management section, return there
+      const currentPath = window.location.pathname;
+      if (currentPath.includes('/admin/users')) {
+        window.location.href = '/admin/users';
+      } else {
+        window.location.href = '/admin';
+      }
+    } else if (originalUser.role === 'mentor') {
+      window.location.href = '/mentor';
+    } else {
+      window.location.href = '/dashboard';
+    }
   };
   
   if (!user) return null;
@@ -269,22 +295,42 @@ export default function UserSwitcher() {
   
   // Main button for top nav
   const renderMainButton = () => {
-    if (!canSwitchRoles) return null;
-    
-    // Only show Return button when impersonating
+    // If we're impersonating, show the return button with appropriate text
     if (isImpersonating) {
+      // Determine the button text based on the original user's role
+      let buttonText = 'Return';
+      
+      if (originalUser?.role === 'admin') {
+        buttonText = 'Return to Admin Dashboard';
+      } else if (originalUser?.role === 'mentor') {
+        buttonText = 'Return to Mentor Dashboard';
+      }
+      
       return (
         <button
           onClick={handleReturnToOriginal}
-          className="flex items-center px-3 py-1.5 rounded-md text-sm font-medium bg-amber-100 text-amber-800 hover:bg-amber-200"
+          className="flex items-center px-4 py-2 rounded-md text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors"
         >
-          <ArrowLeftRight className="h-4 w-4 mr-1.5" />
-          Return to {originalUser?.name}
+          <ArrowLeft className="h-4 w-4 mr-1.5" />
+          {buttonText}
         </button>
       );
     }
     
-    // Otherwise, don't render anything in the top nav
+    // If we can switch roles but aren't currently impersonating, show the view as button
+    // Only admin and mentor roles should have this functionality
+    if (canSwitchRoles && user && (user.role === 'admin' || user.role === 'mentor')) {
+      return (
+        <button
+          onClick={toggleDropdown}
+          className="flex items-center px-3 py-1.5 rounded-md text-sm font-medium bg-blue-100 text-blue-800 hover:bg-blue-200"
+        >
+          <UserCog className="h-4 w-4 mr-1.5" />
+          View as
+        </button>
+      );
+    }
+    
     return null;
   };
   
@@ -292,13 +338,13 @@ export default function UserSwitcher() {
     <div className="relative">
       {renderMainButton()}
       
-      {isOpen && (
+      {isOpen && !isImpersonating && user && (user.role === 'admin' || user.role === 'mentor') && (
         <div className="absolute right-0 mt-2 w-64 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50">
           <div className="px-4 py-2 text-sm">
             <div className="flex items-center justify-between text-gray-700 mb-1">
               <div className="flex items-center">
                 <UserCog className="mr-2 h-4 w-4" />
-                <span>View {isImpersonating ? 'as Another User' : 'Mode'}</span>
+                <span>View Mode</span>
               </div>
               
               {availableRoles.length > 1 && (
@@ -344,16 +390,6 @@ export default function UserSwitcher() {
                 ))}
               </select>
             ) : null}
-            
-            {isImpersonating && !renderMainButton() && (
-              <button 
-                onClick={handleReturnToOriginal}
-                className="w-full mt-2 flex items-center justify-center px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md"
-              >
-                <ArrowLeftRight className="h-3 w-3 mr-1" />
-                Return to {originalUser.name}
-              </button>
-            )}
           </div>
           <div className="border-t border-gray-200"></div>
         </div>

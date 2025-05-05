@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import bcrypt from 'bcrypt';
-import { getPool } from '@/lib/db';
+import { getDb, findUserByEmail, runQuery } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(request: Request) {
@@ -17,37 +16,38 @@ export async function POST(request: Request) {
     }
 
     // Check if user already exists
-    const pool = await getPool();
-    const [existingUsers] = await pool.query(
-      'SELECT * FROM users WHERE email = ?',
-      [email]
-    );
-
-    if ((existingUsers as any[]).length > 0) {
+    const existingUser = await findUserByEmail(email);
+    
+    if (existingUser) {
       return NextResponse.json(
         { error: 'User already exists' },
         { status: 400 }
       );
     }
 
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    // Use password directly instead of hashing
+    const plainPassword = password;
 
-    // Insert new user with default active status for self-registration
-    const status = 'active';
-    await pool.query(
-      'INSERT INTO users (id, email, password, name, role, status) VALUES (?, ?, ?, ?, ?, ?)',
-      [uuidv4(), email, hashedPassword, name, role, status]
+    // Insert new user
+    const userId = uuidv4();
+    
+    await runQuery(
+      'INSERT INTO users (id, email, password, name, role) VALUES (?, ?, ?, ?, ?)',
+      [userId, email, plainPassword, name, role]
     );
 
     // Get the created user for response
-    const [newUsers] = await pool.query(
-      'SELECT id, email, name, role, status FROM users WHERE email = ?',
-      [email]
-    );
-    
-    const newUser = (newUsers as any[])[0];
+    const db = getDb();
+    const newUser = await new Promise((resolve, reject) => {
+      db.get(
+        'SELECT id, email, name, role FROM users WHERE id = ?',
+        [userId],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        }
+      );
+    });
 
     return NextResponse.json(
       { message: 'User created successfully', user: newUser },

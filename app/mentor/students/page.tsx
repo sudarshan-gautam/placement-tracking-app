@@ -1,21 +1,13 @@
 'use client';
 
-import { useState } from 'react';
-import { useAuth } from '@/lib/auth-context';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import {
-  User,
-  Search,
-  CheckCircle,
-  Clock,
-  XCircle,
-  ArrowUpRight,
-  ArrowLeft,
-  BarChart2,
-  Mail
-} from 'lucide-react';
+import { useAuth } from '@/lib/auth-context';
+import { Card, CardContent } from '@/components/ui/card';
 import Link from 'next/link';
+import { Search, User, ArrowUpRight, User2, UserX, UserCheck } from 'lucide-react';
+import userProfiles from '@/lib/user-profiles';
+import { getStudentsForMentor } from '@/lib/mentor-student-service';
 
 // Sample student data
 const studentsData = [
@@ -118,9 +110,51 @@ export default function StudentsPage() {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<number | null>(null);
+  const [assignedStudents, setAssignedStudents] = useState<typeof studentsData>([]);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    // Redirect if not authenticated or not a mentor
+    if (!user) {
+      router.push('/auth/login');
+    } else if (user.role !== 'mentor') {
+      if (user.role === 'admin') {
+        router.push('/admin');
+      } else {
+        router.push('/dashboard');
+      }
+    } else {
+      // Load assigned students for this mentor
+      loadAssignedStudents();
+    }
+  }, [user, router]);
+  
+  const loadAssignedStudents = () => {
+    if (!user) return;
+    
+    setLoading(true);
+    
+    // Get student IDs assigned to this mentor
+    const mentorId = typeof user.id === 'string' ? parseInt(user.id, 10) : user.id;
+    const assignedStudentIds = getStudentsForMentor(mentorId);
+    
+    if (assignedStudentIds.length === 0) {
+      setAssignedStudents([]);
+      setLoading(false);
+      return;
+    }
+    
+    // Filter student data to only show assigned students
+    const filteredStudents = studentsData.filter(student => 
+      assignedStudentIds.includes(student.id)
+    );
+    
+    setAssignedStudents(filteredStudents);
+    setLoading(false);
+  };
   
   // Filter students based on search term
-  const filteredStudents = studentsData.filter(student => 
+  const filteredStudents = assignedStudents.filter(student => 
     student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     student.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
     student.course.toLowerCase().includes(searchTerm.toLowerCase())
@@ -142,35 +176,40 @@ export default function StudentsPage() {
     }
   };
   
-  return (
-    <div className="min-h-screen bg-gray-50 p-6 pb-40">
-      {/* Header */}
-      <div className="mb-8">
-        <Link href="/mentor" className="inline-flex items-center text-blue-600 hover:text-blue-800 mb-4">
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Dashboard
-        </Link>
-        <h1 className="text-3xl font-bold text-gray-900">Student Management</h1>
-        <p className="text-gray-600">Monitor and support your assigned students</p>
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
       </div>
-      
-      {/* Search */}
-      <div className="bg-white p-4 rounded-lg shadow-sm mb-6">
-        <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="h-5 w-5 text-gray-400" />
-          </div>
-          <input
-            type="text"
-            placeholder="Search students by name, email, or course"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-          />
+    );
+  }
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">My Students</h1>
+          <p className="text-gray-600">Manage and track student progress</p>
         </div>
       </div>
       
-      {/* Student Lists */}
+      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div className="flex flex-col md:flex-row gap-4 mb-6">
+          <div className="relative flex-1">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-5 w-5 text-gray-400" />
+            </div>
+            <input
+              type="text"
+              placeholder="Search students by name, email or course..."
+              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-full"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+        </div>
+      </div>
+      
       <div className="space-y-6">
         {filteredStudents.length > 0 ? (
           filteredStudents.map((student) => (
@@ -199,67 +238,51 @@ export default function StudentsPage() {
                   </div>
                   
                   {/* Quick Actions */}
-                  <div className="flex flex-wrap gap-2">
-                    <Link 
-                      href={`/mentor/students/${student.id}`}
-                      className="inline-flex items-center px-3 py-1 border border-transparent rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-                    >
-                      <User className="h-4 w-4 mr-1" />
-                      View Profile
-                    </Link>
-                    <button
-                      className="inline-flex items-center px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                      onClick={() => window.location.href = `mailto:${student.email}`}
-                    >
-                      <Mail className="h-4 w-4 mr-1" />
-                      Contact
-                    </button>
-                    <Link 
-                      href={`/mentor/students/${student.id}/report`}
-                      className="inline-flex items-center px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                    >
-                      <BarChart2 className="h-4 w-4 mr-1" />
-                      Generate Report
-                    </Link>
+                  <div className="flex flex-col sm:items-end">
+                    <div className="flex space-x-3 mb-2">
+                      <Link 
+                        href={`/mentor/students/${student.id}/profile`}
+                        className="px-3 py-1 text-sm bg-blue-50 text-blue-700 rounded-md flex items-center"
+                      >
+                        <User2 className="h-4 w-4 mr-1" />
+                        View Profile
+                      </Link>
+                      <Link 
+                        href={`/mentor/students/${student.id}/activities`}
+                        className="px-3 py-1 text-sm bg-green-50 text-green-700 rounded-md flex items-center"
+                      >
+                        <UserCheck className="h-4 w-4 mr-1" />
+                        Activities
+                      </Link>
+                    </div>
+                    <div className="text-sm text-gray-500 mt-1">
+                      <span>Last Activity: {new Date(student.recent.date).toLocaleDateString()}</span>
+                    </div>
                   </div>
                 </div>
                 
-                {/* Stats Cards */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-                  <div className="bg-green-50 p-3 rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-green-800">Verified</p>
-                      <CheckCircle className="h-5 w-5 text-green-600" />
-                    </div>
-                    <p className="text-xl font-bold text-green-900 mt-1">{student.stats.verified}</p>
+                <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="bg-blue-50 p-3 rounded-md text-center">
+                    <p className="text-sm text-gray-500 mb-1">Hours</p>
+                    <p className="text-xl font-bold text-blue-700">{student.stats.totalHours}</p>
                   </div>
                   
-                  <div className="bg-yellow-50 p-3 rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-yellow-800">Pending</p>
-                      <Clock className="h-5 w-5 text-yellow-600" />
-                    </div>
-                    <p className="text-xl font-bold text-yellow-900 mt-1">{student.stats.pending}</p>
+                  <div className="bg-green-50 p-3 rounded-md text-center">
+                    <p className="text-sm text-gray-500 mb-1">Verified</p>
+                    <p className="text-xl font-bold text-green-700">{student.stats.verified}</p>
                   </div>
                   
-                  <div className="bg-red-50 p-3 rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-red-800">Rejected</p>
-                      <XCircle className="h-5 w-5 text-red-600" />
-                    </div>
-                    <p className="text-xl font-bold text-red-900 mt-1">{student.stats.rejected}</p>
+                  <div className="bg-yellow-50 p-3 rounded-md text-center">
+                    <p className="text-sm text-gray-500 mb-1">Pending</p>
+                    <p className="text-xl font-bold text-yellow-700">{student.stats.pending}</p>
                   </div>
                   
-                  <div className="bg-blue-50 p-3 rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-blue-800">Total Hours</p>
-                      <Clock className="h-5 w-5 text-blue-600" />
-                    </div>
-                    <p className="text-xl font-bold text-blue-900 mt-1">{student.stats.totalHours}</p>
+                  <div className="bg-red-50 p-3 rounded-md text-center">
+                    <p className="text-sm text-gray-500 mb-1">Rejected</p>
+                    <p className="text-xl font-bold text-red-700">{student.stats.rejected}</p>
                   </div>
                 </div>
                 
-                {/* Recent Activity */}
                 <div className="mt-6">
                   <div className="flex justify-between items-center mb-2">
                     <h4 className="text-sm font-medium text-gray-900">Recent Activity</h4>
@@ -279,7 +302,6 @@ export default function StudentsPage() {
                   </div>
                 </div>
                 
-                {/* Competencies */}
                 <div className="mt-6">
                   <div className="flex justify-between items-center mb-2">
                     <h4 className="text-sm font-medium text-gray-900">Key Competencies</h4>
@@ -310,6 +332,12 @@ export default function StudentsPage() {
                 ? 'Try adjusting your search term.' 
                 : 'No students have been assigned to you yet.'}
             </p>
+            <div className="mt-4">
+              <p className="text-sm text-gray-500">
+                Students are assigned to you by administrators. Please contact an administrator
+                if you need to have students assigned to your mentorship.
+              </p>
+            </div>
           </div>
         )}
       </div>

@@ -4,10 +4,23 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   Search, UserPlus, Filter, Edit, Trash2, CheckCircle, XCircle, Shield, 
-  GraduationCap, Briefcase, ChevronDown, Download, Upload, Info, HelpCircle
+  GraduationCap, Briefcase, ChevronDown, Download, Upload, Info, HelpCircle, ShieldCheck, User,
+  Users, UserCheck, X, Plus, ArrowRightLeft, Eye
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/components/ui/use-toast';
+import { 
+  assignStudentToMentor, 
+  unassignStudentFromMentor, 
+  getStudentsForMentor, 
+  getMentorForStudent,
+  getMentorsWithStudentCounts
+} from '@/lib/mentor-student-service';
+import userProfiles from '@/lib/user-profiles';
+import { User as UserType, UserRole, UserStatus } from '@/types/user';
 
 // Define User type
 interface User {
@@ -15,9 +28,12 @@ interface User {
   name: string;
   email: string;
   role: 'admin' | 'mentor' | 'student';
-  status: 'active' | 'inactive' | 'pending';
+  status?: 'active' | 'pending' | 'inactive';
   created_at: string;
   updated_at: string;
+  assignedStudents?: number;
+  completedActivities?: number;
+  verifiedActivities?: number;
 }
 
 // Role descriptions for tooltips
@@ -55,25 +71,16 @@ const statusStyles = {
 
 // Role colors with better contrast
 const roleStyles = {
-  admin: {
-    icon: 'text-red-600',
-    bg: 'bg-red-50'
-  },
-  mentor: {
-    icon: 'text-blue-600',
-    bg: 'bg-blue-50'
-  },
-  student: {
-    icon: 'text-green-600',
-    bg: 'bg-green-50'
-  }
+  admin: { bg: 'bg-red-100', icon: <ShieldCheck className="h-4 w-4 text-red-600" /> },
+  mentor: { bg: 'bg-blue-100', icon: <GraduationCap className="h-4 w-4 text-blue-600" /> },
+  student: { bg: 'bg-green-100', icon: <User className="h-4 w-4 text-green-600" /> }
 };
 
 export default function AdminUsersPage() {
-  const { user } = useAuth();
+  const { user, setUser } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
@@ -95,7 +102,8 @@ export default function AdminUsersPage() {
     email: '',
     role: '',
     status: '',
-    password: ''
+    password: '',
+    adminPassword: ''
   });
   const [addFormData, setAddFormData] = useState({
     name: '',
@@ -113,16 +121,32 @@ export default function AdminUsersPage() {
     email: '',
     password: ''
   });
-  const [toast, setToast] = useState<{
-    show: boolean;
-    message: string;
-    type: 'success' | 'error' | 'info';
-  }>({
-    show: false,
-    message: '',
-    type: 'info'
-  });
+  const { toast } = useToast();
   const router = useRouter();
+
+  // Add new state variables for mentor-student management
+  const [showAssignmentModal, setShowAssignmentModal] = useState(false);
+  const [selectedMentor, setSelectedMentor] = useState<User | null>(null);
+  const [assignedStudentIds, setAssignedStudentIds] = useState<number[]>([]);
+  const [availableStudents, setAvailableStudents] = useState<User[]>([]);
+  const [assignmentFormData, setAssignmentFormData] = useState({
+    studentId: '',
+    notes: ''
+  });
+  const [showUnassignModal, setShowUnassignModal] = useState(false);
+  const [studentToUnassign, setStudentToUnassign] = useState<User | null>(null);
+  const [unassignReason, setUnassignReason] = useState('');
+  const [userToView, setUserToView] = useState<User | null>(null);
+  const [viewAsModalOpen, setViewAsModalOpen] = useState(false);
+
+  // Add new state variables for student-mentor assignment
+  const [showMentorAssignmentModal, setShowMentorAssignmentModal] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<User | null>(null);
+  const [availableMentors, setAvailableMentors] = useState<User[]>([]);
+  const [mentorAssignmentFormData, setMentorAssignmentFormData] = useState({
+    mentorId: '',
+    notes: ''
+  });
 
   // Fetch users from the database
   useEffect(() => {
@@ -142,23 +166,29 @@ export default function AdminUsersPage() {
         }
         
         const data = await response.json();
-        setUsers(data.users);
+        // Handle the response which directly returns the users array
+        setUsers(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error('Error fetching users:', error);
-        showToast('Failed to load users', 'error');
+        toast({
+          title: 'Error',
+          description: 'Failed to fetch users. Please try again.',
+          variant: 'destructive',
+        });
       } finally {
         setLoading(false);
       }
     };
     
     fetchUsers();
-  }, [user, router]);
+  }, [user, router, toast]);
 
   // Filter users based on search term and filters
   const filteredUsers = users.filter((user: User) => {
     const matchesSearch = 
-      user.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      user.email.toLowerCase().includes(searchTerm.toLowerCase());
+      user.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.role.toLowerCase().includes(searchQuery.toLowerCase());
     
     const matchesRole = roleFilter === 'all' || user.role === roleFilter;
     
@@ -171,22 +201,17 @@ export default function AdminUsersPage() {
   });
 
   // Handle checkbox selection
-  const toggleUserSelection = (userId: string) => {
-    if (selectedUsers.includes(userId)) {
-      setSelectedUsers(selectedUsers.filter(id => id !== userId));
-    } else {
-      setSelectedUsers([...selectedUsers, userId]);
-    }
+  const toggleUserSelection = (userId: string, checked: boolean) => {
+    setSelectedUsers(prev =>
+      checked
+        ? [...prev, userId]
+        : prev.filter(id => id !== userId)
+    );
   };
 
   // Handle select all
-  const handleSelectAll = () => {
-    if (selectAll) {
-      setSelectedUsers([]);
-    } else {
-      setSelectedUsers(filteredUsers.map((user: User) => user.id));
-    }
-    setSelectAll(!selectAll);
+  const handleSelectAll = (checked: boolean) => {
+    setSelectedUsers(checked ? users.map(user => user.id) : []);
   };
 
   // Handle bulk actions
@@ -196,13 +221,22 @@ export default function AdminUsersPage() {
     switch (action) {
       case 'activate':
         // In a real app, you would send API requests to update each user's status
-        showToast('Bulk activation is not implemented yet', 'info');
+        toast({
+          title: 'Info',
+          description: 'Bulk activation is not implemented yet',
+        });
         break;
       case 'deactivate':
-        showToast('Bulk deactivation is not implemented yet', 'info');
+        toast({
+          title: 'Info',
+          description: 'Bulk deactivation is not implemented yet',
+        });
         break;
       case 'delete':
-        showToast('Bulk deletion is not implemented yet', 'info');
+        toast({
+          title: 'Info',
+          description: 'Bulk deletion is not implemented yet',
+        });
         break;
       default:
         break;
@@ -215,56 +249,74 @@ export default function AdminUsersPage() {
 
   // Get role icon based on role
   const getRoleIcon = (role: string) => {
-    switch (role) {
-      case 'admin':
-        return <Shield className={`${roleStyles.admin.icon} h-4 w-4`} />;
-      case 'mentor':
-        return <Briefcase className={`${roleStyles.mentor.icon} h-4 w-4`} />;
-      case 'student':
-        return <GraduationCap className={`${roleStyles.student.icon} h-4 w-4`} />;
-      default:
-        return null;
-    }
+    return roleStyles[role as keyof typeof roleStyles].icon;
   };
 
   // Get status indicator
-  const getStatusIndicator = (status: string = 'active') => {
-    const style = statusStyles[status as keyof typeof statusStyles] || statusStyles.active;
+  const getStatusIndicator = (status?: string) => {
+    const statusStyles = {
+      active: 'bg-green-100 text-green-800 border-green-200',
+      pending: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+      inactive: 'bg-gray-100 text-gray-800 border-gray-200'
+    };
+
+    const currentStatus = status || 'active';
     
     return (
-      <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${style.bg} ${style.text} ${style.border}`}>
-        {status === 'active' && <CheckCircle className="h-3 w-3 mr-1" />}
-        {status === 'pending' && <Info className="h-3 w-3 mr-1" />}
-        {status === 'inactive' && <XCircle className="h-3 w-3 mr-1" />}
-        {status.charAt(0).toUpperCase() + status.slice(1)}
-      </div>
+      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusStyles[currentStatus as keyof typeof statusStyles]}`}>
+        <div className={`w-2 h-2 rounded-full mr-2 ${
+          currentStatus === 'active' ? 'bg-green-400' :
+          currentStatus === 'pending' ? 'bg-yellow-400' :
+          'bg-gray-400'
+        }`} />
+        {currentStatus.charAt(0).toUpperCase() + currentStatus.slice(1)}
+      </span>
     );
   };
 
+  // Format date for display
+  const formatDate = (dateString: string) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
   // Get role-specific user details
-  const getRoleSpecificDetails = (userData: User) => {
-    if (userData.role === 'mentor') {
-      return <span>{userData.assignedStudents || 0} assigned students</span>;
-    } else if (userData.role === 'student') {
-      const verified = userData.verifiedActivities || 0;
-      const total = userData.completedActivities || 0;
-      return <span>{total} activities ({verified} verified)</span>;
+  const getRoleSpecificDetails = (user: User) => {
+    switch (user.role) {
+      case 'mentor':
+        return `${user.assignedStudents || 0} students | ${user.verifiedActivities || 0} activities verified`;
+      case 'student':
+        return `${user.completedActivities || 0} activities completed`;
+      default:
+        return '';
     }
-    return null;
+  };
+
+  // Handle user selection
+  const handleUserSelection = (userId: string) => {
+    const id = userId || '';
+    setSelectedUsers(prev => 
+      prev.includes(id) 
+        ? prev.filter(id => id !== userId)
+        : [...prev, id]
+    );
+  };
+
+  // Get user ID for operations
+  const getUserId = (user: User) => {
+    return user.id || '';
   };
 
   // Show toast message
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
-    setToast({
-      show: true,
-      message,
-      type
+    toast({
+      title: type.charAt(0).toUpperCase() + type.slice(1),
+      description: message,
     });
-    
-    // Auto hide toast after 3 seconds
-    setTimeout(() => {
-      setToast(prev => ({ ...prev, show: false }));
-    }, 3000);
   };
 
   // Validate edit form
@@ -300,7 +352,8 @@ export default function AdminUsersPage() {
       email: userData.email,
       role: userData.role,
       status: userData.status || 'active',
-      password: ''
+      password: '',
+      adminPassword: ''
     });
     setFormErrors({
       name: '',
@@ -318,7 +371,8 @@ export default function AdminUsersPage() {
       email: '',
       role: '',
       status: '',
-      password: ''
+      password: '',
+      adminPassword: ''
     });
     setFormErrors({
       name: '',
@@ -348,49 +402,70 @@ export default function AdminUsersPage() {
   const handleEditSave = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!validateForm() || !userToEdit) {
+    if (!userToEdit || !validateForm()) return;
+    
+    // Check if admin password is provided for sensitive changes
+    if (!editFormData.adminPassword) {
+      showToast('Please enter your admin password to confirm changes', 'error');
       return;
     }
     
     try {
-      const requestBody: {
-        name: string;
-        email: string;
-        role: string;
-        password?: string;
-      } = {
-        name: editFormData.name,
-        email: editFormData.email,
-        role: editFormData.role
-      };
-      
-      // Only include password in the request if it's been provided
-      if (editFormData.password) {
-        requestBody.password = editFormData.password;
-      }
-      
+      // Update user with PATCH method to proper endpoint
       const response = await fetch(`/api/admin/users/${userToEdit.id}`, {
         method: 'PATCH',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify({
+          name: editFormData.name,
+          email: editFormData.email,
+          role: editFormData.role,
+          status: editFormData.status,
+          password: editFormData.password || undefined,
+          adminPassword: editFormData.adminPassword // Send admin password for verification
+        }),
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update user');
+        throw new Error(errorData.message || 'Failed to update user');
       }
-      
+
       const data = await response.json();
       
-      // Update users array with the updated user
-      setUsers(users.map((user: User) => 
-        user.id === userToEdit.id ? data.user : user
-      ));
+      // Update users list with proper type casting
+      setUsers(prevUsers => 
+        prevUsers.map(u => {
+          if (u.id === userToEdit.id) {
+            return {
+              ...u,
+              name: editFormData.name,
+              email: editFormData.email,
+              role: editFormData.role as 'admin' | 'mentor' | 'student',
+              status: editFormData.status as 'active' | 'pending' | 'inactive' | undefined,
+              updated_at: new Date().toISOString()
+            };
+          }
+          return u;
+        })
+      );
       
-      showToast('User updated successfully', 'success');
-      handleEditCancel();
+      showToast(data.message || 'User updated successfully', 'success');
+      setShowEditModal(false);
+      setUserToEdit(null);
+      setEditFormData({
+        name: '',
+        email: '',
+        role: '',
+        status: '',
+        password: '',
+        adminPassword: ''
+      });
+      setFormErrors({
+        name: '',
+        email: ''
+      });
     } catch (error) {
       console.error('Error updating user:', error);
       showToast((error as Error).message || 'Failed to update user', 'error');
@@ -534,31 +609,43 @@ export default function AdminUsersPage() {
       const response = await fetch('/api/admin/users', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           name: addFormData.name,
           email: addFormData.email,
           password: addFormData.password,
           role: addFormData.role
-        })
+        }),
       });
-      
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create user');
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to create user');
       }
+
+      const { user: newUser } = await response.json();
       
-      const data = await response.json();
+      // Add new user to the list
+      setUsers([...users, newUser]);
       
-      // Add new user to the users array
-      setUsers([data.user, ...users]);
-      
-      showToast('User added successfully', 'success');
-      handleAddCancel();
+      showToast('User created successfully', 'success');
+      setShowAddModal(false);
+      setAddFormData({
+        name: '',
+        email: '',
+        password: '',
+        role: 'student',
+        status: 'active'
+      });
+      setAddFormErrors({
+        name: '',
+        email: '',
+        password: ''
+      });
     } catch (error) {
       console.error('Error creating user:', error);
-      showToast((error as Error).message || 'Failed to create user', 'error');
+      showToast('Failed to create user', 'error');
     }
   };
 
@@ -726,14 +813,329 @@ export default function AdminUsersPage() {
     }
   };
 
-  // Format date for display
-  const formatDate = (dateString: string) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
+  // New function to handle opening the assignment modal
+  const handleOpenAssignmentModal = (mentorUser: User) => {
+    setSelectedMentor(mentorUser);
+    
+    // Get students assigned to this mentor
+    const mentorId = typeof mentorUser.id === 'string' 
+      ? parseInt(mentorUser.id, 10) 
+      : mentorUser.id;
+    
+    const assignedIds = getStudentsForMentor(mentorId);
+    setAssignedStudentIds(assignedIds);
+    
+    // Get all student users for the selection dropdown
+    const studentUsers = users.filter(u => u.role === 'student');
+    setAvailableStudents(studentUsers);
+    
+    // Reset form data
+    setAssignmentFormData({
+      studentId: '',
+      notes: ''
     });
+    
+    setShowAssignmentModal(true);
+  };
+  
+  // Function to handle assigning a student to the selected mentor
+  const handleAssignStudent = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!selectedMentor || !assignmentFormData.studentId) {
+      showToast('Please select a student to assign', 'error');
+      return;
+    }
+    
+    const mentorId = typeof selectedMentor.id === 'string' 
+      ? parseInt(selectedMentor.id, 10) 
+      : selectedMentor.id;
+    
+    const studentId = parseInt(assignmentFormData.studentId, 10);
+    
+    // Assign the student to the mentor
+    const success = assignStudentToMentor(
+      mentorId, 
+      studentId, 
+      assignmentFormData.notes
+    );
+    
+    if (success) {
+      // Update the local state
+      setAssignedStudentIds([...assignedStudentIds, studentId]);
+      
+      // Reset the form
+      setAssignmentFormData({
+        studentId: '',
+        notes: ''
+      });
+      
+      // Show success message
+      showToast('Student assigned successfully', 'success');
+      
+      // Update the users array to show the updated count
+      const updatedUsers = users.map(u => {
+        if (u.id === selectedMentor.id) {
+          return {
+            ...u,
+            assignedStudents: (u.assignedStudents || 0) + 1
+          };
+        }
+        return u;
+      });
+      
+      setUsers(updatedUsers);
+    } else {
+      showToast('Failed to assign student. Please try again.', 'error');
+    }
+  };
+  
+  // Function to handle unassigning a student
+  const handleOpenUnassignModal = (student: User) => {
+    setStudentToUnassign(student);
+    setUnassignReason('');
+    setShowUnassignModal(true);
+  };
+  
+  const handleUnassignStudent = () => {
+    if (!selectedMentor || !studentToUnassign) {
+      return;
+    }
+    
+    const mentorId = typeof selectedMentor.id === 'string' 
+      ? parseInt(selectedMentor.id, 10) 
+      : selectedMentor.id;
+    
+    const studentId = typeof studentToUnassign.id === 'string'
+      ? parseInt(studentToUnassign.id, 10)
+      : studentToUnassign.id;
+    
+    // Unassign the student from the mentor
+    const success = unassignStudentFromMentor(
+      mentorId,
+      studentId,
+      unassignReason
+    );
+    
+    if (success) {
+      // Update the local state
+      setAssignedStudentIds(assignedStudentIds.filter(id => id !== studentId));
+      
+      // Close the modal
+      setShowUnassignModal(false);
+      setStudentToUnassign(null);
+      
+      // Show success message
+      showToast('Student unassigned successfully', 'success');
+      
+      // Update the users array to show the updated count
+      const updatedUsers = users.map(u => {
+        if (u.id === selectedMentor.id && u.assignedStudents && u.assignedStudents > 0) {
+          return {
+            ...u,
+            assignedStudents: u.assignedStudents - 1
+          };
+        }
+        return u;
+      });
+      
+      setUsers(updatedUsers);
+    } else {
+      showToast('Failed to unassign student. Please try again.', 'error');
+    }
+  };
+  
+  // Function to close the assignment modal
+  const handleCloseAssignmentModal = () => {
+    setShowAssignmentModal(false);
+    setSelectedMentor(null);
+    setAssignedStudentIds([]);
+    setAvailableStudents([]);
+  };
+  
+  const handleAssignmentFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setAssignmentFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  // Function to handle view as user button click
+  const handleViewAsUser = (userData: User) => {
+    setUserToView(userData);
+    setViewAsModalOpen(true);
+  };
+
+  // Function to close view as modal
+  const handleViewAsCancel = () => {
+    setUserToView(null);
+    setViewAsModalOpen(false);
+  };
+
+  // Function to switch to viewing as the selected user
+  const handleViewAsConfirm = () => {
+    if (!userToView) return;
+    
+    // Store original user in localStorage for returning later
+    localStorage.setItem('original_user', JSON.stringify(user));
+    
+    // Create a User object from the user data
+    const viewAsUser: UserType = {
+      id: userToView.id,
+      name: userToView.name,
+      email: userToView.email,
+      role: userToView.role as UserRole,
+      status: (userToView.status || 'active') as UserStatus
+    };
+    
+    // Update user context
+    setUser(viewAsUser);
+    
+    // Save to localStorage to persist across page refresh
+    localStorage.setItem('user', JSON.stringify(viewAsUser));
+    localStorage.setItem('is_temporary_user', 'true');
+    
+    // Redirect to appropriate page based on role
+    if (viewAsUser.role === 'admin') {
+      router.push('/admin');
+    } else if (viewAsUser.role === 'mentor') {
+      router.push('/mentor/students');
+    } else {
+      router.push('/dashboard');
+    }
+    
+    // Close modal
+    setViewAsModalOpen(false);
+  };
+
+  // Function to get mentor name for a student
+  const getMentorNameForStudent = (studentId: string | number) => {
+    const numericStudentId = typeof studentId === 'string' ? parseInt(studentId, 10) : studentId;
+    const mentorId = getMentorForStudent(numericStudentId);
+    
+    if (!mentorId) return null;
+    
+    const mentor = users.find(u => {
+      const uid = typeof u.id === 'string' ? parseInt(u.id, 10) : u.id;
+      return uid === mentorId;
+    });
+    
+    return mentor ? mentor.name : null;
+  };
+
+  // Function to get student count for a mentor
+  const getStudentCountForMentor = (mentorId: string | number) => {
+    const numericMentorId = typeof mentorId === 'string' ? parseInt(mentorId, 10) : mentorId;
+    const students = getStudentsForMentor(numericMentorId);
+    return students.length;
+  };
+
+  const handleCloseUnassignModal = () => {
+    setShowUnassignModal(false);
+    setStudentToUnassign(null);
+    setUnassignReason('');
+  };
+
+  // Function to open the mentor assignment modal for a student
+  const handleOpenMentorAssignmentModal = (studentUser: User) => {
+    setSelectedStudent(studentUser);
+    
+    // Get all mentor users for the selection dropdown
+    const mentorUsers = users.filter(u => u.role === 'mentor');
+    setAvailableMentors(mentorUsers);
+    
+    // Get current mentor if any
+    const studentId = typeof studentUser.id === 'string' 
+      ? parseInt(studentUser.id, 10) 
+      : studentUser.id;
+    
+    const currentMentorId = getMentorForStudent(studentId);
+    
+    // Reset form data with current mentor if one exists
+    setMentorAssignmentFormData({
+      mentorId: currentMentorId ? currentMentorId.toString() : '',
+      notes: ''
+    });
+    
+    setShowMentorAssignmentModal(true);
+  };
+  
+  // Function to close the mentor assignment modal
+  const handleCloseMentorAssignmentModal = () => {
+    setShowMentorAssignmentModal(false);
+    setSelectedStudent(null);
+    setAvailableMentors([]);
+  };
+  
+  // Function to handle mentor assignment form changes
+  const handleMentorAssignmentFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setMentorAssignmentFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+  
+  // Function to handle assigning a mentor to the selected student
+  const handleAssignMentor = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!selectedStudent || !mentorAssignmentFormData.mentorId) {
+      showToast('Please select a mentor to assign', 'error');
+      return;
+    }
+    
+    const studentId = typeof selectedStudent.id === 'string' 
+      ? parseInt(selectedStudent.id, 10) 
+      : selectedStudent.id;
+    
+    const mentorId = parseInt(mentorAssignmentFormData.mentorId, 10);
+    
+    // First unassign from any existing mentor if needed
+    const currentMentorId = getMentorForStudent(studentId);
+    if (currentMentorId) {
+      unassignStudentFromMentor(currentMentorId, studentId, 'Reassigning to different mentor');
+    }
+    
+    // Assign the student to the new mentor
+    const success = assignStudentToMentor(
+      mentorId, 
+      studentId, 
+      mentorAssignmentFormData.notes
+    );
+    
+    if (success) {
+      // Show success message
+      showToast('Mentor assigned successfully', 'success');
+      
+      // Update the users array to show the updated data
+      // This is a simplification - a real app would refetch the data
+      
+      // Close the modal
+      handleCloseMentorAssignmentModal();
+    } else {
+      showToast('Failed to assign mentor. Please try again.', 'error');
+    }
+  };
+  
+  // Function to directly assign a mentor from the list
+  const handleQuickAssignMentor = (mentorId: string | number) => {
+    if (!selectedStudent) return;
+    
+    // Update the form data
+    setMentorAssignmentFormData(prev => ({
+      ...prev,
+      mentorId: mentorId.toString()
+    }));
+    
+    // Create a fake form event
+    const fakeEvent = {
+      preventDefault: () => {}
+    } as React.FormEvent;
+    
+    // Use the existing function
+    handleAssignMentor(fakeEvent);
   };
 
   if (loading) {
@@ -842,12 +1244,12 @@ export default function AdminUsersPage() {
         <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
           <div className="relative flex-grow">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
-            <input
-              type="text"
+            <Input
+              type="search"
               placeholder="Search users by name or email..."
-              className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
             />
           </div>
           <div className="flex gap-2">
@@ -923,197 +1325,163 @@ export default function AdminUsersPage() {
       </div>
 
       {/* Users Table - Enhanced for better clarity */}
-      <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-300">
-            <thead className="bg-gray-200">
-              <tr>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-b-2 border-gray-300">
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      checked={selectAll}
-                      onChange={handleSelectAll}
-                      title="Select all users"
-                    />
-                  </div>
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-b-2 border-gray-300">User</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-b-2 border-gray-300">Role</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-b-2 border-gray-300">Status</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-b-2 border-gray-300">Details</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-b-2 border-gray-300">Joined</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-b-2 border-gray-300">Last Active</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-b-2 border-gray-300">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredUsers.length > 0 ? (
-                filteredUsers.map((user, index) => (
-                  <tr key={user._id} className={`
-                    ${selectedUsers.includes(user._id) ? 'bg-blue-50' : index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} 
-                    hover:bg-gray-100 transition-colors duration-150
-                    ${(user.status || 'active') === 'inactive' ? 'opacity-75' : ''}
-                  `}>
-                    <td className="px-6 py-5 whitespace-nowrap">
+      <div className="mt-8 flow-root">
+        <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+          <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
+            <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
+              <table className="min-w-full divide-y divide-gray-300">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th scope="col" className="relative w-12 px-6 sm:w-16 sm:px-8">
                       <input
                         type="checkbox"
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                        checked={selectedUsers.includes(user._id)}
-                        onChange={() => toggleUserSelection(user._id)}
+                        className="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                        checked={selectAll}
+                        onChange={(e) => handleSelectAll(e.target.checked)}
                       />
-                    </td>
-                    <td className="px-6 py-5 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0 h-12 w-12 relative">
-                          <div className={`h-12 w-12 rounded-full shadow-md border-2 ${
-                            user.role === 'admin' ? 'bg-white border-red-300 text-red-700' :
-                            user.role === 'mentor' ? 'bg-white border-blue-300 text-blue-700' :
-                            'bg-white border-green-300 text-green-700'
-                          } flex items-center justify-center uppercase font-bold text-lg`}>
-                            {user.name.substring(0, 2)}
-                          </div>
-                          {(user.status || 'active') === 'active' && (
-                            <div className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 border-2 border-white"></div>
-                          )}
-                        </div>
-                        <div className="ml-4">
-                          <div className="text-base font-semibold text-gray-900">{user.name}</div>
-                          <div className="text-sm text-gray-600">{user.email}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-5 whitespace-nowrap">
-                      <div className={`flex items-center px-3 py-1.5 rounded-md border-2 ${
-                        user.role === 'admin' ? 'bg-white border-red-300' :
-                        user.role === 'mentor' ? 'bg-white border-blue-300' :
-                        'bg-white border-green-300'
-                      }`} title={roleDescriptions[user.role as keyof typeof roleDescriptions]}>
-                        {getRoleIcon(user.role)}
-                        <span className="ml-1.5 text-sm font-semibold text-gray-800 capitalize">{user.role}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-5 whitespace-nowrap">
-                      <span 
-                        className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold border-2 ${
-                          (user.status || 'active') === 'active' ? 'bg-white border-green-300 text-green-700' :
-                          (user.status || 'active') === 'pending' ? 'bg-white border-yellow-300 text-yellow-700' :
-                          'bg-white border-gray-300 text-gray-700'
-                        }`} 
-                        title={statusDescriptions[(user.status || 'active') as keyof typeof statusDescriptions]}
-                      >
-                        {(user.status || 'active') === 'active' && <div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div>}
-                        {(user.status || 'active') === 'pending' && <div className="w-2 h-2 rounded-full bg-yellow-500 mr-2"></div>}
-                        {(user.status || 'active') === 'inactive' && <div className="w-2 h-2 rounded-full bg-gray-400 mr-2"></div>}
-                        {(user.status || 'active').charAt(0).toUpperCase() + (user.status || 'active').slice(1)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-5 whitespace-nowrap text-sm text-gray-600">
-                      {getRoleSpecificDetails(user) && (
-                        <div className="inline-flex items-center px-3 py-1.5 rounded-md bg-white border-2 border-gray-300 font-medium">
-                          {getRoleSpecificDetails(user)}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-5 whitespace-nowrap text-sm font-medium text-gray-800">
-                      {user.dateJoined}
-                    </td>
-                    <td className="px-6 py-5 whitespace-nowrap text-sm font-medium text-gray-800">
-                      {user.lastActive}
-                    </td>
-                    <td className="px-6 py-5 whitespace-nowrap text-sm font-medium">
-                      <div className="flex space-x-3">
-                        {/* Edit button */}
-                        <button 
-                          onClick={() => handleEditUser(user)}
-                          className="group relative flex items-center justify-center bg-white p-2.5 rounded-md transition-all duration-150 hover:shadow-md border-2 border-blue-300"
-                        >
-                          <span className="absolute z-10 opacity-0 group-hover:opacity-100 -top-10 left-1/2 transform -translate-x-1/2 px-3 py-2 bg-gray-800 text-white text-xs rounded shadow-lg whitespace-nowrap transition-opacity duration-150">
-                            Edit user details
-                          </span>
-                          <Edit className="h-5 w-5 text-blue-600 group-hover:text-blue-800" />
-                          <span className="sr-only">Edit</span>
-                        </button>
-                        
-                        {/* Delete button */}
-                        <button
-                          onClick={() => {
-                            handleDeleteUser(user);
-                            setShowDeleteModal(true);
-                          }}
-                          className="group relative flex items-center justify-center bg-white p-2.5 rounded-md transition-all duration-150 hover:shadow-md border-2 border-red-300"
-                        >
-                          <span className="absolute z-10 opacity-0 group-hover:opacity-100 -top-10 left-1/2 transform -translate-x-1/2 px-3 py-2 bg-gray-800 text-white text-xs rounded shadow-lg whitespace-nowrap transition-opacity duration-150">
-                            Delete user
-                          </span>
-                          <Trash2 className="h-5 w-5 text-red-600 group-hover:text-red-800" />
-                          <span className="sr-only">Delete</span>
-                        </button>
-                      </div>
-                    </td>
+                    </th>
+                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      Name
+                    </th>
+                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      Role
+                    </th>
+                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      Status
+                    </th>
+                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      Details
+                    </th>
+                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      Assignment
+                    </th>
+                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      Joined
+                    </th>
+                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      Last Updated
+                    </th>
+                    <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
+                      <span className="sr-only">Actions</span>
+                    </th>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={8} className="px-6 py-8 text-center">
-                    <div className="flex flex-col items-center py-8">
-                      <Search className="h-16 w-16 text-gray-400 mb-4" />
-                      <p className="text-xl font-semibold text-gray-800 mb-2">No users found</p>
-                      <p className="text-base text-gray-600 mb-4">Try adjusting your search or filter criteria</p>
-                      {(searchTerm || roleFilter !== 'all' || statusFilter !== 'all') && (
-                        <button 
-                          onClick={() => {
-                            setSearchTerm('');
-                            setRoleFilter('all');
-                            setStatusFilter('all');
-                          }}
-                          className="mt-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium"
-                        >
-                          Clear all filters
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-        <div className="bg-gray-50 px-4 py-3 flex items-center justify-between border-t border-gray-200">
-          <div className="flex-1 flex justify-between sm:hidden">
-            <button disabled className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-500 bg-white opacity-50 cursor-not-allowed">
-              Previous
-            </button>
-            <button disabled className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-500 bg-white opacity-50 cursor-not-allowed">
-              Next
-            </button>
-          </div>
-          <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm text-gray-700">
-                Showing <span className="font-medium">{filteredUsers.length > 0 ? 1 : 0}</span> to <span className="font-medium">{filteredUsers.length}</span> of{' '}
-                <span className="font-medium">{filteredUsers.length}</span> results
-              </p>
-            </div>
-            <div>
-              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                <button disabled className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 opacity-50 cursor-not-allowed">
-                  <span className="sr-only">Previous</span>
-                  <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                    <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                </button>
-                <button className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-blue-600 hover:bg-blue-50">
-                  1
-                </button>
-                <button disabled className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 opacity-50 cursor-not-allowed">
-                  <span className="sr-only">Next</span>
-                  <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                  </svg>
-                </button>
-              </nav>
+                </thead>
+                <tbody className="divide-y divide-gray-200 bg-white">
+                  {filteredUsers.map((user) => (
+                    <tr key={user.id} className={selectedUsers.includes(user.id) ? 'bg-gray-50' : undefined}>
+                      <td className="relative w-12 px-6 sm:w-16 sm:px-8">
+                        <input
+                          type="checkbox"
+                          className="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                          checked={selectedUsers.includes(user.id)}
+                          onChange={(e) => toggleUserSelection(user.id, e.target.checked)}
+                        />
+                      </td>
+                      <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
+                        <div className="flex items-center">
+                          <div className="flex-shrink-0">
+                            <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 uppercase font-bold">
+                              {user.name.charAt(0)}
+                            </div>
+                          </div>
+                          <div className="ml-4">
+                            <div className="font-medium text-gray-900">{user.name}</div>
+                            <div className="text-gray-500">{user.email}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm">
+                        <div className={`inline-flex items-center px-2.5 py-1 rounded-md ${roleStyles[user.role].bg}`}>
+                          {getRoleIcon(user.role)}
+                          <span className="ml-1.5 font-medium capitalize">{user.role}</span>
+                        </div>
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        {getStatusIndicator(user.status)}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        {getRoleSpecificDetails(user)}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        {user.role === 'mentor' ? (
+                          <div className="flex items-center">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              {getStudentCountForMentor(user.id)} students
+                            </span>
+                          </div>
+                        ) : user.role === 'student' ? (
+                          <div>
+                            {(() => {
+                              const mentorName = getMentorNameForStudent(user.id);
+                              return mentorName ? (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                  <GraduationCap className="h-3 w-3 mr-1" />
+                                  {mentorName}
+                                </span>
+                              ) : (
+                                <span className="text-gray-400 text-xs">No mentor assigned</span>
+                              );
+                            })()}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 text-xs">N/A</span>
+                        )}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        {formatDate(user.created_at)}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        {formatDate(user.updated_at)}
+                      </td>
+                      <td className="whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                        <div className="flex space-x-2 justify-end">
+                          <button
+                            onClick={() => handleViewAsUser(user)}
+                            className="text-blue-600 hover:text-blue-800"
+                            title={`View as ${user.name}`}
+                          >
+                            <Eye className="h-5 w-5" />
+                          </button>
+                          {user.role === 'mentor' && (
+                            <button
+                              onClick={() => handleOpenAssignmentModal(user)}
+                              className="text-blue-600 hover:text-blue-800"
+                              title="Manage assigned students"
+                            >
+                              <Users className="h-5 w-5" />
+                            </button>
+                          )}
+                          {user.role === 'student' && (
+                            <button
+                              onClick={() => handleOpenMentorAssignmentModal(user)}
+                              className="text-blue-600 hover:text-blue-800"
+                              title="Assign a mentor"
+                            >
+                              <GraduationCap className="h-5 w-5" />
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className="text-blue-600 hover:text-blue-800"
+                            onClick={() => handleEditUser(user)}
+                            title="Edit user"
+                          >
+                            <Edit className="h-5 w-5" />
+                          </button>
+                          <button
+                            type="button"
+                            className="text-red-600 hover:text-red-800"
+                            onClick={() => handleDeleteUser(user)}
+                            title="Delete user"
+                          >
+                            <Trash2 className="h-5 w-5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
@@ -1208,6 +1576,23 @@ export default function AdminUsersPage() {
                     className="w-full p-2 border border-gray-300 focus:ring-blue-500 focus:border-blue-500 rounded-md focus:ring-2"
                     placeholder="Enter new password"
                   />
+                </div>
+                
+                <div>
+                  <label htmlFor="adminPassword" className="block text-sm font-medium text-gray-700 mb-1">
+                    Your Admin Password <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="password"
+                    id="adminPassword"
+                    name="adminPassword"
+                    value={editFormData.adminPassword}
+                    onChange={handleEditFormChange}
+                    className="w-full p-2 border border-gray-300 focus:ring-blue-500 focus:border-blue-500 rounded-md focus:ring-2"
+                    placeholder="Enter your admin password to confirm changes"
+                    required
+                  />
+                  <p className="mt-1 text-xs text-gray-500">For security, please enter your admin password to confirm these changes</p>
                 </div>
                 
                 <div>
@@ -1580,39 +1965,343 @@ export default function AdminUsersPage() {
         </div>
       )}
 
-      {/* Toast Notification */}
-      {toast.show && (
-        <div className={`fixed bottom-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
-          toast.type === 'success' ? 'bg-green-500' :
-          toast.type === 'error' ? 'bg-red-500' :
-          'bg-blue-500'
-        } text-white flex items-center min-w-[300px]`}>
-          <div className="mr-3">
-            {toast.type === 'success' && (
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            )}
-            {toast.type === 'error' && (
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            )}
-            {toast.type === 'info' && (
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            )}
+      {/* Mentor-Student Assignment Modal */}
+      {showAssignmentModal && selectedMentor && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold">Manage Students for {selectedMentor.name}</h2>
+                <button 
+                  onClick={handleCloseAssignmentModal}
+                  className="text-gray-600 hover:text-gray-800"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              
+              {/* Assigned Students Section */}
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-2">Assigned Students</h3>
+                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                  {assignedStudentIds.length === 0 ? (
+                    <div className="p-4 text-center text-gray-500">
+                      No students assigned to this mentor yet.
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Name
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Email
+                            </th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Actions
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {assignedStudentIds.map(studentId => {
+                            const student = users.find(u => {
+                              const uid = typeof u.id === 'string' ? parseInt(u.id, 10) : u.id;
+                              return uid === studentId;
+                            });
+                            
+                            if (!student) return null;
+                            
+                            return (
+                              <tr key={student.id} className="hover:bg-gray-50">
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <div className="flex items-center">
+                                    <div className="flex-shrink-0 h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
+                                      <User className="h-4 w-4 text-gray-500" />
+                                    </div>
+                                    <div className="ml-4">
+                                      <div className="text-sm font-medium text-gray-900">
+                                        {student.name}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                  {student.email}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                  <button
+                                    onClick={() => handleOpenUnassignModal(student)}
+                                    className="text-red-600 hover:text-red-800"
+                                  >
+                                    Unassign
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Assign New Student Form */}
+              <div>
+                <h3 className="text-lg font-semibold mb-2">Assign New Student</h3>
+                <form onSubmit={handleAssignStudent} className="space-y-4 border border-gray-200 rounded-lg p-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Student
+                    </label>
+                    <select
+                      name="studentId"
+                      value={assignmentFormData.studentId}
+                      onChange={handleAssignmentFormChange}
+                      className="w-full border border-gray-300 rounded-md py-2 px-3"
+                      required
+                    >
+                      <option value="">Select a student...</option>
+                      {availableStudents
+                        .filter(student => !assignedStudentIds.includes(
+                          typeof student.id === 'string' ? parseInt(student.id, 10) : student.id
+                        ))
+                        .map(student => (
+                          <option key={student.id} value={student.id}>
+                            {student.name} ({student.email})
+                          </option>
+                        ))
+                      }
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Notes (optional)
+                    </label>
+                    <textarea
+                      name="notes"
+                      value={assignmentFormData.notes}
+                      onChange={handleAssignmentFormChange}
+                      className="w-full border border-gray-300 rounded-md py-2 px-3 h-24"
+                      placeholder="Add notes about this assignment"
+                    ></textarea>
+                  </div>
+                  
+                  <div className="flex justify-end">
+                    <button
+                      type="submit"
+                      className="bg-blue-600 text-white px-4 py-2 rounded-md flex items-center"
+                      disabled={!assignmentFormData.studentId}
+                    >
+                      <Plus size={18} className="mr-2" />
+                      Assign Student
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
           </div>
-          <div>{toast.message}</div>
-          <button 
-            onClick={() => setToast(prev => ({...prev, show: false}))}
-            className="ml-auto text-white hover:text-gray-200"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+        </div>
+      )}
+      
+      {/* Unassign Student Confirmation Modal */}
+      {showUnassignModal && studentToUnassign && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg w-full max-w-md">
+            <div className="p-6">
+              <h2 className="text-xl font-bold mb-4">Unassign Student</h2>
+              <p className="mb-4">
+                Are you sure you want to unassign <span className="font-semibold">{studentToUnassign.name}</span> from this mentor?
+              </p>
+              
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Reason for unassigning (optional)
+                </label>
+                <textarea
+                  value={unassignReason}
+                  onChange={(e) => setUnassignReason(e.target.value)}
+                  className="w-full border border-gray-300 rounded-md py-2 px-3 h-24"
+                  placeholder="Provide a reason for unassigning this student"
+                ></textarea>
+              </div>
+              
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={handleCloseUnassignModal}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleUnassignStudent}
+                  className="px-4 py-2 bg-red-600 text-white rounded-md"
+                >
+                  Unassign Student
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View As User Modal */}
+      {viewAsModalOpen && userToView && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-2xl">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">View as User</h3>
+            <div className="mb-6">
+              <p className="text-gray-700">
+                You are about to temporarily view the application as:
+              </p>
+              <div className="mt-4 p-4 bg-gray-50 rounded-md">
+                <div className="flex items-center">
+                  <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 uppercase font-bold mr-3">
+                    {userToView.name.charAt(0)}
+                  </div>
+                  <div>
+                    <div className="font-medium">{userToView.name}</div>
+                    <div className="text-sm text-gray-500">
+                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs ${
+                        userToView.role === 'admin' 
+                          ? 'bg-red-100 text-red-800' 
+                          : userToView.role === 'mentor'
+                            ? 'bg-blue-100 text-blue-800'
+                            : 'bg-green-100 text-green-800'
+                      }`}>
+                        {userToView.role.charAt(0).toUpperCase() + userToView.role.slice(1)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <p className="text-sm text-gray-500 mb-6">
+              You will be able to navigate the application as this user. 
+              To return to your admin view, use the "Return to Admin User" option in the profile menu.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={handleViewAsCancel}
+                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-md"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleViewAsConfirm}
+                className="px-4 py-2 flex items-center bg-blue-600 hover:bg-blue-700 text-white rounded-md"
+              >
+                <Eye className="h-4 w-4 mr-2" />
+                View as {userToView.name}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mentor Assignment Modal */}
+      {showMentorAssignmentModal && selectedStudent && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold">Assign Mentor to {selectedStudent.name}</h2>
+                <button 
+                  onClick={handleCloseMentorAssignmentModal}
+                  className="text-gray-600 hover:text-gray-800"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              
+              {/* Current Mentor Section */}
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-2">Current Mentor</h3>
+                {(() => {
+                  const studentId = typeof selectedStudent.id === 'string' 
+                    ? parseInt(selectedStudent.id, 10) 
+                    : selectedStudent.id;
+                  const mentorName = getMentorNameForStudent(studentId);
+                  
+                  return mentorName ? (
+                    <div className="flex items-center bg-green-50 border border-green-200 rounded-lg p-4">
+                      <div className="mr-4">
+                        <GraduationCap className="h-8 w-8 text-green-600" />
+                      </div>
+                      <div>
+                        <div className="font-medium text-green-800">{mentorName}</div>
+                        <div className="text-sm text-green-600">Currently assigned</div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-gray-500">
+                      No mentor is currently assigned to this student.
+                    </div>
+                  );
+                })()}
+              </div>
+              
+              {/* Assign New Mentor Form */}
+              <div>
+                <h3 className="text-lg font-semibold mb-2">Assign New Mentor</h3>
+                <form onSubmit={handleAssignMentor} className="space-y-4 border border-gray-200 rounded-lg p-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Select Mentor
+                    </label>
+                    <select
+                      name="mentorId"
+                      value={mentorAssignmentFormData.mentorId}
+                      onChange={handleMentorAssignmentFormChange}
+                      className="w-full border border-gray-300 rounded-md py-2 px-3"
+                      required
+                    >
+                      <option value="">Select a mentor...</option>
+                      {availableMentors.map(mentor => (
+                        <option key={mentor.id} value={mentor.id}>
+                          {mentor.name} ({mentor.email})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Notes (optional)
+                    </label>
+                    <textarea
+                      name="notes"
+                      value={mentorAssignmentFormData.notes}
+                      onChange={handleMentorAssignmentFormChange}
+                      className="w-full border border-gray-300 rounded-md py-2 px-3 h-24"
+                      placeholder="Add notes about this assignment"
+                    ></textarea>
+                  </div>
+                  
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={handleCloseMentorAssignmentModal}
+                      className="bg-gray-200 text-gray-800 px-4 py-2 rounded-md mr-2"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="bg-blue-600 text-white px-4 py-2 rounded-md flex items-center"
+                      disabled={!mentorAssignmentFormData.mentorId}
+                    >
+                      <UserCheck className="h-4 w-4 mr-2" />
+                      Assign Mentor
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

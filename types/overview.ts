@@ -1,6 +1,7 @@
 import { Qualification } from './qualification';
 import { Session } from './session';
 import { ActionPlan } from './action-plan';
+import { Competency as CompetencyData } from './competency';
 
 export interface OverviewStats {
   totalHours: number;
@@ -50,7 +51,6 @@ export interface Statement {
   content: string;
   lastUpdated: string;
   keywords: string[];
-  evidence?: string[];
 }
 
 export interface ProgressionData {
@@ -81,4 +81,51 @@ export interface DocumentUpload {
   uploadDate: string;
   status: 'pending' | 'verified' | 'rejected';
   comments?: string;
+}
+
+// CV and Document Generator Types
+
+// Qualification for CV
+export interface Qualification {
+  id: number;
+  name: string;
+  governingBody: string;
+  dateCompleted: string;
+  expiryDate: string;
+  status?: 'verified' | 'pending' | 'rejected';
+}
+
+// Experience entry for CV
+export interface Experience {
+  id: number;
+  title: string;
+  organization: string;
+  date: string;
+  duration: number;
+  type?: string;
+}
+
+// Competency for CV
+export interface Competency {
+  id: number;
+  name: string;
+  level: number;
+  description?: string;
+}
+
+// Complete CV data structure
+export interface CVData {
+  qualifications: Qualification[];
+  experience: Experience[];
+  competencies: Competency[];
+  statements: Statement[];
+}
+
+// Cover letter template
+export interface CoverLetterTemplate {
+  id: number;
+  title: string;
+  lastUpdated: string;
+  industry: string;
+  content?: string;
 } 
