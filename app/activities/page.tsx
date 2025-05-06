@@ -83,6 +83,12 @@ export default function ActivitiesPage() {
 
   // Initialize activities data from localStorage
   useEffect(() => {
+    // Redirect students to the student-specific view
+    if (isStudent && typeof window !== 'undefined') {
+      router.push('/student/activities');
+      return;
+    }
+    
     // Force initialization of activities data in localStorage
     initActivitiesData();
     
@@ -95,7 +101,7 @@ export default function ActivitiesPage() {
     setStats(activityStats);
     
     console.log(`Loaded ${loadedActivities.length} activities from localStorage`);
-  }, []);
+  }, [isStudent, router]);
 
   // Filter activities based on search, filter criteria, and user role
   const filteredActivities = activities.filter((activity) => {

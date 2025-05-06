@@ -29,6 +29,8 @@ export interface Activity {
   reflection?: string;
   rejectionReason?: string;
   feedback?: Feedback[];
+  learningOutcomes?: string;
+  feedbackComments?: string;
 }
 
 // Storage key for activities
@@ -71,6 +73,23 @@ export function getAllActivities(): Activity[] {
   } catch (error) {
     console.error('Error retrieving activities data:', error);
     return [];
+  }
+}
+
+/**
+ * Get a specific activity by ID
+ * @param id The ID of the activity
+ */
+export function getActivityById(id: number): Activity | null {
+  // Only run on client
+  if (typeof window === 'undefined') return null;
+
+  try {
+    const activities = getAllActivities();
+    return activities.find(activity => activity.id === id) || null;
+  } catch (error) {
+    console.error('Error retrieving activity:', error);
+    return null;
   }
 }
 

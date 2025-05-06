@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { Session, AGE_GROUPS } from '@/types/session';
 import { getAllSessions, getSessionStats, initSessionsData } from '@/lib/sessions-service';
+import { useRouter } from 'next/navigation';
 
 export default function SessionsPage() {
   const { user } = useAuth();
@@ -33,6 +34,7 @@ export default function SessionsPage() {
     totalSessions: 0,
     pendingSessions: 0
   });
+  const router = useRouter();
 
   // Create a mock user for demo purposes if none exists
   const mockUser = user || { id: 1, role: 'student', name: 'Student User' };
@@ -40,6 +42,13 @@ export default function SessionsPage() {
   const isAdmin = mockUser?.role === 'admin';
   const isMentor = mockUser?.role === 'mentor';
   const isStudent = mockUser?.role === 'student';
+
+  // Redirect students to the student-specific view
+  useEffect(() => {
+    if (isStudent && typeof window !== 'undefined') {
+      router.push('/student/sessions');
+    }
+  }, [isStudent, router]);
 
   // Initialize sessions data and load sessions
   useEffect(() => {
