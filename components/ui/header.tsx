@@ -332,7 +332,10 @@ export function Header() {
       window.location.reload();
     } else {
       // Normal logout if not impersonating
-      logout();
+      localStorage.removeItem('token'); // Remove any JWT token 
+      localStorage.setItem('disable_auto_login', 'true'); // Ensure auto-login is disabled
+      console.log('Logging out and disabling auto-login');
+      logout(); // Call the auth context's logout function
     }
   };
 

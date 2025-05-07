@@ -33,11 +33,11 @@ export async function getPool() {
 }
 
 // Database singleton
-let db: sqlite3.Database | null = null;
+let dbConnection: sqlite3.Database | null = null;
 
 // Function to get the database connection
 export function getDb(): sqlite3.Database {
-  if (!db) {
+  if (!dbConnection) {
     try {
       // Enable verbose mode in development
       if (process.env.NODE_ENV === 'development') {
@@ -46,13 +46,13 @@ export function getDb(): sqlite3.Database {
       
       // Create or connect to the SQLite database
       const dbPath = path.join(process.cwd(), 'database.sqlite');
-      db = new sqlite3.Database(dbPath, (err) => {
+      dbConnection = new sqlite3.Database(dbPath, (err) => {
         if (err) {
           console.error('Could not connect to database', err);
         } else {
           console.log('SQLite connection successful');
           // Enable foreign keys
-          db?.run('PRAGMA foreign_keys = ON');
+          dbConnection?.run('PRAGMA foreign_keys = ON');
         }
       });
     } catch (error) {
@@ -60,7 +60,7 @@ export function getDb(): sqlite3.Database {
       throw new Error('Database connection failed');
     }
   }
-  return db;
+  return dbConnection;
 }
 
 // Helper to promisify database queries
@@ -132,20 +132,46 @@ export async function validateUser(email: string, password: string): Promise<Use
 
 // Function to close the database connection
 export function closeDb() {
-  if (db) {
-    db.close((err) => {
+  if (dbConnection) {
+    dbConnection.close((err) => {
       if (err) {
         console.error('Error closing database:', err);
       } else {
         console.log('Database connection closed');
       }
     });
-    db = null;
+    dbConnection = null;
   }
 }
 
+// Create a mock db object with systemAccess and other properties being referenced
+export const db = {
+  systemAccess: {
+    findMany: async ({ where, orderBy }: any) => {
+      try {
+        return await getAll('SELECT * FROM system_access WHERE admin_id = ? ORDER BY last_accessed DESC', [where.adminId]);
+      } catch (error) {
+        console.error('Error in systemAccess.findMany:', error);
+        return [];
+      }
+    }
+  },
+  // Add other Prisma-like functions/models here as needed
+};
+
 // Export the database functions
 export default {
+  getDb,
+  findUserByEmail,
+  validateUser,
+  closeDb,
+  runQuery,
+  getOne,
+  getAll
+};
+
+// Also export as named export for modules that use destructuring import
+export const dbUtils = {
   getDb,
   findUserByEmail,
   validateUser,

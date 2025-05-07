@@ -51,3 +51,14 @@ next-env.d.ts
 # Vercel
 .vercel
 project.txt presentation.txt temp-backup/
+presentation.txt
+
+# Netlify
+.netlify
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Hosting
+host.txt

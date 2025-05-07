@@ -1601,80 +1601,80 @@ function VerificationList({
   return (
     <>
       {showFilters && (
-        <div className="bg-white p-6 rounded-lg shadow-sm mb-6">
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-            {/* Search */}
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-5 w-5 text-gray-400" />
-              </div>
-              <input
-                type="text"
-                placeholder="Search by name or title"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              />
+      <div className="bg-white p-6 rounded-lg shadow-sm mb-6">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+          {/* Search */}
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-5 w-5 text-gray-400" />
             </div>
-            
-            {/* Type Filter */}
-            <div>
-              <label htmlFor="type-filter" className="block text-sm font-medium text-gray-700 mb-1">
-                Activity Type
-              </label>
-              <select
-                id="type-filter"
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
-                className="block w-full pl-3 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              >
-                {activityTypes.map((type) => (
-                  <option key={type} value={type}>
-                    {type === 'all' ? 'All Activity Types' : type}
-                  </option>
-                ))}
-              </select>
-            </div>
-            
-            {/* Status Filter */}
-            <div>
-              <label htmlFor="status-filter" className="block text-sm font-medium text-gray-700 mb-1">
-                Status
-              </label>
-              <select
-                id="status-filter"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="block w-full pl-3 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              >
-                {statuses.map((status) => (
-                  <option key={status} value={status}>
-                    {status === 'all' ? 'All Statuses' : status.charAt(0).toUpperCase() + status.slice(1)}
-                  </option>
-                ))}
-              </select>
-            </div>
-            
-            {/* Priority Filter */}
-            <div>
-              <label htmlFor="priority-filter" className="block text-sm font-medium text-gray-700 mb-1">
-                Priority
-              </label>
-              <select
-                id="priority-filter"
-                value={priorityFilter}
-                onChange={(e) => setPriorityFilter(e.target.value)}
-                className="block w-full pl-3 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              >
-                {priorities.map((priority) => (
-                  <option key={priority} value={priority}>
-                    {priority === 'all' ? 'All Priorities' : priority}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <input
+              type="text"
+              placeholder="Search by name or title"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+            />
+          </div>
+          
+          {/* Type Filter */}
+          <div>
+            <label htmlFor="type-filter" className="block text-sm font-medium text-gray-700 mb-1">
+              Activity Type
+            </label>
+            <select
+              id="type-filter"
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="block w-full pl-3 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+            >
+              {activityTypes.map((type) => (
+                <option key={type} value={type}>
+                  {type === 'all' ? 'All Activity Types' : type}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          {/* Status Filter */}
+          <div>
+            <label htmlFor="status-filter" className="block text-sm font-medium text-gray-700 mb-1">
+              Status
+            </label>
+            <select
+              id="status-filter"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="block w-full pl-3 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+            >
+              {statuses.map((status) => (
+                <option key={status} value={status}>
+                  {status === 'all' ? 'All Statuses' : status.charAt(0).toUpperCase() + status.slice(1)}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          {/* Priority Filter */}
+          <div>
+            <label htmlFor="priority-filter" className="block text-sm font-medium text-gray-700 mb-1">
+              Priority
+            </label>
+            <select
+              id="priority-filter"
+              value={priorityFilter}
+              onChange={(e) => setPriorityFilter(e.target.value)}
+              className="block w-full pl-3 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+            >
+              {priorities.map((priority) => (
+                <option key={priority} value={priority}>
+                  {priority === 'all' ? 'All Priorities' : priority}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
+      </div>
       )}
       
       {/* Verification List */}

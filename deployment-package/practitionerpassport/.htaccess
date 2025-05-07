@@ -1,0 +1,6 @@
+RewriteEngine On
+RewriteBase /practitionerpassport/
+RewriteRule ^index\.html$ - [L]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /practitionerpassport/index.html [L] 

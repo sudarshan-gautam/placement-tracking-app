@@ -20,34 +20,26 @@ export function ClientInitializer() {
     // Initialize jobs data in localStorage
     initJobsData();
     
-    // Check if auto-login is disabled
-    const autoLoginDisabled = localStorage.getItem('disable_auto_login') === 'true';
+    // Force disable_auto_login to true to prevent auto-login behavior
+    localStorage.setItem('disable_auto_login', 'true');
     
-    // Setup a demo student user ONLY if none exists AND auto-login isn't disabled
+    // Check if there's a stored user but clear it if we're on the login page
+    // to prevent automatic login after logout
+    const currentPath = window.location.pathname;
     const storedUser = localStorage.getItem('user');
-    if (!storedUser && !autoLoginDisabled) {
-      console.log('Creating demo user - auto login not disabled');
-      // Use one of our sample user profiles for the demo
-      const demoUser: User = {
-        id: 1, // Emma Wilson - Primary Education student
-        name: 'Emma Wilson',
-        email: 'emma.wilson@student.edu',
-        role: 'student' as UserRole,
-        status: 'active' as UserStatus,
-        profileImage: '/placeholder-profile.jpg'
-      };
-      localStorage.setItem('user', JSON.stringify(demoUser));
-      console.log('Demo student user initialized');
-      
-      // Update auth context
-      if (setUser) {
-        setUser(demoUser);
+
+    if (currentPath === '/' || currentPath.startsWith('/auth')) {
+      // If we're on the homepage or auth pages, ensure no auto-login happens
+      if (storedUser && setUser) {
+        console.log('On login/home page - clearing stored user to prevent auto-login');
+        localStorage.removeItem('user');
+        setUser(null);
       }
-    } else if (autoLoginDisabled) {
-      console.log('Auto-login is disabled - not creating demo user');
+    } else {
+      console.log('User data found in localStorage:', storedUser ? 'yes' : 'no');
     }
     
-    console.log('Client data initialized');
+    console.log('Client data initialized, auto-login disabled');
   }, [setUser]);
   
   // When user changes, load personalized job data

@@ -51,11 +51,19 @@ export default function SignUp() {
         formData.fullName,
         formData.email,
         formData.password,
-        'student',
-        formData.dateOfBirth
+        'student'
       );
 
       if (success) {
+        const profileData = {
+          name: formData.fullName,
+          email: formData.email,
+          role: 'student',
+          dateOfBirth: formData.dateOfBirth
+        };
+        localStorage.setItem(`profileData-${formData.email}`, JSON.stringify(profileData));
+        localStorage.setItem(`persistentProfileData-${formData.email}`, JSON.stringify(profileData));
+
         router.push('/dashboard');
       } else {
         setError('Registration failed. Please try again.');

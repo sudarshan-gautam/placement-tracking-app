@@ -42,4 +42,21 @@ export function navigateToSignIn(): void {
  */
 export function navigateToSignUp(): void {
   navigateWithReload('/auth/signup');
+}
+
+// Add basePath to all navigation links
+export function getSubdirectoryPath(path: string): string {
+  // If path already includes basePath, or it's an external link, return as is
+  if (path.startsWith('http') || path.startsWith('/practitionerpassport')) {
+    return path;
+  }
+  
+  // Ensure path starts with /
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `/practitionerpassport${normalizedPath}`;
+}
+
+// Use this function when redirecting or navigating
+export function getNavigationPath(path: string): string {
+  return getSubdirectoryPath(path);
 } 

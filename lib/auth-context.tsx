@@ -28,19 +28,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Check if user is stored in localStorage on initial load
     const storedUser = localStorage.getItem('user');
     
-    // For development: if no user exists, create a mock admin user
+    // Do not auto-create admin user anymore
     if (!storedUser) {
-      console.log('Creating mock admin user for development');
-      const mockAdminUser: User = {
-        id: 1,
-        name: 'Admin User',
-        email: 'admin@example.com',
-        role: 'admin' as UserRole,
-        profileImage: '/placeholder-profile.jpg',
-        status: 'active'
-      };
-      localStorage.setItem('user', JSON.stringify(mockAdminUser));
-      setUser(mockAdminUser);
       setLoading(false);
       return;
     }
@@ -301,9 +290,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('user');
     localStorage.removeItem('original_user');
     localStorage.removeItem('is_temporary_user');
+    localStorage.removeItem('token'); // Remove any stored JWT token
     
-    // Set a flag to prevent auto-login in localStorage so it persists
+    // Important: Set disable_auto_login to true to prevent automatic creation of demo user
     localStorage.setItem('disable_auto_login', 'true');
+    
+    // Log to console for debugging
+    console.log('User logged out. Auto-login disabled.');
     
     // Force redirect to home page to ensure a complete reset
     window.location.href = '/';

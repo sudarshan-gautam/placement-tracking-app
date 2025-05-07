@@ -15,6 +15,7 @@ interface Session {
   date: string;
   location: string;
   status: string;
+  enrolledCount?: number;
   student: {
     id: number;
     name: string;
@@ -309,6 +310,7 @@ export default function AdminSessionsPage() {
                       <th scope="col" className="px-4 py-3">Date</th>
                       <th scope="col" className="px-4 py-3">Location</th>
                       <th scope="col" className="px-4 py-3">Status</th>
+                      <th scope="col" className="px-4 py-3">Enrolled</th>
                       <th scope="col" className="px-4 py-3">Actions</th>
                     </tr>
                   </thead>
@@ -334,6 +336,11 @@ export default function AdminSessionsPage() {
                           <td className="px-4 py-3">
                             <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadgeStyle(session.status)}`}>
                               {session.status.charAt(0).toUpperCase() + session.status.slice(1)}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="text-gray-700">
+                              {session.enrolledCount || 0} students
                             </span>
                           </td>
                           <td className="px-4 py-3 space-x-2">

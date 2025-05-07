@@ -31,7 +31,10 @@ interface Session {
     id: number;
     name: string;
   };
-  approvalStatus?: string;
+  enrolledStudents?: Array<{
+    id: number;
+    name: string;
+  }>;
 }
 
 export default function AdminSessionDetailPage({ params }: { params: { id: string } }) {
@@ -40,10 +43,10 @@ export default function AdminSessionDetailPage({ params }: { params: { id: strin
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isApproving, setIsApproving] = useState(false);
-  const [isRejecting, setIsRejecting] = useState(false);
-  const [rejectionReason, setRejectionReason] = useState('');
-  const [showRejectionForm, setShowRejectionForm] = useState(false);
+  const [availableStudents, setAvailableStudents] = useState<Array<{id: string, name: string}>>([]);
+  const [selectedStudentId, setSelectedStudentId] = useState<string>('');
+  const [isEnrolling, setIsEnrolling] = useState(false);
+  const [isRemoving, setIsRemoving] = useState(false);
 
   useEffect(() => {
     const fetchSessionDetail = async () => {
@@ -65,6 +68,31 @@ export default function AdminSessionDetailPage({ params }: { params: { id: strin
         
         const data = await response.json();
         setSession(data.session);
+        
+        // Fetch available students
+        const studentsResponse = await fetch('/api/admin/students', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
+            'Content-Type': 'application/json'
+          }
+        }).catch(err => {
+          console.error('Error fetching students:', err);
+          return { ok: false, json: () => Promise.resolve({ students: [] }) };
+        });
+        
+        if (studentsResponse.ok) {
+          const studentsData = await studentsResponse.json();
+          setAvailableStudents(studentsData.students || []);
+        } else {
+          // Fallback data
+          setAvailableStudents([
+            { id: '1', name: 'John Doe' },
+            { id: '2', name: 'Jane Smith' },
+            { id: '3', name: 'Alice Johnson' },
+            { id: '4', name: 'Bob Wilson' },
+            { id: '5', name: 'Charlie Brown' },
+          ]);
+        }
       } catch (error) {
         console.error('Error fetching session details:', error);
         setError('Failed to load session details. Please try again later.');
@@ -80,9 +108,22 @@ export default function AdminSessionDetailPage({ params }: { params: { id: strin
             status: 'planned',
             student: { id: 1, name: 'John Doe' },
             mentor: { id: 1, name: 'Jane Smith' },
-            approvalStatus: 'pending'
+            enrolledStudents: [
+              { id: 1, name: 'John Doe' },
+              { id: 2, name: 'Jane Smith' },
+              { id: 3, name: 'Alice Johnson' }
+            ]
           };
           setSession(sampleSession);
+          
+          // Sample available students
+          setAvailableStudents([
+            { id: '1', name: 'John Doe' },
+            { id: '2', name: 'Jane Smith' },
+            { id: '3', name: 'Alice Johnson' },
+            { id: '4', name: 'Bob Wilson' },
+            { id: '5', name: 'Charlie Brown' },
+          ]);
         }
       } finally {
         setLoading(false);
@@ -115,109 +156,165 @@ export default function AdminSessionDetailPage({ params }: { params: { id: strin
     }
   };
   
-  // Approval status badge style
-  const getApprovalStatusBadgeStyle = (status?: string) => {
-    switch (status?.toLowerCase()) {
-      case 'approved':
-        return 'bg-green-100 text-green-800';
-      case 'rejected':
-        return 'bg-red-100 text-red-800';
-      case 'pending':
-      default:
-        return 'bg-yellow-100 text-yellow-800';
-    }
-  };
-
-  const handleApprove = async () => {
-    try {
-      setIsApproving(true);
-      
-      // Call API to approve session
-      const response = await fetch(`/api/admin/sessions/${params.id}/approve`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to approve session');
-      }
-      
-      // Update local state
-      setSession(prev => prev ? { ...prev, approvalStatus: 'approved' } : null);
-      
-      toast({
-        title: 'Success',
-        description: 'Session has been approved',
-        variant: 'default',
-      });
-    } catch (error) {
-      console.error('Error approving session:', error);
+  // Handle student enrollment
+  const handleEnrollStudent = async () => {
+    if (!selectedStudentId) {
       toast({
         title: 'Error',
-        description: 'Failed to approve session',
+        description: 'Please select a student to enroll',
         variant: 'destructive',
       });
-      
-      // For demo purposes, update anyway
-      setSession(prev => prev ? { ...prev, approvalStatus: 'approved' } : null);
-    } finally {
-      setIsApproving(false);
+      return;
     }
-  };
-
-  const handleReject = async () => {
+    
+    setIsEnrolling(true);
+    
     try {
-      setIsRejecting(true);
-      
-      if (!rejectionReason.trim()) {
-        toast({
-          title: 'Error',
-          description: 'Please provide a reason for rejection',
-          variant: 'destructive',
-        });
-        setIsRejecting(false);
-        return;
-      }
-      
-      // Call API to reject session
-      const response = await fetch(`/api/admin/sessions/${params.id}/reject`, {
+      // Call API to add enrollment
+      const response = await fetch(`/api/admin/sessions/${params.id}/enroll`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ reason: rejectionReason })
+        body: JSON.stringify({ studentId: selectedStudentId })
+      }).catch(err => {
+        console.error('Error enrolling student:', err);
+        return { ok: false, json: () => Promise.resolve({ success: false }) };
       });
       
-      if (!response.ok) {
-        throw new Error('Failed to reject session');
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Update local session state
+        setSession(prev => {
+          if (!prev) return prev;
+          
+          const enrolledStudent = availableStudents.find(s => s.id === selectedStudentId);
+          const newEnrolledStudents = prev.enrolledStudents || [];
+          
+          if (enrolledStudent && !newEnrolledStudents.some(s => s.id === Number(enrolledStudent.id))) {
+            return {
+              ...prev,
+              enrolledStudents: [...newEnrolledStudents, { id: Number(enrolledStudent.id), name: enrolledStudent.name }]
+            };
+          }
+          
+          return prev;
+        });
+        
+        toast({
+          title: 'Success',
+          description: 'Student has been enrolled in the session',
+          variant: 'default',
+        });
+        
+        setSelectedStudentId('');
+      } else {
+        throw new Error('Failed to enroll student');
       }
-      
-      // Update local state
-      setSession(prev => prev ? { ...prev, approvalStatus: 'rejected' } : null);
-      setShowRejectionForm(false);
-      
-      toast({
-        title: 'Success',
-        description: 'Session has been rejected',
-        variant: 'default',
-      });
     } catch (error) {
-      console.error('Error rejecting session:', error);
+      console.error('Error enrolling student:', error);
       toast({
         title: 'Error',
-        description: 'Failed to reject session',
+        description: 'Failed to enroll student',
         variant: 'destructive',
       });
       
-      // For demo purposes, update anyway
-      setSession(prev => prev ? { ...prev, approvalStatus: 'rejected' } : null);
-      setShowRejectionForm(false);
+      // For demo purposes
+      const enrolledStudent = availableStudents.find(s => s.id === selectedStudentId);
+      if (enrolledStudent) {
+        setSession(prev => {
+          if (!prev) return prev;
+          const newEnrolledStudents = prev.enrolledStudents || [];
+          
+          if (!newEnrolledStudents.some(s => s.id === Number(enrolledStudent.id))) {
+            return {
+              ...prev,
+              enrolledStudents: [...newEnrolledStudents, { id: Number(enrolledStudent.id), name: enrolledStudent.name }]
+            };
+          }
+          
+          return prev;
+        });
+        
+        toast({
+          title: 'Demo Mode',
+          description: 'Student has been enrolled (simulated)',
+          variant: 'default',
+        });
+        
+        setSelectedStudentId('');
+      }
     } finally {
-      setIsRejecting(false);
+      setIsEnrolling(false);
+    }
+  };
+  
+  // Handle removing enrollment
+  const handleRemoveEnrollment = async (studentId: number) => {
+    setIsRemoving(true);
+    
+    try {
+      // Call API to remove enrollment
+      const response = await fetch(`/api/admin/sessions/${params.id}/unenroll`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ studentId })
+      }).catch(err => {
+        console.error('Error removing enrollment:', err);
+        return { ok: false, json: () => Promise.resolve({ success: false }) };
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Update local session state
+        setSession(prev => {
+          if (!prev || !prev.enrolledStudents) return prev;
+          
+          return {
+            ...prev,
+            enrolledStudents: prev.enrolledStudents.filter(s => s.id !== studentId)
+          };
+        });
+        
+        toast({
+          title: 'Success',
+          description: 'Student has been removed from the session',
+          variant: 'default',
+        });
+      } else {
+        throw new Error('Failed to remove enrollment');
+      }
+    } catch (error) {
+      console.error('Error removing enrollment:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to remove enrollment',
+        variant: 'destructive',
+      });
+      
+      // For demo purposes
+      setSession(prev => {
+        if (!prev || !prev.enrolledStudents) return prev;
+        
+        return {
+          ...prev,
+          enrolledStudents: prev.enrolledStudents.filter(s => s.id !== studentId)
+        };
+      });
+      
+      toast({
+        title: 'Demo Mode',
+        description: 'Student has been removed (simulated)',
+        variant: 'default',
+      });
+    } finally {
+      setIsRemoving(false);
     }
   };
 
@@ -297,11 +394,6 @@ export default function AdminSessionDetailPage({ params }: { params: { id: strin
               <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${getStatusBadgeStyle(session.status)}`}>
                 {session.status.charAt(0).toUpperCase() + session.status.slice(1)}
               </span>
-              {session.approvalStatus && (
-                <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${getApprovalStatusBadgeStyle(session.approvalStatus)}`}>
-                  {session.approvalStatus.charAt(0).toUpperCase() + session.approvalStatus.slice(1)}
-                </span>
-              )}
             </div>
           </div>
         </CardHeader>
@@ -312,7 +404,7 @@ export default function AdminSessionDetailPage({ params }: { params: { id: strin
                 <h3 className="text-sm font-medium text-gray-500 mb-1">Date</h3>
                 <div className="flex items-center">
                   <Calendar className="h-5 w-5 text-gray-400 mr-2" />
-                  <p>{formatDate(session.date)}</p>
+                  <p>{session.date ? formatDate(session.date) : 'N/A'}</p>
                 </div>
               </div>
               
@@ -320,17 +412,17 @@ export default function AdminSessionDetailPage({ params }: { params: { id: strin
                 <h3 className="text-sm font-medium text-gray-500 mb-1">Location</h3>
                 <div className="flex items-center">
                   <MapPin className="h-5 w-5 text-gray-400 mr-2" />
-                  <p>{session.location}</p>
+                  <p>{session.location || 'N/A'}</p>
                 </div>
               </div>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <h3 className="text-sm font-medium text-gray-500 mb-1">Student</h3>
+                <h3 className="text-sm font-medium text-gray-500 mb-1">Created For</h3>
                 <div className="flex items-center">
                   <User className="h-5 w-5 text-gray-400 mr-2" />
-                  <p>{session.student.name}</p>
+                  <p>{session.student.name || 'N/A'}</p>
                 </div>
               </div>
               
@@ -347,92 +439,70 @@ export default function AdminSessionDetailPage({ params }: { params: { id: strin
             
             <div>
               <h3 className="text-sm font-medium text-gray-500 mb-1">Description</h3>
-              <p className="text-gray-700 whitespace-pre-wrap">{session.description}</p>
+              <p className="text-gray-700 whitespace-pre-wrap">{session.description || 'No description provided.'}</p>
             </div>
 
-            {/* Approval/Rejection UI */}
-            {session.approvalStatus === 'pending' && (
-              <div className="border border-yellow-200 bg-yellow-50 rounded-lg p-4">
-                <h3 className="font-medium text-yellow-800 mb-2">This session requires your approval</h3>
-                <p className="text-yellow-700 mb-4">Review the details above and approve or reject this session.</p>
-                
+            {/* Student Enrollment Management Section */}
+            <div className="border border-gray-200 rounded-lg p-4">
+              <h3 className="font-medium text-gray-800 mb-4">
+                Student Enrollment Management
+                {session.enrolledStudents && (
+                  <span className="ml-2 inline-flex items-center justify-center w-6 h-6 text-xs font-semibold text-white bg-blue-600 rounded-full">
+                    {session.enrolledStudents.length}
+                  </span>
+                )}
+              </h3>
+              
+              {/* Enrolled Students List */}
+              <div className="mb-4">
+                <h4 className="text-sm font-medium text-gray-600 mb-2">Enrolled Students</h4>
+                {session.enrolledStudents && session.enrolledStudents.length > 0 ? (
+                  <ul className="space-y-2">
+                    {session.enrolledStudents.map(student => (
+                      <li key={student.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                        <span>{student.name}</span>
+                        <button
+                          onClick={() => handleRemoveEnrollment(student.id)}
+                          disabled={isRemoving}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          Remove
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-gray-500 italic">No students enrolled yet.</p>
+                )}
+              </div>
+              
+              {/* Enroll New Student */}
+              <div className="pt-4 border-t border-gray-200">
+                <h4 className="text-sm font-medium text-gray-600 mb-2">Enroll New Student</h4>
                 <div className="flex flex-col sm:flex-row gap-3">
-                  <button
-                    onClick={handleApprove}
-                    disabled={isApproving}
-                    className="inline-flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  <select
+                    value={selectedStudentId}
+                    onChange={(e) => setSelectedStudentId(e.target.value)}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <CheckCircle className="mr-2 h-5 w-5" />
-                    {isApproving ? 'Approving...' : 'Approve Session'}
-                  </button>
+                    <option value="">Select a student</option>
+                    {availableStudents.map(student => (
+                      <option key={student.id} value={student.id}>
+                        {student.name}
+                      </option>
+                    ))}
+                  </select>
                   
                   <button
-                    onClick={() => setShowRejectionForm(true)}
-                    className="inline-flex items-center justify-center px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                    onClick={handleEnrollStudent}
+                    disabled={isEnrolling || !selectedStudentId}
+                    className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <XCircle className="mr-2 h-5 w-5" />
-                    Reject Session
+                    {isEnrolling ? 'Enrolling...' : 'Enroll Student'}
                   </button>
                 </div>
               </div>
-            )}
-            
-            {/* Rejection Form */}
-            {showRejectionForm && (
-              <div className="border border-red-200 bg-red-50 rounded-lg p-4">
-                <h3 className="font-medium text-red-800 mb-2">Reject Session</h3>
-                <p className="text-red-700 mb-2">Please provide a reason for rejection:</p>
-                
-                <textarea
-                  value={rejectionReason}
-                  onChange={(e) => setRejectionReason(e.target.value)}
-                  rows={3}
-                  className="w-full px-3 py-2 border border-red-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 bg-white mb-4"
-                  placeholder="Explain why this session is being rejected..."
-                />
-                
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <button
-                    onClick={handleReject}
-                    disabled={isRejecting || !rejectionReason.trim()}
-                    className="inline-flex items-center justify-center px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <XCircle className="mr-2 h-5 w-5" />
-                    {isRejecting ? 'Rejecting...' : 'Confirm Rejection'}
-                  </button>
-                  
-                  <button
-                    onClick={() => setShowRejectionForm(false)}
-                    className="inline-flex items-center justify-center px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            )}
-            
-            {/* Approved Message */}
-            {session.approvalStatus === 'approved' && (
-              <div className="border border-green-200 bg-green-50 rounded-lg p-4">
-                <div className="flex items-center">
-                  <CheckCircle className="h-6 w-6 text-green-600 mr-2" />
-                  <h3 className="font-medium text-green-800">This session has been approved</h3>
-                </div>
-              </div>
-            )}
-            
-            {/* Rejected Message */}
-            {session.approvalStatus === 'rejected' && (
-              <div className="border border-red-200 bg-red-50 rounded-lg p-4">
-                <div className="flex items-center mb-2">
-                  <XCircle className="h-6 w-6 text-red-600 mr-2" />
-                  <h3 className="font-medium text-red-800">This session has been rejected</h3>
-                </div>
-                <p className="text-red-700">
-                  Reason: {rejectionReason || "No reason provided"}
-                </p>
-              </div>
-            )}
+            </div>
           </div>
         </CardContent>
       </Card>

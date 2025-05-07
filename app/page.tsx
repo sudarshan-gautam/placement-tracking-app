@@ -16,10 +16,12 @@ import {
   TrendingUp,
   Building,
   Star,
-  Shield
+  Shield,
+  LogOut
 } from 'lucide-react';
 import { navigateToSignUp, navigateWithReload } from '@/lib/navigation';
 import { ClientOnly } from '@/components/ui/client-only';
+import { useAuth } from '@/lib/auth-context';
 
 // Feature data
 const features = [
@@ -153,9 +155,22 @@ const institutions = [
 ];
 
 export default function LandingPage() {
+  const { user, logout, isAuthenticated } = useAuth();
+  
   const handleNavigation = (e: React.MouseEvent, path: string) => {
     e.preventDefault();
     navigateWithReload(path);
+  };
+
+  const handleLogout = () => {
+    // Set explicit flags to disable auto-login
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    localStorage.setItem('disable_auto_login', 'true');
+    console.log('Explicit logout from landing page');
+    
+    // Call the actual logout function
+    logout();
   };
 
   return (
@@ -173,17 +188,42 @@ export default function LandingPage() {
               </p>
               <ClientOnly>
                 <div className="flex flex-col sm:flex-row gap-4">
-                  <a 
-                    href="/auth/signup" 
-                    onClick={(e) => {
-                      e.preventDefault();
-                      navigateToSignUp();
-                    }}
-                    className="inline-flex items-center justify-center px-6 py-3 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-blue-600 hover:bg-blue-700"
-                  >
-                    Get Started
-                    <ArrowRight className="ml-2 h-5 w-5" />
-                  </a>
+                  {isAuthenticated ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center text-lg text-gray-600">
+                        <span>Logged in as: <strong>{user?.name}</strong> ({user?.role})</span>
+                      </div>
+                      <div className="flex flex-row gap-4">
+                        <a 
+                          href={user?.role === 'admin' ? '/admin' : user?.role === 'mentor' ? '/mentor' : '/dashboard'}
+                          onClick={(e) => handleNavigation(e, user?.role === 'admin' ? '/admin' : user?.role === 'mentor' ? '/mentor' : '/dashboard')}
+                          className="inline-flex items-center justify-center px-6 py-3 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-blue-600 hover:bg-blue-700"
+                        >
+                          Go to Dashboard
+                          <ArrowRight className="ml-2 h-5 w-5" />
+                        </a>
+                        <button 
+                          onClick={handleLogout}
+                          className="inline-flex items-center justify-center px-6 py-3 border border-gray-300 rounded-md shadow-sm text-base font-medium text-gray-700 bg-white hover:bg-gray-50"
+                        >
+                          Log Out
+                          <LogOut className="ml-2 h-5 w-5" />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <a 
+                      href="/auth/signup" 
+                      onClick={(e) => {
+                        e.preventDefault();
+                        navigateToSignUp();
+                      }}
+                      className="inline-flex items-center justify-center px-6 py-3 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-blue-600 hover:bg-blue-700"
+                    >
+                      Get Started
+                      <ArrowRight className="ml-2 h-5 w-5" />
+                    </a>
+                  )}
                 </div>
               </ClientOnly>
               <div className="mt-8">
@@ -422,6 +462,16 @@ export default function LandingPage() {
           </ClientOnly>
         </div>
       </section>
+
+      {/* Reset Login Settings Link - Small, unobtrusive link at bottom of page */}
+      <div className="absolute bottom-2 right-2">
+        <Link 
+          href="/reset-login" 
+          className="text-xs text-gray-400 hover:text-gray-600"
+        >
+          Reset Login Settings
+        </Link>
+      </div>
     </div>
   );
 } 
