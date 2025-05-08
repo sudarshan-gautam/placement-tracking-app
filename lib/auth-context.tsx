@@ -25,10 +25,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
+    // Check if auto-login is disabled
+    const autoLoginDisabled = localStorage.getItem('disable_auto_login') === 'true';
+    
+    if (autoLoginDisabled) {
+      console.log('Auto-login is disabled, skipping automatic login');
+      setLoading(false);
+      return;
+    }
+    
     // Check if user is stored in localStorage on initial load
     const storedUser = localStorage.getItem('user');
     
-    // For development: if no user exists, create a mock admin user
+    // For development: if no user exists and auto-login is not disabled, create a mock admin user
     if (!storedUser) {
       console.log('Creating mock admin user for development');
       const mockAdminUser: User = {
@@ -296,14 +305,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
     
-    // Clear all user session data
+    // Clear user state
     setUser(null);
+    
+    // Remove the user from localStorage
     localStorage.removeItem('user');
     localStorage.removeItem('original_user');
     localStorage.removeItem('is_temporary_user');
     
     // Set a flag to prevent auto-login in localStorage so it persists
     localStorage.setItem('disable_auto_login', 'true');
+    
+    // Clear any active sessions
+    document.cookie = "next-auth.session-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    document.cookie = "next-auth.csrf-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
     
     // Force redirect to home page to ensure a complete reset
     window.location.href = '/';
