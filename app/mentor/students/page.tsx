@@ -116,8 +116,7 @@ export default function StudentsPage() {
   useEffect(() => {
     // Redirect if not authenticated or not a mentor
     if (!user) {
-      router.push('/auth/login');
-      return;
+      router.push('/');
     } else if (user.role !== 'mentor') {
       if (user.role === 'admin') {
         router.push('/admin');

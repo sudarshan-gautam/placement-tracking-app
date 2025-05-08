@@ -61,7 +61,7 @@ export default function MentorDashboard() {
   useEffect(() => {
     // Redirect if not authenticated or not a mentor
     if (!user) {
-      router.push('/auth/login');
+      router.push('/');
     } else if (user.role !== 'mentor') {
       if (user.role === 'admin') {
         router.push('/admin');

@@ -26,10 +26,9 @@ export default function MentorAssignmentsPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Redirect to login if not authenticated
+    // Redirect if not authenticated or not an admin
     if (!user) {
-      router.push('/auth/login');
-      return;
+      router.push('/');
     } else if (user.role !== 'admin') {
       router.push('/dashboard');
     }
