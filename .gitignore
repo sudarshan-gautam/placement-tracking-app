@@ -25,6 +25,7 @@
 # Database
 **/*.db
 **/*.db-journal
+# database.sqlite is now included in the repo
 
 # IDE
 .vscode/
