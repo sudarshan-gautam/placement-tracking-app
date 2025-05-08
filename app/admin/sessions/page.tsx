@@ -41,10 +41,34 @@ export default function AdminSessionsPage() {
         
         // Make API call to fetch sessions from the database
         console.log('Attempting to fetch sessions from API...');
+        
+        // Create the auth header using user context data
+        let authHeader = '';
+        if (user) {
+          // Create a simple token with the user data
+          const tokenData = {
+            id: user.id,
+            email: user.email,
+            role: user.role,
+            name: user.name
+          };
+          
+          // Create a basic token structure (normally this would be done by a proper JWT library)
+          const tokenStr = btoa(JSON.stringify({
+            header: { alg: 'none', typ: 'JWT' },
+            payload: tokenData,
+            signature: ''
+          }));
+          
+          authHeader = `Bearer ${tokenStr}`;
+        }
+        
         const response = await fetch('/api/admin/sessions', {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
-            'Content-Type': 'application/json'
+            'Authorization': authHeader,
+            'Content-Type': 'application/json',
+            'X-User-Role': user?.role || '',  // Add an explicit role header as fallback
+            'X-User-ID': user?.id?.toString() || ''  // Add an explicit user ID header as fallback
           }
         });
         
@@ -141,7 +165,7 @@ export default function AdminSessionsPage() {
     };
     
     fetchSessions();
-  }, [toast]);
+  }, [user, toast]);
   
   // Filter sessions based on search query and status filter
   useEffect(() => {

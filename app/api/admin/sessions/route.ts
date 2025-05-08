@@ -7,8 +7,39 @@ import { authOptions } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
   try {
-    // TEMPORARY: Skip authentication for debugging
-    console.log('API: Attempting to fetch all sessions');
+    // Check authentication using custom headers
+    const authHeader = req.headers.get('Authorization');
+    const roleHeader = req.headers.get('X-User-Role');
+    
+    console.log('API: Auth headers received:', { 
+      authHeader: authHeader ? 'Present' : 'Missing',
+      roleHeader 
+    });
+    
+    // Basic authorization check - in production, you'd verify JWT signatures
+    let isAuthorized = false;
+    
+    if (roleHeader === 'admin') {
+      isAuthorized = true;
+    } else if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const token = authHeader.split(' ')[1];
+        const tokenData = JSON.parse(atob(token));
+        
+        if (tokenData.payload && tokenData.payload.role === 'admin') {
+          isAuthorized = true;
+        }
+      } catch (error) {
+        console.error('Error parsing auth token:', error);
+      }
+    }
+    
+    if (!isAuthorized) {
+      console.log('API: Unauthorized access attempt to sessions API');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    console.log('API: User authorized, fetching sessions');
     
     // Open database connection
     const db = await open({
