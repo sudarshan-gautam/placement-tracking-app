@@ -48,11 +48,34 @@ export async function POST(request: Request) {
         }
       );
     });
-
-    return NextResponse.json(
+    
+    // Create response with the new user
+    const response = NextResponse.json(
       { message: 'User created successfully', user: newUser },
       { status: 201 }
     );
+    
+    // Set a secure HTTP-only cookie with the essential user data for auth
+    const cookieData = {
+      id: userId,
+      email,
+      role,
+      name
+    };
+    
+    // Set cookie that expires in 7 days
+    const oneWeek = 7 * 24 * 60 * 60 * 1000;
+    response.cookies.set({
+      name: 'userData',
+      value: JSON.stringify(cookieData),
+      httpOnly: true, // For server-side only (middleware)
+      secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+      sameSite: 'lax',
+      maxAge: oneWeek,
+      path: '/'
+    });
+    
+    return response;
   } catch (error) {
     console.error('Registration error:', error);
     return NextResponse.json(

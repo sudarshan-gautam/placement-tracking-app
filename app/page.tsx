@@ -404,7 +404,7 @@ export default function LandingPage() {
           <ClientOnly>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <a 
-                href="/auth/register" 
+                href="/auth/signup" 
                 onClick={(e) => handleNavigation(e, '/auth/signup')}
                 className="inline-flex items-center justify-center px-6 py-3 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-blue-600 hover:bg-blue-700"
               >

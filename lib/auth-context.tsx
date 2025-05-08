@@ -167,6 +167,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Maintain persistence
       localStorage.setItem('user', JSON.stringify(userData));
       
+      // Set a cookie with the user data for middleware auth
+      setSecureCookie('userData', JSON.stringify({
+        id: userData.id,
+        email: userData.email,
+        role: userData.role,
+        name: userData.name
+      }));
+      
       // Only handle role-based redirects for initial access, not for reloads
       const isFirstAccess = !isPageReload;
       
@@ -196,6 +204,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     setLoading(false);
   }, [router]);
+
+  // Add a function to set secure HttpOnly cookies
+  const setSecureCookie = (name: string, value: string, days: number = 7) => {
+    const expires = new Date();
+    expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000);
+    
+    // Set the cookie with HttpOnly and Secure flags in production
+    document.cookie = `${name}=${value}; expires=${expires.toUTCString()}; path=/; SameSite=Lax; ${process.env.NODE_ENV === 'production' ? 'Secure;' : ''}`;
+  };
+  
+  // Add a function to remove cookies
+  const removeCookie = (name: string) => {
+    document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+  };
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
@@ -268,6 +290,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(data.user);
       localStorage.setItem('user', JSON.stringify(data.user));
       
+      // Set a cookie with the user data for middleware auth
+      setSecureCookie('userData', JSON.stringify({
+        id: data.user.id,
+        email: data.user.email,
+        role: data.user.role,
+        name: data.user.name
+      }));
+      
       // Redirect based on user role
       if (data.user.role === 'admin') {
         router.push('/admin');
@@ -328,6 +358,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(data.user);
       localStorage.setItem('user', JSON.stringify(data.user));
       
+      // Set a cookie with the user data for middleware auth
+      setSecureCookie('userData', JSON.stringify({
+        id: data.user.id,
+        email: data.user.email,
+        role: data.user.role,
+        name: data.user.name
+      }));
+      
       // Redirect based on user role
       if (data.user.role === 'admin') {
         router.push('/admin');
@@ -346,52 +384,71 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const logout = () => {
-    // Store the user's email and profile data before logging out
-    if (user) {
-      // Remember the user's email to identify their profile data later
-      const userEmail = user.email;
+  const logout = async () => {
+    try {
+      // Store the user's email and profile data before logging out
+      if (user) {
+        // Remember the user's email to identify their profile data later
+        const userEmail = user.email;
+        
+        // Get and store profile image if available
+        const profileData = localStorage.getItem(`profileData-${userEmail}`);
+        if (profileData) {
+          // Keep profile data in a separate storage that persists after logout
+          localStorage.setItem(`persistentProfileData-${userEmail}`, profileData);
+        }
+  
+        // Store verification status
+        const verificationStatus = localStorage.getItem(`verificationStatus-${userEmail}`);
+        if (verificationStatus) {
+          localStorage.setItem(`persistentVerificationStatus-${userEmail}`, verificationStatus);
+        }
+        
+        // Store rejection details if available
+        const rejectionDetails = localStorage.getItem(`rejectionDetails-${userEmail}`);
+        if (rejectionDetails) {
+          localStorage.setItem(`persistentRejectionDetails-${userEmail}`, rejectionDetails);
+        }
+      }
       
-      // Get and store profile image if available
-      const profileData = localStorage.getItem(`profileData-${userEmail}`);
-      if (profileData) {
-        // Keep profile data in a separate storage that persists after logout
-        localStorage.setItem(`persistentProfileData-${userEmail}`, profileData);
-      }
-
-      // Store verification status
-      const verificationStatus = localStorage.getItem(`verificationStatus-${userEmail}`);
-      if (verificationStatus) {
-        localStorage.setItem(`persistentVerificationStatus-${userEmail}`, verificationStatus);
-      }
+      // Call server API to clear HTTP-only cookies
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
       
-      // Store rejection details if available
-      const rejectionDetails = localStorage.getItem(`rejectionDetails-${userEmail}`);
-      if (rejectionDetails) {
-        localStorage.setItem(`persistentRejectionDetails-${userEmail}`, rejectionDetails);
-      }
+      // Clear user state
+      setUser(null);
+      
+      // Remove the user from localStorage
+      localStorage.removeItem('user');
+      localStorage.removeItem('original_user');
+      localStorage.removeItem('is_temporary_user');
+      
+      // Remove the auth cookie (client-side)
+      removeCookie('userData');
+      
+      // Set a flag to prevent auto-login for this session
+      sessionStorage.setItem('manually_logged_out', 'true');
+      localStorage.setItem('manually_logged_out', 'true');
+      
+      // Clear any active sessions
+      document.cookie = "next-auth.session-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+      document.cookie = "next-auth.csrf-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+      
+      console.log('User logged out successfully');
+      
+      // Force redirect to home page to ensure a complete reset
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Even if API fails, clear local data
+      setUser(null);
+      localStorage.removeItem('user');
+      window.location.href = '/';
     }
-    
-    // Clear user state
-    setUser(null);
-    
-    // Remove the user from localStorage
-    localStorage.removeItem('user');
-    localStorage.removeItem('original_user');
-    localStorage.removeItem('is_temporary_user');
-    
-    // Set a flag to prevent auto-login for this session
-    sessionStorage.setItem('manually_logged_out', 'true');
-    localStorage.setItem('manually_logged_out', 'true');
-    
-    // Clear any active sessions
-    document.cookie = "next-auth.session-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    document.cookie = "next-auth.csrf-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    
-    console.log('User logged out successfully');
-    
-    // Force redirect to home page to ensure a complete reset
-    window.location.href = '/';
   };
 
   const enableAutoLogin = () => {

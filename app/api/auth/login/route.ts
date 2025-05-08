@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import db, { getDb, findUserByEmail, validateUser } from '@/lib/db';
+import { cookies } from 'next/headers';
 
 export async function POST(request: Request) {
   try {
@@ -32,8 +33,31 @@ export async function POST(request: Request) {
       // Create a sanitized user object without the password
       const { password: _, ...userWithoutPassword } = user;
       console.log("Login successful, returning user:", userWithoutPassword);
-
-      return NextResponse.json({ user: userWithoutPassword }, { status: 200 });
+      
+      // Create a response
+      const response = NextResponse.json({ user: userWithoutPassword }, { status: 200 });
+      
+      // Set a secure HTTP-only cookie with the essential user data for auth
+      const cookieData = {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        name: user.name
+      };
+      
+      // Set cookie that expires in 7 days
+      const oneWeek = 7 * 24 * 60 * 60 * 1000;
+      response.cookies.set({
+        name: 'userData',
+        value: JSON.stringify(cookieData),
+        httpOnly: true, // For server-side only (middleware)
+        secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+        sameSite: 'lax',
+        maxAge: oneWeek,
+        path: '/'
+      });
+      
+      return response;
     } catch (dbError) {
       console.error("Database query error:", dbError);
       return NextResponse.json(

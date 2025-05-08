@@ -3,14 +3,95 @@ import type { NextRequest } from 'next/server';
 // Remove the import that indirectly uses SQLite
 // import { verifyAuth } from '@/lib/auth-utils';
 
-// This function can be marked `async` if using `await` inside
+// List of paths that don't require authentication
+const publicPaths = [
+  '/',
+  '/login',
+  '/register',
+  '/auth/signin',
+  '/auth/signup',
+  '/auth/forgot-password',
+  '/auth',
+  '/api/auth/login',
+  '/api/auth/register',
+  '/favicon.ico',
+  '/_next',
+];
+
+// Routes with specific role requirements
+const adminRoutes = ['/admin'];
+const mentorRoutes = ['/mentor'];
+const studentRoutes = ['/dashboard', '/student'];
+
 export function middleware(request: NextRequest) {
-  // For a real application, you would verify a JWT token here
-  // For this demo, we'll check localStorage in the client-side auth context
+  const { pathname } = request.nextUrl;
+  const userDataCookie = request.cookies.get('userData');
   
-  // Allow all requests to proceed for now
-  // Role-based protection will be handled client-side
-  return NextResponse.next();
+  // Skip middleware for static assets and API routes to prevent issues
+  if (
+    pathname.includes('/_next/') || 
+    pathname.includes('.') || 
+    pathname.startsWith('/api/')
+  ) {
+    return NextResponse.next();
+  }
+  
+  // Allow access to public paths (including all auth paths)
+  if (isPublicPath(pathname)) {
+    return NextResponse.next();
+  }
+  
+  // Check if user is authenticated
+  if (!userDataCookie) {
+    // Redirect to landing page for all protected paths
+    return NextResponse.redirect(new URL('/', request.url));
+  }
+  
+  try {
+    // Parse the user data
+    const userData = JSON.parse(userDataCookie.value);
+    const userRole = userData.role;
+    
+    // Check role-based access
+    if (pathname.startsWith('/admin') && userRole !== 'admin') {
+      // Unauthorized access to admin routes - redirect to landing page
+      return NextResponse.redirect(new URL('/', request.url));
+    }
+    
+    if (pathname.startsWith('/mentor') && userRole !== 'mentor' && userRole !== 'admin') {
+      // Unauthorized access to mentor routes - redirect to landing page
+      return NextResponse.redirect(new URL('/', request.url));
+    }
+    
+    // Allow access for authenticated users with appropriate role
+    return NextResponse.next();
+    
+  } catch (error) {
+    console.error('Error parsing user data:', error);
+    // If there's an error parsing the user data, redirect to landing page
+    return NextResponse.redirect(new URL('/', request.url));
+  }
+}
+
+// Helper function to check if the path is public
+function isPublicPath(path: string): boolean {
+  // Check exact matches first
+  if (publicPaths.includes(path)) {
+    return true;
+  }
+  
+  // Special handling for auth directory - all auth paths are public
+  if (path.startsWith('/auth/')) {
+    return true;
+  }
+  
+  // Check path prefixes for other public paths
+  return publicPaths.some(publicPath => {
+    if (publicPath.endsWith('/')) {
+      return path === publicPath.slice(0, -1) || path.startsWith(publicPath);
+    }
+    return path.startsWith(`${publicPath}/`);
+  });
 }
 
 // Export a simplified version of roleMiddleware for API routes to use
@@ -45,20 +126,15 @@ export const roleMiddleware = async (request: Request, allowedRoles: string[]) =
   }
 };
 
-// See "Matching Paths" below to learn more
+// Configure the paths that should be processed by this middleware
 export const config = {
   matcher: [
-    // Protect dashboard routes
-    '/dashboard/:path*',
-    '/overview/:path*',
-    '/competencies/:path*',
-    '/qualifications/:path*',
-    '/action-plan/:path*',
-    '/sessions/:path*',
-    '/documents/:path*',
-    '/quick-actions/:path*',
-    
-    // Exclude API routes and static files
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+    /*
+     * Match all request paths except:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
+    '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 }; 

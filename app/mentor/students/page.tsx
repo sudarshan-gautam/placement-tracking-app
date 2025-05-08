@@ -117,6 +117,7 @@ export default function StudentsPage() {
     // Redirect if not authenticated or not a mentor
     if (!user) {
       router.push('/auth/login');
+      return;
     } else if (user.role !== 'mentor') {
       if (user.role === 'admin') {
         router.push('/admin');
