@@ -332,7 +332,14 @@ export function Header() {
       window.location.reload();
     } else {
       // Normal logout if not impersonating
+      // Call the logout function and make sure not to intercept its redirection logic
       logout();
+      
+      // Ensure redirection happens even if there's a delay with the logout function
+      setTimeout(() => {
+        // If we're still on the page after 500ms, force redirect to landing page
+        window.location.replace('/');
+      }, 500);
     }
   };
 

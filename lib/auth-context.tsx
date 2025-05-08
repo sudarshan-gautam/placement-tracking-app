@@ -35,8 +35,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     const isLoginPage = 
       currentPath === '/' || 
-      currentPath === '/login' || 
-      currentPath.startsWith('/register');
+      currentPath === '/auth/signin' || 
+      currentPath.startsWith('/register') ||
+      currentPath.startsWith('/auth/');
       
     // Process all security checks first
     
@@ -59,7 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       // If on a protected route, redirect to login
       if (isProtectedRoute) {
-        window.location.href = '/login';
+        window.location.href = '/auth/signin';
       }
       return;
     }
@@ -89,7 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('Server restarted and protected route detected - enforcing login');
       localStorage.removeItem('server_restarted'); // Clear the flag after check
       setLoading(false);
-      window.location.href = '/login?redirect=' + encodeURIComponent(currentPath);
+      window.location.href = '/auth/signin?redirect=' + encodeURIComponent(currentPath);
       return;
     } else if (serverRestarted) {
       // Clear flag if not on protected route
@@ -104,7 +105,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem('require_login');
       sessionStorage.removeItem('require_login');
       setLoading(false);
-      window.location.href = '/login?redirect=' + encodeURIComponent(currentPath);
+      window.location.href = '/auth/signin?redirect=' + encodeURIComponent(currentPath);
       return;
     } else if (requireLogin) {
       // Clear the flags if we have a stored user
@@ -125,7 +126,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // No stored user and not on login page - redirect to login if on protected route
       if (isProtectedRoute) {
         console.log('No stored user on protected route - redirecting to login');
-        window.location.href = '/login?redirect=' + encodeURIComponent(currentPath);
+        window.location.href = '/auth/signin?redirect=' + encodeURIComponent(currentPath);
       } else {
         console.log('No stored user, but not on protected route');
       }
@@ -198,7 +199,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       // Redirect to login if on protected route
       if (isProtectedRoute) {
-        window.location.href = '/login';
+        window.location.href = '/auth/signin';
       }
     }
     
@@ -418,6 +419,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Important: include credentials to ensure cookies are sent
       });
       
       // Clear user state
@@ -438,17 +440,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Clear any active sessions
       document.cookie = "next-auth.session-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
       document.cookie = "next-auth.csrf-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+      document.cookie = "userData=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
       
       console.log('User logged out successfully');
       
       // Redirect all users to landing page for consistent behavior
-      window.location.href = '/';
+      // Use replace instead of href to ensure the navigation history is cleared
+      window.location.replace('/');
     } catch (error) {
       console.error('Logout error:', error);
       // Even if API fails, clear local data
       setUser(null);
       localStorage.removeItem('user');
-      window.location.href = '/';
+      document.cookie = "userData=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+      window.location.replace('/');
     }
   };
 

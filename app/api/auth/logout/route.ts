@@ -8,13 +8,42 @@ export async function POST() {
       { status: 200 }
     );
     
-    // Clear the authentication cookie
+    // Clear all authentication-related cookies
+    
+    // Clear the main userData cookie
     response.cookies.set({
       name: 'userData',
       value: '',
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       expires: new Date(0), // Immediately expire the cookie
+      path: '/'
+    });
+    
+    // Clear Next Auth cookies if they exist
+    response.cookies.set({
+      name: 'next-auth.session-token',
+      value: '',
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      expires: new Date(0),
+      path: '/'
+    });
+    
+    response.cookies.set({
+      name: 'next-auth.csrf-token',
+      value: '',
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production', 
+      expires: new Date(0),
+      path: '/'
+    });
+    
+    // For Safari and other browsers that might handle cookies differently
+    response.cookies.set({
+      name: 'userData',
+      value: '',
+      expires: new Date(0),
       path: '/'
     });
     

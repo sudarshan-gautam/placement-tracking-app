@@ -6,7 +6,6 @@ import type { NextRequest } from 'next/server';
 // List of paths that don't require authentication
 const publicPaths = [
   '/',
-  '/login',
   '/register',
   '/auth/signin',
   '/auth/signup',
