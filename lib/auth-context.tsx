@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<{success: boolean, userRole?: string}>;
   register: (name: string, email: string, password: string, role?: string) => Promise<boolean>;
   logout: () => void;
   enableAutoLogin: () => void;
@@ -219,7 +219,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
   };
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (email: string, password: string): Promise<{success: boolean, userRole?: string}> => {
     try {
       setLoading(true);
       const response = await fetch('/api/auth/login', {
@@ -231,7 +231,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (!response.ok) {
-        return false;
+        return {success: false};
       }
 
       const data = await response.json();
@@ -287,7 +287,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem(`rejectionDetails-${email}`, persistentRejectionDetails);
       }
       
-      // Store the user data BEFORE redirecting
+      // Store the user data
       setUser(data.user);
       localStorage.setItem('user', JSON.stringify(data.user));
       
@@ -302,11 +302,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Set loading to false before redirect
       setLoading(false);
       
-      return true;
+      // Return success with the user role
+      return {
+        success: true, 
+        userRole: data.user.role
+      };
     } catch (error) {
       console.error('Login error:', error);
       setLoading(false);
-      return false;
+      return {success: false};
     }
   };
 
@@ -360,13 +364,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         name: data.user.name
       }));
       
-      // Redirect based on user role
+      // Redirect based on user role - using replace instead of push to prevent flash
       if (data.user.role === 'admin') {
-        router.push('/admin');
+        router.replace('/admin');
       } else if (data.user.role === 'mentor') {
-        router.push('/mentor');
+        router.replace('/mentor');
       } else {
-        router.push('/dashboard');
+        router.replace('/dashboard');
       }
       
       return true;

@@ -24,13 +24,16 @@ export default function SignIn() {
     setIsLoading(true);
     
     try {
-      const success = await login(email, password);
+      const result = await login(email, password);
       
-      if (success) {
+      if (result.success) {
+        // Get role directly from login result instead of context
+        const userRole = result.userRole;
+        
         // Use router.replace instead of router.push to prevent flash
-        if (user?.role === 'admin') {
+        if (userRole === 'admin') {
           router.replace('/admin');
-        } else if (user?.role === 'mentor') {
+        } else if (userRole === 'mentor') {
           router.replace('/mentor');
         } else {
           router.replace('/dashboard');
