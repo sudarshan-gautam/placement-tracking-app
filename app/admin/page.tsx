@@ -750,7 +750,7 @@ export default function AdminDashboard() {
               </CardContent>
             </ClickableCard>
             
-            <ClickableCard href="/admin/activities" className="relative overflow-hidden">
+            <ClickableCard href="/activities" className="relative overflow-hidden">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Professional Activities</CardTitle>
                 <div className="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center">
@@ -1019,7 +1019,7 @@ export default function AdminDashboard() {
                     ))}
                   </div>
                   <div className="flex justify-end mt-4">
-                    <Link href="/admin/activity-log" className="text-sm text-blue-600 hover:text-blue-800">
+                    <Link href="/activities" className="text-sm text-blue-600 hover:text-blue-800">
                       View All Activity →
                     </Link>
                   </div>

@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Plus, Award, BookOpen, Calendar, BarChart2, FileText, Edit, X, User, Settings, Shield, ClipboardCheck, Server, Briefcase, CheckCircle, MessageCircle, Folder } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
+import { useRouter } from 'next/navigation';
 
 interface QuickActionsModalProps {
   isOpen: boolean;
@@ -11,6 +12,7 @@ interface QuickActionsModalProps {
 
 export function QuickActionsModal({ isOpen, onClose }: QuickActionsModalProps) {
   const { user } = useAuth();
+  const router = useRouter();
   
   if (!isOpen) return null;
 
@@ -150,7 +152,7 @@ export function QuickActionsModal({ isOpen, onClose }: QuickActionsModalProps) {
   const handleActionClick = (e: React.MouseEvent, action: any) => {
     e.preventDefault();
     if (action.href) {
-      window.location.href = action.href;
+      router.push(action.href);
       onClose();
     }
   };

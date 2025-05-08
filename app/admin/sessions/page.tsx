@@ -15,8 +15,13 @@ interface Session {
   date: string;
   location: string;
   status: string;
+  duration?: number;
+  sessionType?: string;
+  feedback?: string;
+  learnerAgeGroup?: string;
+  subject?: string;
   student: {
-    id: number;
+    id: number | string;
     name: string;
   };
 }
@@ -63,32 +68,42 @@ export default function AdminSessionsPage() {
           authHeader = `Bearer ${tokenStr}`;
         }
         
-        const response = await fetch('/api/admin/sessions', {
-          headers: {
-            'Authorization': authHeader,
-            'Content-Type': 'application/json',
-            'X-User-Role': user?.role || '',  // Add an explicit role header as fallback
-            'X-User-ID': user?.id?.toString() || ''  // Add an explicit user ID header as fallback
+        console.log('Sending request to API with role:', user?.role);
+        
+        try {
+          const response = await fetch('/api/admin/sessions', {
+            headers: {
+              'Authorization': authHeader,
+              'Content-Type': 'application/json',
+              'X-User-Role': user?.role || '',  // Add an explicit role header as fallback
+              'X-User-ID': user?.id?.toString() || ''  // Add an explicit user ID header as fallback
+            }
+          });
+          
+          console.log('API response status:', response.status);
+          
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+            console.error('API error details:', errorData);
+            throw new Error(`Failed to fetch sessions: ${response.status} ${errorData.error || ''}`);
           }
-        });
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch sessions');
+          
+          const data = await response.json();
+          console.log('Successfully fetched sessions from API:', data.sessions?.length || 0);
+          setSessions(data.sessions || []);
+          setFilteredSessions(data.sessions || []);
+          setTotalSessions(data.sessions?.length || 0);
+          setIsLoading(false);
+        } catch (fetchError) {
+          throw fetchError; // re-throw to be caught by the outer catch block
         }
-        
-        const data = await response.json();
-        console.log('Successfully fetched sessions from API:', data.sessions?.length || 0);
-        setSessions(data.sessions || []);
-        setFilteredSessions(data.sessions || []);
-        setTotalSessions(data.sessions?.length || 0);
-        setIsLoading(false);
       } catch (error) {
         console.error('Error fetching sessions:', error);
         console.log('Falling back to sample data');
         toast({
-          title: 'Error',
-          description: 'Failed to load sessions',
-          variant: 'destructive'
+          title: 'Notice',
+          description: 'Using sample data as we could not connect to the database.',
+          variant: 'default'
         });
         
         // Fallback to sample data if API fails
@@ -101,7 +116,10 @@ export default function AdminSessionsPage() {
             date: '2025-04-13',
             location: 'Virtual Classroom',
             status: 'planned',
-            student: { id: 1, name: 'John Doe' }
+            duration: 120,
+            sessionType: 'online',
+            subject: 'Art',
+            student: { id: 'student-1', name: 'John Doe' }
           },
           {
             id: 'sample-id-2',
@@ -111,7 +129,10 @@ export default function AdminSessionsPage() {
             date: '2023-09-15',
             location: 'Main Classroom',
             status: 'completed',
-            student: { id: 2, name: 'Jane Smith' }
+            duration: 60,
+            sessionType: 'group',
+            subject: 'Mathematics',
+            student: { id: 'student-2', name: 'Jane Smith' }
           },
           {
             id: 'sample-id-3',
@@ -121,37 +142,10 @@ export default function AdminSessionsPage() {
             date: '2023-09-20',
             location: 'Science Lab',
             status: 'completed',
-            student: { id: 3, name: 'Alice Johnson' }
-          },
-          {
-            id: 'sample-id-4',
-            displayId: 4,
-            title: 'History Virtual Tour',
-            description: 'Ancient Egypt exploration',
-            date: '2023-09-25',
-            location: 'Computer Lab',
-            status: 'planned',
-            student: { id: 4, name: 'Bob Wilson' }
-          },
-          {
-            id: 'sample-id-5',
-            displayId: 5,
-            title: 'Reading Assistance',
-            description: 'Guided reading for struggling readers',
-            date: '2023-09-18',
-            location: 'Library',
-            status: 'completed',
-            student: { id: 5, name: 'Charlie Brown' }
-          },
-          {
-            id: 'sample-id-6',
-            displayId: 6,
-            title: 'Art Workshop',
-            description: 'Painting techniques for beginners',
-            date: '2023-09-28',
-            location: 'Art Room',
-            status: 'planned',
-            student: { id: 6, name: 'Diana Prince' }
+            duration: 45,
+            sessionType: 'group',
+            subject: 'Science',
+            student: { id: 'student-3', name: 'Alice Johnson' }
           }
         ];
         

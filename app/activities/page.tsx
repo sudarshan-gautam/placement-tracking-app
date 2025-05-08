@@ -26,9 +26,8 @@ import {
 import Link from 'next/link';
 import { 
   initActivitiesData, 
-  getAllActivities,
+  getAllActivities as getLocalActivities,
   changeActivityStatus,
-  Activity,
   getActivityStats
 } from '@/lib/activities-service';
 
@@ -58,6 +57,21 @@ const students = [
   { id: 3, name: 'Charlie Davis' },
 ];
 
+// Activity interface for our UI component
+interface Activity {
+  id: number | string;
+  title: string;
+  date: string;
+  duration: string | number;
+  type: string;
+  status: 'verified' | 'pending' | 'rejected';
+  description: string;
+  student: { id: string | number; name: string };
+  mentor?: { id?: string | number; name?: string };
+  rejectionReason?: string;
+  location?: string;
+}
+
 export default function ActivitiesPage() {
   const { user } = useAuth();
   const router = useRouter();
@@ -83,25 +97,89 @@ export default function ActivitiesPage() {
 
   // Initialize activities data from localStorage
   useEffect(() => {
-    // Redirect students to the student-specific view
-    if (isStudent && typeof window !== 'undefined') {
-      router.push('/student/activities');
-      return;
-    }
+    const fetchActivities = async () => {
+      try {
+        // Create authentication headers using user context data
+        let authHeader = '';
+        if (user) {
+          // Create a simple token with user data
+          const tokenData = {
+            id: user.id,
+            email: user.email,
+            role: user.role,
+            name: user.name
+          };
+          
+          // Create a basic token structure
+          const tokenStr = btoa(JSON.stringify({
+            header: { alg: 'none', typ: 'JWT' },
+            payload: tokenData,
+            signature: ''
+          }));
+          
+          authHeader = `Bearer ${tokenStr}`;
+        }
+        
+        console.log('Sending request to activities API with role:', user?.role);
+        
+        // Try to fetch from the API first
+        try {
+          const response = await fetch('/api/activities', {
+            headers: {
+              'Authorization': authHeader,
+              'Content-Type': 'application/json',
+              'X-User-Role': user?.role || '',
+              'X-User-ID': user?.id?.toString() || ''
+            }
+          });
+          
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+            console.error('API error details:', errorData);
+            throw new Error(`Failed to fetch activities: ${response.status} ${errorData.error || ''}`);
+          }
+          
+          const data = await response.json();
+          console.log('Successfully fetched activities from API:', data.activities?.length || 0);
+          
+          // Use the data from the API
+          setActivities(data.activities || []);
+          
+          // Update statistics based on fetched data
+          const activityStats = {
+            totalActivities: data.activities?.length || 0,
+            pendingActivities: data.activities?.filter((a: any) => a.status === 'pending').length || 0,
+            verifiedActivities: data.activities?.filter((a: any) => a.status === 'verified').length || 0,
+            activityTypes: new Set(data.activities?.map((a: any) => a.type)).size || 0
+          };
+          
+          setStats(activityStats);
+        } catch (apiError) {
+          console.error('API fetch error, falling back to localStorage:', apiError);
+          // Fallback to localStorage if API fails
+          initActivitiesData();
+          const loadedActivities = getLocalActivities();
+          setActivities(loadedActivities);
+          
+          // Update statistics
+          const activityStats = getActivityStats();
+          setStats(activityStats);
+        }
+      } catch (error) {
+        console.error('Error in activities initialization:', error);
+        // Final fallback
+        initActivitiesData();
+        const loadedActivities = getLocalActivities();
+        setActivities(loadedActivities);
+        
+        // Update statistics
+        const activityStats = getActivityStats();
+        setStats(activityStats);
+      }
+    };
     
-    // Force initialization of activities data in localStorage
-    initActivitiesData();
-    
-    // Force reload of activities from localStorage
-    const loadedActivities = getAllActivities();
-    setActivities(loadedActivities);
-    
-    // Update statistics
-    const activityStats = getActivityStats();
-    setStats(activityStats);
-    
-    console.log(`Loaded ${loadedActivities.length} activities from localStorage`);
-  }, [isStudent, router]);
+    fetchActivities();
+  }, [user]);
 
   // Filter activities based on search, filter criteria, and user role
   const filteredActivities = activities.filter((activity) => {
@@ -109,19 +187,26 @@ export default function ActivitiesPage() {
     if (isStudent) {
       // For demo purposes, show all activities for student role
       // In a real app, we'd filter by user ID: activity.studentId === mockUser?.id
-      console.log(`Student filtering: user ID=${mockUser?.id}, studentId=${activity.studentId}`);
       return true; // Show all activities for now
     }
 
     // Filter by student for admin/mentor
-    if (canApprove && studentFilter !== 0 && activity.studentId !== studentFilter) {
-      return false;
+    if (canApprove && studentFilter !== 0) {
+      const activityStudentId = typeof activity.student === 'string' 
+        ? parseInt(activity.student) 
+        : typeof activity.student.id === 'string' 
+          ? parseInt(activity.student.id)
+          : activity.student.id;
+          
+      if (activityStudentId !== studentFilter) return false;
     }
 
     const matchesSearch = 
       activity.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       activity.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      activity.mentor.toLowerCase().includes(searchTerm.toLowerCase());
+      (typeof activity.mentor === 'string' 
+        ? activity.mentor.toLowerCase().includes(searchTerm.toLowerCase())
+        : activity.mentor?.name?.toLowerCase()?.includes(searchTerm.toLowerCase()) || false);
     
     const matchesStatus = statusFilter === 'all' || activity.status === statusFilter;
     const matchesType = typeFilter === 'all' || activity.type === typeFilter;
@@ -164,7 +249,7 @@ export default function ActivitiesPage() {
     const updatedActivity = changeActivityStatus(id, 'verified');
     if (updatedActivity) {
       // Refresh the activities list
-      setActivities(getAllActivities());
+      setActivities(getLocalActivities());
       
       // Update statistics
       const activityStats = getActivityStats();
@@ -180,7 +265,7 @@ export default function ActivitiesPage() {
       const updatedActivity = changeActivityStatus(id, 'rejected', reason);
       if (updatedActivity) {
         // Refresh the activities list
-        setActivities(getAllActivities());
+        setActivities(getLocalActivities());
         
         // Update statistics
         const activityStats = getActivityStats();
@@ -353,7 +438,7 @@ export default function ActivitiesPage() {
                     </p>
                     <p className="text-sm text-gray-500 flex items-center mt-1">
                       <User className="h-4 w-4 mr-2 text-gray-400" />
-                      Student: {activity.student}
+                      Student: {typeof activity.student === 'string' ? activity.student : activity.student?.name || 'Unknown'}
                     </p>
                   </div>
                 </div>
