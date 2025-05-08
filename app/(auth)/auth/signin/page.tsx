@@ -27,13 +27,13 @@ export default function SignIn() {
       const success = await login(email, password);
       
       if (success) {
-        // Redirect based on user role
+        // Use router.replace instead of router.push to prevent flash
         if (user?.role === 'admin') {
-          router.push('/admin');
+          router.replace('/admin');
         } else if (user?.role === 'mentor') {
-          router.push('/mentor');
+          router.replace('/mentor');
         } else {
-          router.push('/dashboard');
+          router.replace('/dashboard');
         }
       } else {
         setError('Invalid email or password');

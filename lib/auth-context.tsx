@@ -251,7 +251,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.error('Error parsing persistent profile data:', error);
         }
       }
-      
+
       // If still no profile image, check profileData directly
       if (!data.user.profileImage) {
         const profileData = localStorage.getItem(`profileData-${email}`);
@@ -271,7 +271,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!data.user.profileImage) {
         data.user.profileImage = '/placeholder-profile.jpg';
       }
-      
+
       // Restore verification status
       const persistentVerificationStatus = localStorage.getItem(`persistentVerificationStatus-${email}`);
       if (persistentVerificationStatus) {
@@ -287,6 +287,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem(`rejectionDetails-${email}`, persistentRejectionDetails);
       }
       
+      // Store the user data BEFORE redirecting
       setUser(data.user);
       localStorage.setItem('user', JSON.stringify(data.user));
       
@@ -298,21 +299,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         name: data.user.name
       }));
       
-      // Redirect based on user role
-      if (data.user.role === 'admin') {
-        router.push('/admin');
-      } else if (data.user.role === 'mentor') {
-        router.push('/mentor');
-      } else {
-        router.push('/dashboard');
-      }
+      // Set loading to false before redirect
+      setLoading(false);
       
       return true;
     } catch (error) {
       console.error('Login error:', error);
-      return false;
-    } finally {
       setLoading(false);
+      return false;
     }
   };
 
@@ -411,6 +405,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
       
+      // Store the user role before clearing the user state
+      const userRole = user?.role || '';
+      
       // Call server API to clear HTTP-only cookies
       await fetch('/api/auth/logout', {
         method: 'POST',
@@ -440,7 +437,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       console.log('User logged out successfully');
       
-      // Force redirect to home page to ensure a complete reset
+      // Redirect all users to landing page for consistent behavior
       window.location.href = '/';
     } catch (error) {
       console.error('Logout error:', error);
