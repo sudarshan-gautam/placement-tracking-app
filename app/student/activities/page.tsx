@@ -20,13 +20,13 @@ import {
   PieChart,
   ChevronRight,
   BarChart,
-  CheckSquare
+  CheckSquare,
+  User
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { 
-  initActivitiesData, 
   getAllActivities,
   Activity,
   getActivityStats
@@ -78,27 +78,29 @@ export default function StudentActivitiesPage() {
       try {
         setLoading(true);
         
-        // Initialize activities data from localStorage
-        initActivitiesData();
-        
-        // In a real implementation, this would fetch from API based on student ID
-        // For now, we'll use the localStorage data
-        const loadedActivities = getAllActivities();
-        
-        // Filter for current student's activities
-        // For demo purposes, show all (normally would filter by student ID)
-        const studentActivities = loadedActivities;
+        // Fetch activities from API
+        const studentActivities = await getAllActivities();
         setActivities(studentActivities);
         
-        // Update statistics
-        const activityStats = getActivityStats();
-        // Add total hours calculation
+        // Calculate hours from duration which could be string or number
         const totalHours = studentActivities.reduce((sum, activity) => {
-          return sum + (parseInt(activity.duration.replace('h', '')) || 0);
+          if (typeof activity.duration === 'number') {
+            return sum + activity.duration;
+          } else if (typeof activity.duration === 'string') {
+            // Try to extract hours from strings like "2 hours" or "2h"
+            const hours = parseInt(activity.duration.replace(/[^0-9]/g, ''));
+            return sum + (isNaN(hours) ? 0 : hours);
+          }
+          return sum;
         }, 0);
         
+        // Get activity stats and combine with total hours
+        const activityStats = await getActivityStats(studentActivities);
         setStats({
-          ...activityStats,
+          totalActivities: activityStats.totalActivities,
+          pendingActivities: activityStats.pendingActivities,
+          verifiedActivities: activityStats.verifiedActivities,
+          activityTypes: activityStats.activityTypes,
           totalHours
         });
         
@@ -382,8 +384,12 @@ export default function StudentActivitiesPage() {
                       </div>
                       {activity.status === 'verified' && (
                         <div className="flex items-center text-gray-500">
-                          <Award className="h-4 w-4 mr-2 text-gray-400" />
-                          Verified by: {activity.mentor}
+                          <User className="h-4 w-4 mr-2 text-gray-400" />
+                          Mentor: {
+                            typeof activity.mentor === 'string' 
+                              ? activity.mentor 
+                              : activity.mentor?.name || 'Unassigned'
+                          }
                         </div>
                       )}
                     </div>

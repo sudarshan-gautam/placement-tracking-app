@@ -25,10 +25,10 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { 
-  initActivitiesData, 
-  getAllActivities as getLocalActivities,
+  getAllActivities,
   changeActivityStatus,
-  getActivityStats
+  getActivityStats,
+  Activity
 } from '@/lib/activities-service';
 
 // Activity type options
@@ -49,36 +49,13 @@ const statusFilters = [
   { value: 'rejected', label: 'Rejected' },
 ];
 
-// Sample student data for admin/mentor filtering
-const students = [
-  { id: 0, name: 'All Students' },
-  { id: 1, name: 'Alice Johnson' },
-  { id: 2, name: 'Bob Smith' },
-  { id: 3, name: 'Charlie Davis' },
-];
-
-// Activity interface for our UI component
-interface Activity {
-  id: number | string;
-  title: string;
-  date: string;
-  duration: string | number;
-  type: string;
-  status: 'verified' | 'pending' | 'rejected';
-  description: string;
-  student: { id: string | number; name: string };
-  mentor?: { id?: string | number; name?: string };
-  rejectionReason?: string;
-  location?: string;
-}
-
 export default function ActivitiesPage() {
   const { user } = useAuth();
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
-  const [studentFilter, setStudentFilter] = useState(0); // Default to "All Students"
+  const [studentFilter, setStudentFilter] = useState<number | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [stats, setStats] = useState({
     totalActivities: 0,
@@ -86,19 +63,23 @@ export default function ActivitiesPage() {
     verifiedActivities: 0,
     activityTypes: 0
   });
+  const [students, setStudents] = useState<{ id: number | string; name: string }[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
   
-  // Create a mock user for demo purposes if none exists
-  const mockUser = user || { id: 1, role: 'student', name: 'Student User' };
-  
-  const isAdmin = mockUser?.role === 'admin';
-  const isMentor = mockUser?.role === 'mentor';
-  const isStudent = mockUser?.role === 'student';
+  // Determine user role for UI display
+  const isAdmin = user?.role === 'admin';
+  const isMentor = user?.role === 'mentor';
+  const isStudent = user?.role === 'student';
   const canApprove = isAdmin || isMentor;
 
-  // Initialize activities data from localStorage
+  // Fetch activities from API
   useEffect(() => {
     const fetchActivities = async () => {
       try {
+        setIsLoading(true);
+        setErrorMessage('');
+        
         // Create authentication headers using user context data
         let authHeader = '';
         if (user) {
@@ -120,95 +101,85 @@ export default function ActivitiesPage() {
           authHeader = `Bearer ${tokenStr}`;
         }
         
-        console.log('Sending request to activities API with role:', user?.role);
+        console.log('Fetching activities with role:', user?.role);
         
-        // Try to fetch from the API first
-        try {
-          const response = await fetch('/api/activities', {
-            headers: {
-              'Authorization': authHeader,
-              'Content-Type': 'application/json',
-              'X-User-Role': user?.role || '',
-              'X-User-ID': user?.id?.toString() || ''
-            }
-          });
-          
-          if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-            console.error('API error details:', errorData);
-            throw new Error(`Failed to fetch activities: ${response.status} ${errorData.error || ''}`);
-          }
-          
-          const data = await response.json();
-          console.log('Successfully fetched activities from API:', data.activities?.length || 0);
-          
-          // Use the data from the API
-          setActivities(data.activities || []);
-          
-          // Update statistics based on fetched data
-          const activityStats = {
-            totalActivities: data.activities?.length || 0,
-            pendingActivities: data.activities?.filter((a: any) => a.status === 'pending').length || 0,
-            verifiedActivities: data.activities?.filter((a: any) => a.status === 'verified').length || 0,
-            activityTypes: new Set(data.activities?.map((a: any) => a.type)).size || 0
-          };
-          
-          setStats(activityStats);
-        } catch (apiError) {
-          console.error('API fetch error, falling back to localStorage:', apiError);
-          // Fallback to localStorage if API fails
-          initActivitiesData();
-          const loadedActivities = getLocalActivities();
-          setActivities(loadedActivities);
-          
-          // Update statistics
-          const activityStats = getActivityStats();
-          setStats(activityStats);
-        }
-      } catch (error) {
-        console.error('Error in activities initialization:', error);
-        // Final fallback
-        initActivitiesData();
-        const loadedActivities = getLocalActivities();
-        setActivities(loadedActivities);
+        // Fetch activities from the API
+        const fetchedActivities = await getAllActivities(
+          authHeader, 
+          user?.id?.toString(), 
+          user?.role
+        );
         
-        // Update statistics
-        const activityStats = getActivityStats();
+        setActivities(fetchedActivities);
+        
+        // Calculate statistics from fetched data
+        const activityStats = await getActivityStats(fetchedActivities);
         setStats(activityStats);
+        
+        // For admin and mentor users, fetch student list for filtering
+        if (canApprove) {
+          try {
+            const response = await fetch('/api/admin/users?role=student', {
+              headers: {
+                'Authorization': authHeader,
+                'Content-Type': 'application/json'
+              }
+            });
+            
+            if (!response.ok) {
+              throw new Error('Failed to fetch students');
+            }
+            
+            const data = await response.json();
+            // Add "All students" option to the beginning of the array
+            setStudents([
+              { id: 0, name: 'All Students' },
+              ...(data.users || [])
+            ]);
+          } catch (studentError) {
+            console.error('Error fetching student list:', studentError);
+          }
+        }
+        
+      } catch (error) {
+        console.error('Error fetching activities:', error);
+        setErrorMessage('Failed to load activities. Please try again later.');
+      } finally {
+        setIsLoading(false);
       }
     };
     
     fetchActivities();
-  }, [user]);
+  }, [user, canApprove]);
 
   // Filter activities based on search, filter criteria, and user role
   const filteredActivities = activities.filter((activity) => {
-    // If student, only show their activities
-    if (isStudent) {
-      // For demo purposes, show all activities for student role
-      // In a real app, we'd filter by user ID: activity.studentId === mockUser?.id
-      return true; // Show all activities for now
-    }
-
+    // If student, show only their activities - already filtered by the API
+    
     // Filter by student for admin/mentor
-    if (canApprove && studentFilter !== 0) {
+    if (canApprove && studentFilter !== null && studentFilter !== 0) {
       const activityStudentId = typeof activity.student === 'string' 
-        ? parseInt(activity.student) 
-        : typeof activity.student.id === 'string' 
-          ? parseInt(activity.student.id)
-          : activity.student.id;
+        ? activity.student 
+        : activity.student.id;
           
-      if (activityStudentId !== studentFilter) return false;
+      if (activityStudentId != studentFilter) return false;
     }
 
-    const matchesSearch = 
+    // Text search
+    const matchesSearch = searchTerm === '' || (
       activity.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       activity.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (typeof activity.mentor === 'string' 
-        ? activity.mentor.toLowerCase().includes(searchTerm.toLowerCase())
-        : activity.mentor?.name?.toLowerCase()?.includes(searchTerm.toLowerCase()) || false);
+        ? String(activity.mentor).toLowerCase().includes(searchTerm.toLowerCase())
+        : activity.mentor && typeof activity.mentor.name === 'string' 
+          ? activity.mentor.name.toLowerCase().includes(searchTerm.toLowerCase()) 
+          : false)
+    );
     
+    // Filter by status
     const matchesStatus = statusFilter === 'all' || activity.status === statusFilter;
+    
+    // Filter by type
     const matchesType = typeFilter === 'all' || activity.type === typeFilter;
     
     return matchesSearch && matchesStatus && matchesType;
@@ -244,35 +215,130 @@ export default function ActivitiesPage() {
   };
 
   // Function to handle activity approval (for admin/mentor)
-  const handleApproveActivity = (id: number) => {
-    // Update activity status in localStorage
-    const updatedActivity = changeActivityStatus(id, 'verified');
-    if (updatedActivity) {
-      // Refresh the activities list
-      setActivities(getLocalActivities());
+  const handleApproveActivity = async (id: number | string) => {
+    try {
+      // Create token for API request
+      let authHeader = '';
+      if (user) {
+        const tokenData = {
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          name: user.name
+        };
+        
+        const tokenStr = btoa(JSON.stringify({
+          header: { alg: 'none', typ: 'JWT' },
+          payload: tokenData,
+          signature: ''
+        }));
+        
+        authHeader = `Bearer ${tokenStr}`;
+      }
       
-      // Update statistics
-      const activityStats = getActivityStats();
-      setStats(activityStats);
+      // Call API to update activity status
+      const updatedActivity = await changeActivityStatus(id, 'verified', undefined, authHeader);
+      
+      if (updatedActivity) {
+        // Update activities list with the updated activity
+        setActivities(activities.map(activity => 
+          activity.id === id ? { ...activity, status: 'verified' } : activity
+        ));
+        
+        // Recalculate statistics
+        const updatedStats = await getActivityStats(
+          activities.map(activity => activity.id === id ? { ...activity, status: 'verified' } : activity)
+        );
+        setStats(updatedStats);
+      } else {
+        throw new Error('Failed to update activity status');
+      }
+    } catch (error) {
+      console.error('Error approving activity:', error);
+      alert('Failed to approve activity. Please try again.');
     }
   };
 
   // Function to handle activity rejection (for admin/mentor)
-  const handleRejectActivity = (id: number) => {
+  const handleRejectActivity = async (id: number | string) => {
     const reason = prompt('Please enter a reason for rejection:');
-    if (reason) {
-      // Update activity status in localStorage with rejection reason
-      const updatedActivity = changeActivityStatus(id, 'rejected', reason);
-      if (updatedActivity) {
-        // Refresh the activities list
-        setActivities(getLocalActivities());
+    if (!reason) return; // User cancelled
+    
+    try {
+      // Create token for API request
+      let authHeader = '';
+      if (user) {
+        const tokenData = {
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          name: user.name
+        };
         
-        // Update statistics
-        const activityStats = getActivityStats();
-        setStats(activityStats);
+        const tokenStr = btoa(JSON.stringify({
+          header: { alg: 'none', typ: 'JWT' },
+          payload: tokenData,
+          signature: ''
+        }));
+        
+        authHeader = `Bearer ${tokenStr}`;
       }
+      
+      // Call API to update activity status
+      const updatedActivity = await changeActivityStatus(id, 'rejected', reason, authHeader);
+      
+      if (updatedActivity) {
+        // Update activities list with the updated activity
+        setActivities(activities.map(activity => 
+          activity.id === id ? { ...activity, status: 'rejected', rejectionReason: reason } : activity
+        ));
+        
+        // Recalculate statistics
+        const updatedStats = await getActivityStats(
+          activities.map(activity => 
+            activity.id === id ? { ...activity, status: 'rejected', rejectionReason: reason } : activity
+          )
+        );
+        setStats(updatedStats);
+      } else {
+        throw new Error('Failed to update activity status');
+      }
+    } catch (error) {
+      console.error('Error rejecting activity:', error);
+      alert('Failed to reject activity. Please try again.');
     }
   };
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p>Loading activities...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (errorMessage) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center p-6 bg-red-50 rounded-lg">
+          <XCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold mb-2">Error Loading Activities</h2>
+          <p className="text-gray-700 mb-4">{errorMessage}</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 p-6 pb-40">
@@ -395,6 +461,21 @@ export default function ActivitiesPage() {
               ))}
             </select>
           </div>
+          
+          {/* Student Filter for Admin/Mentor */}
+          {canApprove && students.length > 0 && (
+            <div className="md:col-span-4">
+              <select
+                className="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                value={studentFilter || 0}
+                onChange={(e) => setStudentFilter(Number(e.target.value))}
+              >
+                {students.map((student) => (
+                  <option key={student.id} value={student.id}>{student.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
       </div>
 

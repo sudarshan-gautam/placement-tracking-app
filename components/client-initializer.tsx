@@ -1,14 +1,13 @@
 'use client';
 
 import { useEffect } from 'react';
-import { initActivitiesData } from '@/lib/activities-service';
 import { initJobsData, getJobsForUser } from '@/lib/jobs-service';
 import { useAuth } from '@/lib/auth-context';
 import { User, UserRole, UserStatus } from '@/types/user';
 
 /**
  * This component is responsible for initializing client-side data
- * like localStorage activities when the app loads
+ * when the app loads
  */
 export function ClientInitializer() {
   const { user, setUser } = useAuth();
@@ -23,9 +22,6 @@ export function ClientInitializer() {
       console.log('Storage not accessible - likely in incognito mode');
       return;
     }
-    
-    // Initialize activities data in localStorage
-    initActivitiesData();
     
     // Initialize jobs data in localStorage
     initJobsData();

@@ -1,7 +1,5 @@
 'use client';
 
-import { activitiesData } from './sample-data';
-
 // Define feedback type
 export interface Feedback {
   id: number;
@@ -13,19 +11,18 @@ export interface Feedback {
 
 // Define activity type
 export interface Activity {
-  id: number;
+  id: number | string;
   title: string;
   date: string;
-  duration: string;
+  duration: string | number;
   type: string;
   status: 'verified' | 'pending' | 'rejected';
-  reflectionCompleted: boolean;
-  mentor: string;
-  student: string;
-  studentId: number;
+  reflectionCompleted?: boolean;
+  mentor?: { id?: string | number; name?: string };
+  student: { id: string | number; name: string };
   description: string;
-  location: string;
-  evidence: string;
+  location?: string;
+  evidence?: string;
   reflection?: string;
   rejectionReason?: string;
   feedback?: Feedback[];
@@ -33,45 +30,35 @@ export interface Activity {
   feedbackComments?: string;
 }
 
-// Storage key for activities
-const ACTIVITIES_STORAGE_KEY = 'student-activities-data';
-
 /**
- * Check if activities data is initialized
+ * Get all activities from the API
+ * @returns Promise with activities array
  */
-export function isActivitiesInitialized(): boolean {
-  // Only run on client
-  if (typeof window === 'undefined') return false;
-
-  return localStorage.getItem(ACTIVITIES_STORAGE_KEY) !== null;
-}
-
-/**
- * Initialize the activities database
- * This checks if activities data already exists in localStorage,
- * and if not, it initializes it with sample data
- */
-export function initActivitiesData(): void {
-  // Only run on client
-  if (typeof window === 'undefined') return;
-
-  // For testing: force reinitialization to ensure we always have fresh data
-  localStorage.setItem(ACTIVITIES_STORAGE_KEY, JSON.stringify(activitiesData));
-  console.log('Activities database reset with sample data:', activitiesData.length, 'activities');
-}
-
-/**
- * Get all activities
- */
-export function getAllActivities(): Activity[] {
-  // Only run on client
-  if (typeof window === 'undefined') return [];
-
+export async function getAllActivities(token?: string, userId?: string, userRole?: string): Promise<Activity[]> {
   try {
-    const data = localStorage.getItem(ACTIVITIES_STORAGE_KEY);
-    return data ? JSON.parse(data) : [];
+    // Create authentication headers using user data
+    let authHeader = '';
+    if (token) {
+      authHeader = `Bearer ${token}`;
+    }
+    
+    const response = await fetch('/api/activities', {
+      headers: {
+        'Authorization': authHeader,
+        'Content-Type': 'application/json',
+        'X-User-Role': userRole || '',
+        'X-User-ID': userId || ''
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch activities: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return data.activities || [];
   } catch (error) {
-    console.error('Error retrieving activities data:', error);
+    console.error('Error fetching activities:', error);
     return [];
   }
 }
@@ -80,47 +67,97 @@ export function getAllActivities(): Activity[] {
  * Get a specific activity by ID
  * @param id The ID of the activity
  */
-export function getActivityById(id: number): Activity | null {
-  // Only run on client
-  if (typeof window === 'undefined') return null;
-
+export async function getActivityById(id: number | string, token?: string): Promise<Activity | null> {
   try {
-    const activities = getAllActivities();
-    return activities.find(activity => activity.id === id) || null;
+    // Create authentication headers using user data
+    let authHeader = '';
+    if (token) {
+      authHeader = `Bearer ${token}`;
+    }
+    
+    const response = await fetch(`/api/activities/${id}`, {
+      headers: {
+        'Authorization': authHeader,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch activity: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return data.activity || null;
   } catch (error) {
-    console.error('Error retrieving activity:', error);
+    console.error('Error fetching activity:', error);
     return null;
   }
 }
 
 /**
- * Get activities for a specific student
+ * Get all activities for a specific student
  * @param studentId The ID of the student
  */
-export function getStudentActivities(studentId: number): Activity[] {
-  const activities = getAllActivities();
-  return activities.filter(activity => activity.studentId === studentId);
+export async function getStudentActivities(studentId: number | string, token?: string): Promise<Activity[]> {
+  try {
+    // Create authentication headers using user data
+    let authHeader = '';
+    if (token) {
+      authHeader = `Bearer ${token}`;
+    }
+    
+    const response = await fetch(`/api/activities?studentId=${studentId}`, {
+      headers: {
+        'Authorization': authHeader,
+        'Content-Type': 'application/json',
+        'X-User-Role': 'admin', // Admin role to access other student's data
+        'X-User-ID': ''
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch student activities: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return data.activities || [];
+  } catch (error) {
+    console.error('Error fetching student activities:', error);
+    return [];
+  }
 }
 
 /**
  * Add a new activity
  * @param activity The activity to add
  */
-export function addActivity(activity: Omit<Activity, 'id'>): Activity {
-  const activities = getAllActivities();
-  
-  // Generate a new ID
-  const newId = activities.length > 0 
-    ? Math.max(...activities.map(a => a.id)) + 1 
-    : 1;
+export async function addActivity(activity: Omit<Activity, 'id'>, token?: string): Promise<Activity | null> {
+  try {
+    // Create authentication headers using user data
+    let authHeader = '';
+    if (token) {
+      authHeader = `Bearer ${token}`;
+    }
     
-  const newActivity = { ...activity, id: newId } as Activity;
-  
-  // Add to list and save
-  const updatedActivities = [...activities, newActivity];
-  localStorage.setItem(ACTIVITIES_STORAGE_KEY, JSON.stringify(updatedActivities));
-  
-  return newActivity;
+    const response = await fetch('/api/activities', {
+      method: 'POST',
+      headers: {
+        'Authorization': authHeader,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(activity)
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to add activity: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return data.activity || null;
+  } catch (error) {
+    console.error('Error adding activity:', error);
+    return null;
+  }
 }
 
 /**
@@ -128,38 +165,68 @@ export function addActivity(activity: Omit<Activity, 'id'>): Activity {
  * @param id The ID of the activity to update
  * @param activityData The updated activity data
  */
-export function updateActivity(id: number, activityData: Partial<Activity>): Activity | null {
-  const activities = getAllActivities();
-  const index = activities.findIndex(activity => activity.id === id);
-  
-  if (index === -1) return null;
-  
-  // Update the activity
-  const updatedActivity = { ...activities[index], ...activityData };
-  activities[index] = updatedActivity;
-  
-  // Save the updated list
-  localStorage.setItem(ACTIVITIES_STORAGE_KEY, JSON.stringify(activities));
-  
-  return updatedActivity;
+export async function updateActivity(
+  id: number | string, 
+  activityData: Partial<Activity>, 
+  token?: string
+): Promise<Activity | null> {
+  try {
+    // Create authentication headers using user data
+    let authHeader = '';
+    if (token) {
+      authHeader = `Bearer ${token}`;
+    }
+    
+    const response = await fetch(`/api/activities/${id}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': authHeader,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(activityData)
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to update activity: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return data.activity || null;
+  } catch (error) {
+    console.error('Error updating activity:', error);
+    return null;
+  }
 }
 
 /**
  * Delete an activity
  * @param id The ID of the activity to delete
  */
-export function deleteActivity(id: number): boolean {
-  const activities = getAllActivities();
-  const filteredActivities = activities.filter(activity => activity.id !== id);
-  
-  if (filteredActivities.length === activities.length) {
-    return false; // Activity not found
+export async function deleteActivity(id: number | string, token?: string): Promise<boolean> {
+  try {
+    // Create authentication headers using user data
+    let authHeader = '';
+    if (token) {
+      authHeader = `Bearer ${token}`;
+    }
+    
+    const response = await fetch(`/api/activities/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': authHeader,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to delete activity: ${response.status}`);
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error deleting activity:', error);
+    return false;
   }
-  
-  // Save the updated list
-  localStorage.setItem(ACTIVITIES_STORAGE_KEY, JSON.stringify(filteredActivities));
-  
-  return true;
 }
 
 /**
@@ -168,11 +235,12 @@ export function deleteActivity(id: number): boolean {
  * @param status The new status
  * @param reason Optional reason (required for rejected status)
  */
-export function changeActivityStatus(
-  id: number, 
+export async function changeActivityStatus(
+  id: number | string, 
   status: 'verified' | 'pending' | 'rejected', 
-  reason?: string
-): Activity | null {
+  reason?: string,
+  token?: string
+): Promise<Activity | null> {
   // For rejected status, a reason is required
   if (status === 'rejected' && !reason) {
     throw new Error('A reason is required when rejecting an activity');
@@ -183,7 +251,7 @@ export function changeActivityStatus(
     updateData.rejectionReason = reason;
   }
   
-  return updateActivity(id, updateData);
+  return updateActivity(id, updateData, token);
 }
 
 /**
@@ -191,34 +259,52 @@ export function changeActivityStatus(
  * @param id The ID of the activity
  * @param reflection The reflection text
  */
-export function addReflection(id: number, reflection: string): Activity | null {
+export async function addReflection(
+  id: number | string, 
+  reflection: string,
+  token?: string
+): Promise<Activity | null> {
   return updateActivity(id, { 
     reflection, 
     reflectionCompleted: true 
-  });
+  }, token);
 }
 
 /**
  * Get statistics about activities
  */
-export function getActivityStats() {
-  const activities = getAllActivities();
-  
-  // Count activities by status
-  const verifiedActivities = activities.filter(activity => activity.status === 'verified').length;
-  const pendingActivities = activities.filter(activity => activity.status === 'pending').length;
-  const rejectedActivities = activities.filter(activity => activity.status === 'rejected').length;
-  
-  // Count unique activity types
-  const activityTypes = new Set(activities.map(activity => activity.type)).size;
-  
-  return {
-    totalActivities: activities.length,
-    verifiedActivities,
-    pendingActivities,
-    rejectedActivities,
-    activityTypes
-  };
+export async function getActivityStats(activities?: Activity[]) {
+  try {
+    // If activities are not provided, fetch them
+    if (!activities) {
+      activities = await getAllActivities();
+    }
+    
+    // Count activities by status
+    const verifiedActivities = activities.filter(activity => activity.status === 'verified').length;
+    const pendingActivities = activities.filter(activity => activity.status === 'pending').length;
+    const rejectedActivities = activities.filter(activity => activity.status === 'rejected').length;
+    
+    // Count unique activity types
+    const activityTypes = new Set(activities.map(activity => activity.type)).size;
+    
+    return {
+      totalActivities: activities.length,
+      verifiedActivities,
+      pendingActivities,
+      rejectedActivities,
+      activityTypes
+    };
+  } catch (error) {
+    console.error('Error calculating activity stats:', error);
+    return {
+      totalActivities: 0,
+      verifiedActivities: 0,
+      pendingActivities: 0,
+      rejectedActivities: 0,
+      activityTypes: 0
+    };
+  }
 }
 
 /**
@@ -226,5 +312,5 @@ export function getActivityStats() {
  * Useful for development and testing
  */
 export function resetActivitiesData(): void {
-  localStorage.setItem(ACTIVITIES_STORAGE_KEY, JSON.stringify(activitiesData));
+  // This function is no longer needed as the data is now fetched from the API
 } 
