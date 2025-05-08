@@ -1,23 +1,24 @@
 import { NextResponse } from 'next/server';
-import mysql from 'mysql2/promise';
+import { open } from 'sqlite';
+import sqlite3 from 'sqlite3';
+import path from 'path';
 
 export async function GET() {
   try {
-    const connection = await mysql.createConnection({
-      host: process.env.MYSQL_HOST,
-      user: process.env.MYSQL_USER,
-      password: process.env.MYSQL_PASSWORD,
-      database: process.env.MYSQL_DATABASE,
-    });
-
-    // Test the connection
-    await connection.connect();
+    // Open the database connection
+    const dbPath = path.resolve('./database.sqlite');
+    console.log('Database file exists at:', dbPath);
     
-    // Get all tables in the database
-    const [tables] = await connection.execute('SHOW TABLES');
+    const db = await open({
+      filename: dbPath,
+      driver: sqlite3.Database
+    });
+    
+    // Test the connection by getting a list of tables
+    const tables = await db.all("SELECT name FROM sqlite_master WHERE type='table'");
     
     // Close the connection
-    await connection.end();
+    await db.close();
 
     return NextResponse.json({ 
       status: 'success',

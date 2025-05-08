@@ -3,14 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node server.js",
+    "dev:next": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "node server.js",
     "lint": "next lint",
-    "setup-db": "node scripts/db-setup.js",
-    "setup-messaging": "node scripts/add-messaging-tables.js",
-    "add-data": "node scripts/add-more-sample-data.js",
-    "db-full-setup": "node scripts/db-full-setup.js"
+    "init-db": "node scripts/init-database.js"
   },
   "dependencies": {
     "@ngrok/ngrok": "^1.4.1",

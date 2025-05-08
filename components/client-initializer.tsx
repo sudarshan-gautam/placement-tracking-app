@@ -14,37 +14,45 @@ export function ClientInitializer() {
   const { user, setUser } = useAuth();
   
   useEffect(() => {
+    // First check if storage is available (might be in incognito mode)
+    try {
+      const testKey = 'test_storage_access';
+      localStorage.setItem(testKey, '1');
+      localStorage.removeItem(testKey);
+    } catch (error) {
+      console.log('Storage not accessible - likely in incognito mode');
+      return;
+    }
+    
     // Initialize activities data in localStorage
     initActivitiesData();
     
     // Initialize jobs data in localStorage
     initJobsData();
     
-    // Check if auto-login is disabled
-    const autoLoginDisabled = localStorage.getItem('disable_auto_login') === 'true';
-    
-    // Setup a demo student user ONLY if none exists AND auto-login isn't disabled
-    const storedUser = localStorage.getItem('user');
-    if (!storedUser && !autoLoginDisabled) {
-      console.log('Creating demo user - auto login not disabled');
-      // Use one of our sample user profiles for the demo
-      const demoUser: User = {
-        id: 1, // Emma Wilson - Primary Education student
-        name: 'Emma Wilson',
-        email: 'emma.wilson@student.edu',
-        role: 'student' as UserRole,
-        status: 'active' as UserStatus,
-        profileImage: '/placeholder-profile.jpg'
-      };
-      localStorage.setItem('user', JSON.stringify(demoUser));
-      console.log('Demo student user initialized');
+    // Get current URL path to check context
+    const currentPath = window.location.pathname;
+    const isProtectedRoute = 
+      currentPath.startsWith('/admin') || 
+      currentPath.startsWith('/dashboard') || 
+      currentPath.startsWith('/mentor') ||
+      currentPath.startsWith('/profile');
       
-      // Update auth context
-      if (setUser) {
-        setUser(demoUser);
-      }
-    } else if (autoLoginDisabled) {
-      console.log('Auto-login is disabled - not creating demo user');
+    // Don't continue processing if on a protected route - auth-context will handle it
+    if (isProtectedRoute) {
+      console.log('On protected route - not initializing demo user');
+      return;
+    }
+    
+    // Check if we're on login page (don't initialize demo user here)
+    const isLoginPage = 
+      currentPath === '/' || 
+      currentPath === '/login' || 
+      currentPath.startsWith('/register');
+      
+    if (isLoginPage) {
+      console.log('On login page - not initializing demo user');
+      return;
     }
     
     console.log('Client data initialized');

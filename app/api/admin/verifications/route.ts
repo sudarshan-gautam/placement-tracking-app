@@ -295,7 +295,7 @@ export async function GET() {
           pv.submitted_at as date,
           pv.document_url,
           pv.rejection_reason,
-          u.id as student_id,
+          COALESCE(pv.student_id, pv.user_id) as student_id,
           u.name as student_name,
           u.email as student_email,
           CASE 
@@ -304,7 +304,7 @@ export async function GET() {
             ELSE 'Low'
           END as priority
         FROM profile_verifications pv
-        JOIN users u ON pv.student_id = u.id
+        JOIN users u ON CAST(COALESCE(pv.student_id, pv.user_id) as TEXT) = CAST(u.id as TEXT)
         ORDER BY pv.submitted_at DESC
       `);
       console.log(`Found ${profileVerifications.length} profile verification requests`);

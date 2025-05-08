@@ -25,109 +25,175 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    // Check if the user manually logged out in this browser session
-    // This flag should only persist until the browser is closed or the server is restarted
+    // Get current URL to check access context
+    const currentPath = window.location.pathname;
+    const isProtectedRoute = 
+      currentPath.startsWith('/admin') || 
+      currentPath.startsWith('/dashboard') || 
+      currentPath.startsWith('/mentor') ||
+      currentPath.startsWith('/profile');
+    
+    const isLoginPage = 
+      currentPath === '/' || 
+      currentPath === '/login' || 
+      currentPath.startsWith('/register');
+      
+    // Process all security checks first
+    
+    // Check for incognito mode by testing localStorage access
+    try {
+      const testKey = 'test_storage_access';
+      localStorage.setItem(testKey, '1');
+      localStorage.removeItem(testKey);
+    } catch (error) {
+      console.log('Storage not accessible - likely in incognito mode');
+      setLoading(false);
+      return;
+    }
+    
+    // Check if user manually logged out in this browser session
     const manuallyLoggedOut = sessionStorage.getItem('manually_logged_out') === 'true';
-    
     if (manuallyLoggedOut) {
-      console.log('User manually logged out in this session, skipping automatic login');
+      console.log('User manually logged out in this session, not auto-logging in');
       setLoading(false);
+      
+      // If on a protected route, redirect to login
+      if (isProtectedRoute) {
+        window.location.href = '/login';
+      }
       return;
     }
     
-    // Check if user is stored in localStorage on initial load
+    // Check if this is just a regular page reload for a logged-in user
     const storedUser = localStorage.getItem('user');
+    const isPageReload = performance && performance.navigation && 
+                         performance.navigation.type === 1; // 1 is reload
     
-    // For development: if no user exists and auto-login is not disabled, create a mock admin user
-    if (!storedUser) {
-      console.log('Creating mock admin user for development');
-      const mockAdminUser: User = {
-        id: 1,
-        name: 'Admin User',
-        email: 'admin@example.com',
-        role: 'admin' as UserRole,
-        profileImage: '/placeholder-profile.jpg',
-        status: 'active'
-      };
-      localStorage.setItem('user', JSON.stringify(mockAdminUser));
-      setUser(mockAdminUser);
-      setLoading(false);
-      return;
-    }
-    
-    if (storedUser) {
+    // If we have a stored user and this is just a page reload, don't redirect
+    if (storedUser && isPageReload) {
       try {
+        // Just restore the user data without redirecting
         const userData = JSON.parse(storedUser);
-        
-        // Restore profile image from persistent storage if available
-        if (userData.email) {
-          console.log('Loading user data for:', userData.email, 'role:', userData.role);
-          
-          const persistentProfileData = localStorage.getItem(`persistentProfileData-${userData.email}`);
-          if (persistentProfileData) {
-            try {
-              const profileData = JSON.parse(persistentProfileData);
-              console.log('Found persistent profile data:', profileData.name);
-              if (profileData && profileData.profileImage) {
-                console.log('Restoring profile image from persistent data');
-                userData.profileImage = profileData.profileImage;
-              }
-            } catch (error) {
-              console.error('Error parsing persistent profile data:', error);
-            }
-          }
-          
-          // If still no profile image, check profileData directly
-          if (!userData.profileImage) {
-            const profileData = localStorage.getItem(`profileData-${userData.email}`);
-            if (profileData) {
-              try {
-                const parsedData = JSON.parse(profileData);
-                if (parsedData && parsedData.profileImage) {
-                  userData.profileImage = parsedData.profileImage;
-                }
-              } catch (error) {
-                console.error('Error parsing profile data:', error);
-              }
-            }
-          }
-          
-          // If still no profile image after all checks, set a default one
-          if (!userData.profileImage) {
-            userData.profileImage = '/placeholder-profile.jpg';
-          }
-          
-          // Restore verification status
-          const persistentVerificationStatus = localStorage.getItem(`persistentVerificationStatus-${userData.email}`);
-          if (persistentVerificationStatus) {
-            localStorage.setItem(`verificationStatus-${userData.email}`, persistentVerificationStatus);
-          } else if (userData.role === 'admin') {
-            // Ensure admin users are always verified
-            localStorage.setItem(`verificationStatus-${userData.email}`, 'verified');
-          }
-        }
-        
-        // Update the user in localStorage with possibly updated profile image
-        localStorage.setItem('user', JSON.stringify(userData));
-        
         setUser(userData);
-        
-        // Check current path to avoid unnecessary redirects
-        const currentPath = window.location.pathname;
-        
-        // Redirect based on user role if not on the correct dashboard already
-        if (userData.role === 'admin' && !currentPath.startsWith('/admin')) {
-          router.push('/admin');
-        } else if (userData.role === 'mentor' && !currentPath.startsWith('/mentor')) {
-          router.push('/mentor');
-        } else if (userData.role === 'student' && currentPath === '/') {
-          router.push('/dashboard');
-        }
+        setLoading(false);
+        return;
       } catch (error) {
-        console.error('Failed to parse stored user:', error);
-        localStorage.removeItem('user');
+        console.error('Error parsing stored user data on reload:', error);
+        // Continue with normal flow if parse fails
       }
     }
+    
+    // Check if server was restarted (security measure)
+    const serverRestarted = localStorage.getItem('server_restarted') === 'true';
+    if (serverRestarted && isProtectedRoute && !storedUser) {
+      console.log('Server restarted and protected route detected - enforcing login');
+      localStorage.removeItem('server_restarted'); // Clear the flag after check
+      setLoading(false);
+      window.location.href = '/login?redirect=' + encodeURIComponent(currentPath);
+      return;
+    } else if (serverRestarted) {
+      // Clear flag if not on protected route
+      localStorage.removeItem('server_restarted');
+    }
+    
+    // Check if direct access to protected route requires login
+    const requireLogin = localStorage.getItem('require_login') === 'true' || 
+                         sessionStorage.getItem('require_login') === 'true';
+    if (requireLogin && isProtectedRoute && !storedUser) {
+      console.log('Direct access to protected route - enforcing login');
+      localStorage.removeItem('require_login');
+      sessionStorage.removeItem('require_login');
+      setLoading(false);
+      window.location.href = '/login?redirect=' + encodeURIComponent(currentPath);
+      return;
+    } else if (requireLogin) {
+      // Clear the flags if we have a stored user
+      localStorage.removeItem('require_login');
+      sessionStorage.removeItem('require_login');
+    }
+    
+    // If we've passed all security checks and on a login page, just return
+    // to avoid automatically redirecting away from login
+    if (isLoginPage) {
+      setLoading(false);
+      return;
+    }
+    
+    // Now process normal login state
+    
+    if (!storedUser) {
+      // No stored user and not on login page - redirect to login if on protected route
+      if (isProtectedRoute) {
+        console.log('No stored user on protected route - redirecting to login');
+        window.location.href = '/login?redirect=' + encodeURIComponent(currentPath);
+      } else {
+        console.log('No stored user, but not on protected route');
+      }
+      setLoading(false);
+      return;
+    }
+    
+    try {
+      // Parse and restore user data
+      const userData = JSON.parse(storedUser);
+      
+      // Restore profile image from persistent storage if available
+      if (userData.email) {
+        console.log('Loading user data for:', userData.email, 'role:', userData.role);
+        
+        const persistentProfileData = localStorage.getItem(`persistentProfileData-${userData.email}`);
+        if (persistentProfileData) {
+          try {
+            const profileData = JSON.parse(persistentProfileData);
+            console.log('Found persistent profile data:', profileData.name);
+            if (profileData && profileData.profileImage) {
+              console.log('Restoring profile image from persistent data');
+              userData.profileImage = profileData.profileImage;
+            }
+          } catch (error) {
+            console.error('Error parsing persistent profile data:', error);
+          }
+        }
+        
+        // If still no profile image, set default
+        if (!userData.profileImage) {
+          userData.profileImage = '/placeholder-profile.jpg';
+        }
+      }
+      
+      // Update the user data
+      setUser(userData);
+      
+      // Maintain persistence
+      localStorage.setItem('user', JSON.stringify(userData));
+      
+      // Only handle role-based redirects for initial access, not for reloads
+      const isFirstAccess = !isPageReload;
+      
+      if (isFirstAccess) {
+        const shouldRedirect = !currentPath.includes(userData.role.toLowerCase());
+        
+        if (shouldRedirect) {
+          if (userData.role === 'admin' && !currentPath.startsWith('/admin')) {
+            router.push('/admin');
+          } else if (userData.role === 'mentor' && !currentPath.startsWith('/mentor')) {
+            router.push('/mentor');
+          } else if (userData.role === 'student' && currentPath === '/') {
+            router.push('/dashboard');
+          }
+        }
+      }
+      
+    } catch (error) {
+      console.error('Failed to parse stored user:', error);
+      localStorage.removeItem('user');
+      
+      // Redirect to login if on protected route
+      if (isProtectedRoute) {
+        window.location.href = '/login';
+      }
+    }
+    
     setLoading(false);
   }, [router]);
 
@@ -314,12 +380,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('original_user');
     localStorage.removeItem('is_temporary_user');
     
-    // Set a flag to prevent auto-login in sessionStorage (will be cleared when browser is closed or server restarts)
+    // Set a flag to prevent auto-login for this session
     sessionStorage.setItem('manually_logged_out', 'true');
+    localStorage.setItem('manually_logged_out', 'true');
     
     // Clear any active sessions
     document.cookie = "next-auth.session-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
     document.cookie = "next-auth.csrf-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    
+    console.log('User logged out successfully');
     
     // Force redirect to home page to ensure a complete reset
     window.location.href = '/';
@@ -327,6 +396,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const enableAutoLogin = () => {
     sessionStorage.removeItem('manually_logged_out');
+    localStorage.removeItem('manually_logged_out');
     console.log('Auto-login has been re-enabled');
   };
 
