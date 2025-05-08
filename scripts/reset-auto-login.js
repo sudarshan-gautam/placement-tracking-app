@@ -9,14 +9,14 @@ function resetAutoLogin() {
   localStorage.removeItem('original_user');
   localStorage.removeItem('is_temporary_user');
   
-  // Set the flag to disable auto-login
-  localStorage.setItem('disable_auto_login', 'true');
+  // Set the flag to disable auto-login in sessionStorage (will be cleared when browser is closed)
+  sessionStorage.setItem('manually_logged_out', 'true');
   
   // Clear any session cookies
   document.cookie = "next-auth.session-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
   document.cookie = "next-auth.csrf-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
   
-  console.log('Auto-login has been disabled successfully');
+  console.log('Auto-login has been disabled for this session');
   console.log('You may need to refresh the page for changes to take effect');
 }
 

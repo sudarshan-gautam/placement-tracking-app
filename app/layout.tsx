@@ -7,6 +7,7 @@ import { BottomNav } from '@/components/ui/bottom-nav'
 import { AuthProvider } from '@/lib/auth-context'
 import { Toaster } from "@/components/ui/toaster"
 import { ClientInitializer } from '@/components/client-initializer'
+import Script from 'next/script'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -22,6 +23,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        {/* This script clears sessionStorage when the server restarts */}
+        <Script src="/clear-session.js" strategy="beforeInteractive" />
+      </head>
       <body className={inter.className}>
         <AuthProvider>
           <ClientInitializer />

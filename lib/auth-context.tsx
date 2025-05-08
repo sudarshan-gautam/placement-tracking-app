@@ -25,11 +25,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    // Check if auto-login is disabled
-    const autoLoginDisabled = localStorage.getItem('disable_auto_login') === 'true';
+    // Check if the user manually logged out in this browser session
+    // This flag should only persist until the browser is closed or the server is restarted
+    const manuallyLoggedOut = sessionStorage.getItem('manually_logged_out') === 'true';
     
-    if (autoLoginDisabled) {
-      console.log('Auto-login is disabled, skipping automatic login');
+    if (manuallyLoggedOut) {
+      console.log('User manually logged out in this session, skipping automatic login');
       setLoading(false);
       return;
     }
@@ -313,8 +314,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('original_user');
     localStorage.removeItem('is_temporary_user');
     
-    // Set a flag to prevent auto-login in localStorage so it persists
-    localStorage.setItem('disable_auto_login', 'true');
+    // Set a flag to prevent auto-login in sessionStorage (will be cleared when browser is closed or server restarts)
+    sessionStorage.setItem('manually_logged_out', 'true');
     
     // Clear any active sessions
     document.cookie = "next-auth.session-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
@@ -325,7 +326,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const enableAutoLogin = () => {
-    localStorage.removeItem('disable_auto_login');
+    sessionStorage.removeItem('manually_logged_out');
     console.log('Auto-login has been re-enabled');
   };
 
