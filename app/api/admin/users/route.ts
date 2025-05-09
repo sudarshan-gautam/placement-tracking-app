@@ -28,7 +28,7 @@ export async function GET() {
       driver: sqlite3.Database
     });
 
-    // Get all users from the database
+    // Get all users from the database with complete information
     try {
       const users = await db.all(`
         SELECT 
@@ -39,7 +39,7 @@ export async function GET() {
           created_at,
           updated_at
         FROM users
-        ORDER BY name
+        ORDER BY created_at DESC
       `);
 
       // Format users to match expected structure
@@ -48,8 +48,9 @@ export async function GET() {
         name: user.name,
         email: user.email,
         role: user.role,
-        status: 'active',
-        joined: user.created_at
+        status: 'active', // Hardcoded for now, could be stored in DB in future
+        created_at: user.created_at,
+        updated_at: user.updated_at
       }));
 
       return NextResponse.json(formattedUsers);
@@ -69,10 +70,41 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const data = await request.json();
-    const { name, email, password, role } = data;
+    const { name, email, password, role, status = 'active' } = data;
 
-    if (!name || !email || !password || !role) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    // Validate required fields
+    if (!name || !email || !role) {
+      return NextResponse.json({ 
+        error: 'Missing required fields',
+        details: 'Name, email, and role are required' 
+      }, { status: 400 });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return NextResponse.json({ 
+        error: 'Invalid email format',
+        details: 'Please provide a valid email address'
+      }, { status: 400 });
+    }
+
+    // Validate role
+    const validRoles = ['admin', 'mentor', 'student'];
+    if (!validRoles.includes(role)) {
+      return NextResponse.json({ 
+        error: 'Invalid role',
+        details: `Role must be one of: ${validRoles.join(', ')}`
+      }, { status: 400 });
+    }
+
+    // Validate status if provided
+    const validStatuses = ['active', 'pending', 'inactive'];
+    if (status && !validStatuses.includes(status)) {
+      return NextResponse.json({ 
+        error: 'Invalid status',
+        details: `Status must be one of: ${validStatuses.join(', ')}`
+      }, { status: 400 });
     }
 
     // Open the database
@@ -84,29 +116,45 @@ export async function POST(request: Request) {
     // Check if user already exists
     const existingUser = await db.get('SELECT * FROM users WHERE email = ?', [email]);
     if (existingUser) {
-      return NextResponse.json({ error: 'User with this email already exists' }, { status: 409 });
+      return NextResponse.json({ 
+        error: 'User with this email already exists',
+        details: 'Please use a different email address'
+      }, { status: 409 });
     }
 
     // Use password directly instead of hashing
-    const plainPassword = password;
+    // In a production app, you should hash passwords
+    const userPassword = password || 'password123'; // Default password if not provided
 
-    // Generate a random ID
+    // Generate a unique ID (use UUID in production)
     const id = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    const timestamp = new Date().toISOString();
 
     // Insert the new user
     await db.run(
-      'INSERT INTO users (id, name, email, password, role, created_at, updated_at) VALUES (?, ?, ?, ?, ?, datetime("now"), datetime("now"))',
-      [id, name, email, plainPassword, role]
+      'INSERT INTO users (id, name, email, password, role, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [id, name, email, userPassword, role, timestamp, timestamp]
     );
 
     return NextResponse.json({ 
       success: true, 
       message: 'User created successfully',
-      user: { id, name, email, role }
+      user: { 
+        id, 
+        name, 
+        email, 
+        role,
+        status,
+        created_at: timestamp,
+        updated_at: timestamp
+      }
     }, { status: 201 });
   } catch (error) {
     console.error('Error creating user:', error);
-    return NextResponse.json({ error: 'Failed to create user' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Failed to create user',
+      details: error instanceof Error ? error.message : 'Unknown error occurred'
+    }, { status: 500 });
   }
 }
 

@@ -789,27 +789,235 @@ export default function AdminUsersPage() {
 
   // Handle import confirm
   const handleImportConfirm = () => {
-    if (importFile) {
-      // In a real application, this would process the file and import users
-      // For demo purposes, we'll just add a sample user and show a success message
-      const newUserId = (Math.max(...users.map(u => parseInt(u.id))) + 1).toString();
-      const newUser: User = {
-        id: newUserId,
-        name: 'Imported User',
-        email: `imported${newUserId}@example.com`,
-        role: 'student',
-        status: 'active',
-        created_at: new Date().toISOString().split('T')[0],
-        updated_at: new Date().toISOString().split('T')[0],
-        completedActivities: 0,
-        verifiedActivities: 0
-      };
-      
-      setUsers([...users, newUser]);
-      showToast(`Successfully imported users from ${importFile.name}`, 'success');
-      setShowImportModal(false);
+    if (!importFile) {
+      toast({
+        title: 'Error',
+        description: 'Please select a file to import',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const reader = new FileReader();
+    
+    reader.onload = async (e) => {
+      try {
+        const fileContent = e.target?.result;
+        if (!fileContent) {
+          throw new Error('Failed to read file content');
+        }
+
+        let importedUsers = [];
+        const fileExt = importFile.name.split('.').pop()?.toLowerCase();
+        
+        // Parse CSV
+        if (fileExt === 'csv') {
+          const lines = (fileContent as string).split('\n');
+          const headers = lines[0].split(',').map(h => h.trim());
+          
+          // Validate headers
+          const requiredHeaders = ['name', 'email', 'role'];
+          const missingHeaders = requiredHeaders.filter(h => !headers.map(header => header.toLowerCase()).includes(h));
+          
+          if (missingHeaders.length > 0) {
+            throw new Error(`CSV is missing required headers: ${missingHeaders.join(', ')}`);
+          }
+          
+          // Map indexes for required fields
+          const nameIndex = headers.findIndex(h => h.toLowerCase() === 'name');
+          const emailIndex = headers.findIndex(h => h.toLowerCase() === 'email');
+          const roleIndex = headers.findIndex(h => h.toLowerCase() === 'role');
+          const statusIndex = headers.findIndex(h => h.toLowerCase() === 'status');
+          
+          // Parse CSV data
+          for (let i = 1; i < lines.length; i++) {
+            if (!lines[i].trim()) continue; // Skip empty lines
+            
+            const values = lines[i].split(',').map(v => v.trim());
+            if (values.length < headers.length) continue; // Skip malformed lines
+            
+            const name = values[nameIndex];
+            const email = values[emailIndex];
+            const role = values[roleIndex]?.toLowerCase();
+            const status = statusIndex >= 0 ? values[statusIndex]?.toLowerCase() : 'active';
+            
+            // Validate data
+            if (!name || !email) {
+              console.warn(`Skipping line ${i+1}: Missing name or email`);
+              continue;
+            }
+            
+            if (!['admin', 'mentor', 'student'].includes(role)) {
+              console.warn(`Skipping line ${i+1}: Invalid role "${role}". Must be admin, mentor, or student.`);
+              continue;
+            }
+            
+            if (status && !['active', 'pending', 'inactive'].includes(status)) {
+              console.warn(`Skipping line ${i+1}: Invalid status "${status}". Defaulting to "active".`);
+            }
+            
+            // Validate email format
+            if (!/\S+@\S+\.\S+/.test(email)) {
+              console.warn(`Skipping line ${i+1}: Invalid email format "${email}"`);
+              continue;
+            }
+            
+            importedUsers.push({
+              name,
+              email,
+              role,
+              status: ['active', 'pending', 'inactive'].includes(status) ? status : 'active',
+              password: 'password123' // Default password
+            });
+          }
+        }
+        // Parse JSON
+        else if (fileExt === 'json') {
+          const jsonData = JSON.parse(fileContent as string);
+          
+          if (!Array.isArray(jsonData)) {
+            throw new Error('JSON file must contain an array of user objects');
+          }
+          
+          // Validate and process JSON data
+          importedUsers = jsonData.filter(user => {
+            // Validate required fields
+            if (!user.name || !user.email) {
+              console.warn(`Skipping user: Missing name or email`, user);
+              return false;
+            }
+            
+            // Validate role
+            if (!user.role || !['admin', 'mentor', 'student'].includes(user.role.toLowerCase())) {
+              console.warn(`Skipping user: Invalid role "${user.role}". Must be admin, mentor, or student.`, user);
+              return false;
+            }
+            
+            // Validate email format
+            if (!/\S+@\S+\.\S+/.test(user.email)) {
+              console.warn(`Skipping user: Invalid email format "${user.email}"`, user);
+              return false;
+            }
+            
+            // Format and normalize data
+            user.role = user.role.toLowerCase();
+            user.status = user.status && ['active', 'pending', 'inactive'].includes(user.status.toLowerCase()) 
+              ? user.status.toLowerCase() 
+              : 'active';
+            user.password = user.password || 'password123';
+            
+            return true;
+          });
+        } 
+        // Parse Excel (XLSX)
+        else if (fileExt === 'xlsx' || fileExt === 'xls') {
+          toast({
+            title: 'Error',
+            description: 'Excel import is not implemented yet. Please use CSV or JSON format.',
+            variant: 'destructive',
+          });
+          return;
+        }
+        else {
+          throw new Error('Unsupported file format. Please use CSV or JSON.');
+        }
+        
+        if (importedUsers.length === 0) {
+          throw new Error('No valid users found in the import file');
+        }
+        
+        // Validate for duplicate emails in the import file
+        const uniqueEmails = new Set<string>();
+        const duplicateEmails: string[] = [];
+        
+        importedUsers = importedUsers.filter(user => {
+          if (uniqueEmails.has(user.email.toLowerCase())) {
+            duplicateEmails.push(user.email);
+            return false;
+          }
+          uniqueEmails.add(user.email.toLowerCase());
+          return true;
+        });
+        
+        if (duplicateEmails.length > 0) {
+          console.warn(`Removed ${duplicateEmails.length} duplicate email(s) from import:`, duplicateEmails);
+        }
+        
+        // Create users
+        let createdCount = 0;
+        let errorCount = 0;
+        
+        for (const userData of importedUsers) {
+          try {
+            const response = await fetch('/api/admin/users', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(userData),
+            });
+            
+            if (response.ok) {
+              createdCount++;
+            } else {
+              const error = await response.json();
+              console.error(`Failed to create user ${userData.email}:`, error);
+              errorCount++;
+            }
+          } catch (error) {
+            console.error(`Failed to create user ${userData.email}:`, error);
+            errorCount++;
+          }
+        }
+        
+        setShowImportModal(false);
+        setImportFile(null);
+        
+        // Refresh user list
+        const response = await fetch('/api/admin/users');
+        const data = await response.json();
+        setUsers(Array.isArray(data) ? data : []);
+        
+        toast({
+          title: 'Import Complete',
+          description: `Created ${createdCount} users. ${errorCount} errors.`,
+          variant: errorCount > 0 ? 'destructive' : 'default',
+        });
+        
+      } catch (error) {
+        console.error('Import error:', error);
+        toast({
+          title: 'Import Failed',
+          description: error instanceof Error ? error.message : 'Failed to import users',
+          variant: 'destructive',
+        });
+      }
+    };
+    
+    reader.onerror = () => {
+      toast({
+        title: 'Error',
+        description: 'Failed to read file',
+        variant: 'destructive',
+      });
+    };
+    
+    const fileExt = importFile.name.split('.').pop()?.toLowerCase();
+
+    if (fileExt === 'csv' || fileExt === 'json') {
+      reader.readAsText(importFile);
+    } else if (fileExt === 'xlsx' || fileExt === 'xls') {
+      toast({
+        title: 'Error',
+        description: 'Excel import is not implemented yet. Please use CSV or JSON format.',
+        variant: 'destructive',
+      });
     } else {
-      showToast('Please select a file to import', 'error');
+      toast({
+        title: 'Error',
+        description: 'Unsupported file format. Please use CSV or JSON.',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -1147,181 +1355,155 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 bg-white">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+    <div className="container mx-auto py-10 px-4 sm:px-6 lg:px-8">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold mb-2">User Management</h1>
-          <p className="text-gray-600 text-sm">Manage all users, their roles, and account status.</p>
+          <h1 className="text-2xl font-bold text-gray-900">Manage Users</h1>
+          <p className="mt-1 text-sm text-gray-500">
+            Add, edit, and manage users in the system. Assign mentors to students.
+          </p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-3 mt-4 md:mt-0">
-          <button 
-            className="flex items-center justify-center bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+        <div className="mt-4 md:mt-0 flex space-x-3">
+          <Button 
+            variant="secondary"
+            className="flex items-center"
+            onClick={() => setShowExportModal(true)}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Export
+          </Button>
+          <Button 
+            onClick={() => setShowImportModal(true)}
+            className="flex items-center"
+            variant="secondary"
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            Import
+          </Button>
+          <Button 
             onClick={handleOpenAddModal}
+            className="flex items-center"
+            variant="default"
           >
             <UserPlus className="h-4 w-4 mr-2" />
             Add User
-          </button>
-          <button 
-            className="flex items-center justify-center bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-md text-sm font-medium"
-            onClick={() => setShowTutorial(!showTutorial)}
-          >
-            <HelpCircle className="h-4 w-4 mr-2" />
-            {showTutorial ? 'Hide Help' : 'Show Help'}
-          </button>
+          </Button>
         </div>
       </div>
 
-      {/* Tutorial/Help Section - Improved visual clarity */}
-      {showTutorial && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 shadow-sm">
-          <div className="flex items-start">
-            <Info className="h-5 w-5 text-blue-600 mr-3 mt-0.5" />
-            <div>
-              <h3 className="font-medium text-blue-800 mb-2">Quick Guide to User Management</h3>
-              <ul className="list-disc pl-5 text-sm text-blue-700 space-y-1.5">
-                <li><span className="font-medium">Search</span>: Find users by name or email</li>
-                <li><span className="font-medium">Filters</span>: Narrow down results by role or account status</li>
-                <li><span className="font-medium">Checkboxes</span>: Select multiple users for bulk actions like activation/deactivation</li>
-                <li><span className="font-medium">Edit</span>: Modify user details or permissions</li>
-                <li><span className="font-medium">Icons</span>: 
-                  <span className="inline-flex items-center ml-1 px-1.5 py-0.5 rounded bg-red-50 border border-red-200">
-                    <Shield className="h-3 w-3 text-red-600 inline" /> Admin
-                  </span>,
-                  <span className="inline-flex items-center ml-1 px-1.5 py-0.5 rounded bg-blue-50 border border-blue-200">
-                    <Briefcase className="h-3 w-3 text-blue-600 inline" /> Mentor
-                  </span>,
-                  <span className="inline-flex items-center ml-1 px-1.5 py-0.5 rounded bg-green-50 border border-green-200">
-                    <GraduationCap className="h-3 w-3 text-green-600 inline" /> Student
-                  </span>
-                </li>
-              </ul>
-              <button 
-                className="text-blue-700 text-sm font-medium mt-3 hover:underline"
-                onClick={() => setShowTutorial(false)}
-              >
-                Dismiss
-              </button>
-            </div>
+      {/* Import guidance panel */}
+      <div className="mb-6 bg-blue-50 border border-blue-200 rounded-md p-4">
+        <div className="flex">
+          <Info className="h-5 w-5 text-blue-500 mr-3 flex-shrink-0" />
+          <div>
+            <h3 className="text-sm font-medium text-blue-800">Import Users Guide</h3>
+            <p className="mt-1 text-sm text-blue-600">
+              You can import users via CSV, Excel, or JSON files. Files should include columns for name, email, role (admin/mentor/student), and status (active/pending/inactive).
+              <br />
+              <span className="font-medium">Format example:</span> 
+              <code className="bg-blue-100 px-1 py-0.5 rounded text-xs">name,email,role,status</code>
+            </p>
           </div>
         </div>
-      )}
+      </div>
 
-      {/* Bulk Actions Bar - Improved contrast */}
-      {selectedUsers.length > 0 && (
-        <div className="bg-white border border-gray-200 rounded-lg p-3 mb-6 flex flex-wrap items-center gap-3 shadow-sm">
-          <span className="text-sm font-medium flex items-center">
-            <CheckCircle className="h-4 w-4 text-green-500 mr-1.5" />
-            {selectedUsers.length} users selected
-          </span>
-          <div className="flex-grow"></div>
-          <button 
-            className="flex items-center justify-center bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium"
-            onClick={() => handleBulkAction('activate')}
-          >
-            <CheckCircle className="h-4 w-4 mr-2" />
-            Activate
-          </button>
-          <button 
-            className="flex items-center justify-center bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-md text-sm font-medium"
-            onClick={() => handleBulkAction('deactivate')}
-          >
-            <XCircle className="h-4 w-4 mr-2" />
-            Deactivate
-          </button>
-          <button 
-            className="flex items-center justify-center bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium"
-            onClick={() => handleBulkAction('delete')}
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Delete
-          </button>
+      {/* Search and filters panel */}
+      <div className="bg-white shadow rounded-lg overflow-hidden mb-8">
+        <div className="p-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0">
+            <div className="relative rounded-md shadow-sm w-full sm:w-96">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-5 w-5 text-gray-400" />
+              </div>
+              <Input
+                type="text"
+                placeholder="Search users by name, email, or role..."
+                className="pl-10 pr-10"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  onClick={() => setSearchQuery('')}
+                >
+                  <X className="h-4 w-4 text-gray-400 hover:text-gray-500" />
+                </button>
+              )}
+            </div>
+            <div className="flex items-center space-x-2 w-full sm:w-auto">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowFilters(!showFilters)}
+                className="flex items-center"
+              >
+                <Filter className="h-4 w-4 mr-2" />
+                Filters
+                <ChevronDown className={`h-4 w-4 ml-1 transform ${showFilters ? 'rotate-180' : ''}`} />
+              </Button>
+              
+              {selectedUsers.length > 0 && (
+                <div className="flex items-center space-x-2 ml-2">
+                  <span className="text-sm text-gray-500">{selectedUsers.length} selected</span>
+                  <Button 
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => handleBulkAction('delete')}
+                    className="flex items-center"
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    Delete
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Filters */}
+          {showFilters && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-3 border-t border-gray-200 bg-white">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                <select
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  value={roleFilter}
+                  onChange={(e) => setRoleFilter(e.target.value)}
+                >
+                  <option value="all">All Roles</option>
+                  <option value="admin">Admin</option>
+                  <option value="mentor">Mentor</option>
+                  <option value="student">Student</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <select
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                >
+                  <option value="all">All Statuses</option>
+                  <option value="active">Active</option>
+                  <option value="pending">Pending</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
+              <div className="flex items-end">
+                <button 
+                  className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-md text-gray-700"
+                  onClick={() => {
+                    setRoleFilter('all');
+                    setStatusFilter('all');
+                  }}
+                >
+                  Clear Filters
+                </button>
+              </div>
+            </div>
+          )}
         </div>
-      )}
-
-      {/* Search and filters */}
-      <div className="bg-white rounded-lg shadow-sm p-4 mb-6 border border-gray-200">
-        <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
-          <div className="relative flex-grow">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
-            <Input
-              type="search"
-              placeholder="Search users by name or email..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          <div className="flex gap-2">
-            <button
-              className="flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-100 text-gray-700"
-              onClick={() => setShowFilters(!showFilters)}
-            >
-              <Filter className="h-4 w-4 mr-2" />
-              Filters
-              <ChevronDown className="h-4 w-4 ml-1" />
-            </button>
-            <button
-              className="flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-100 text-gray-700"
-              onClick={handleExport}
-              title="Export user data as CSV"
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Export
-            </button>
-            <button
-              className="flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-100 text-gray-700"
-              onClick={handleImport}
-              title="Import users from CSV file"
-            >
-              <Upload className="h-4 w-4 mr-2" />
-              Import
-            </button>
-          </div>
-        </div>
-
-        {/* Filters */}
-        {showFilters && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-3 border-t border-gray-200 bg-white">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-              <select
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value)}
-              >
-                <option value="all">All Roles</option>
-                <option value="admin">Admin</option>
-                <option value="mentor">Mentor</option>
-                <option value="student">Student</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-              <select
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-              >
-                <option value="all">All Statuses</option>
-                <option value="active">Active</option>
-                <option value="pending">Pending</option>
-                <option value="inactive">Inactive</option>
-              </select>
-            </div>
-            <div className="flex items-end">
-              <button 
-                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-md text-gray-700"
-                onClick={() => {
-                  setRoleFilter('all');
-                  setStatusFilter('all');
-                }}
-              >
-                Clear Filters
-              </button>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Users Table - Enhanced for better clarity */}
@@ -1350,16 +1532,7 @@ export default function AdminUsersPage() {
                       Status
                     </th>
                     <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                      Details
-                    </th>
-                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
                       Assignment
-                    </th>
-                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                      Joined
-                    </th>
-                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                      Last Updated
                     </th>
                     <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
                       <span className="sr-only">Actions</span>
@@ -1400,26 +1573,45 @@ export default function AdminUsersPage() {
                         {getStatusIndicator(user.status)}
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        {getRoleSpecificDetails(user)}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                         {user.role === 'mentor' ? (
                           <div className="flex items-center">
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                               {getStudentCountForMentor(user.id)} students
                             </span>
+                            <button
+                              onClick={() => handleOpenAssignmentModal(user)}
+                              className="ml-2 text-blue-600 hover:text-blue-800 text-xs font-medium"
+                            >
+                              Manage
+                            </button>
                           </div>
                         ) : user.role === 'student' ? (
                           <div>
                             {(() => {
                               const mentorName = getMentorNameForStudent(user.id);
                               return mentorName ? (
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                  <GraduationCap className="h-3 w-3 mr-1" />
-                                  {mentorName}
-                                </span>
+                                <div className="flex items-center">
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    <GraduationCap className="h-3 w-3 mr-1" />
+                                    {mentorName}
+                                  </span>
+                                  <button
+                                    onClick={() => handleOpenUnassignModal(user)}
+                                    className="ml-2 text-blue-600 hover:text-blue-800 text-xs font-medium"
+                                  >
+                                    Change
+                                  </button>
+                                </div>
                               ) : (
-                                <span className="text-gray-400 text-xs">No mentor assigned</span>
+                                <div className="flex items-center">
+                                  <span className="text-gray-400 text-xs">No mentor assigned</span>
+                                  <button
+                                    onClick={() => handleOpenMentorAssignmentModal(user)}
+                                    className="ml-2 text-blue-600 hover:text-blue-800 text-xs font-medium"
+                                  >
+                                    Assign
+                                  </button>
+                                </div>
                               );
                             })()}
                           </div>
@@ -1427,61 +1619,63 @@ export default function AdminUsersPage() {
                           <span className="text-gray-400 text-xs">N/A</span>
                         )}
                       </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        {formatDate(user.created_at)}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        {formatDate(user.updated_at)}
-                      </td>
                       <td className="whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                         <div className="flex space-x-2 justify-end">
                           <button
                             onClick={() => handleViewAsUser(user)}
-                            className="text-blue-600 hover:text-blue-800"
-                            title={`View as ${user.name}`}
+                            className="text-blue-600 hover:text-blue-900"
+                            title="View as this user"
                           >
-                            <Eye className="h-5 w-5" />
+                            <Eye className="h-4 w-4" />
                           </button>
-                          {user.role === 'mentor' && (
-                            <button
-                              onClick={() => handleOpenAssignmentModal(user)}
-                              className="text-blue-600 hover:text-blue-800"
-                              title="Manage assigned students"
-                            >
-                              <Users className="h-5 w-5" />
-                            </button>
-                          )}
-                          {user.role === 'student' && (
-                            <button
-                              onClick={() => handleOpenMentorAssignmentModal(user)}
-                              className="text-blue-600 hover:text-blue-800"
-                              title="Assign a mentor"
-                            >
-                              <GraduationCap className="h-5 w-5" />
-                            </button>
-                          )}
                           <button
-                            type="button"
-                            className="text-blue-600 hover:text-blue-800"
                             onClick={() => handleEditUser(user)}
+                            className="text-blue-600 hover:text-blue-900"
                             title="Edit user"
                           >
-                            <Edit className="h-5 w-5" />
+                            <Edit className="h-4 w-4" />
                           </button>
                           <button
-                            type="button"
-                            className="text-red-600 hover:text-red-800"
                             onClick={() => handleDeleteUser(user)}
+                            className="text-red-600 hover:text-red-900"
                             title="Delete user"
                           >
-                            <Trash2 className="h-5 w-5" />
+                            <Trash2 className="h-4 w-4" />
                           </button>
                         </div>
                       </td>
                     </tr>
                   ))}
+                  
+                  {filteredUsers.length === 0 && !loading && (
+                    <tr>
+                      <td colSpan={7} className="px-6 py-10 text-center text-gray-500">
+                        {searchQuery ? (
+                          <div>
+                            <p className="text-gray-600 mb-2">No users match your search criteria</p>
+                            <Button variant="outline" size="sm" onClick={() => setSearchQuery('')}>
+                              Clear Search
+                            </Button>
+                          </div>
+                        ) : (
+                          <div>
+                            <p className="text-gray-600 mb-2">No users found</p>
+                            <Button variant="outline" size="sm" onClick={handleOpenAddModal}>
+                              Add User
+                            </Button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
+              
+              {loading && (
+                <div className="p-8 flex justify-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1879,87 +2073,82 @@ export default function AdminUsersPage() {
       {/* Import Modal */}
       {showImportModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-2xl">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold text-gray-900">Import Users</h3>
-              <button 
-                onClick={handleImportCancel}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
+          <div className="bg-white rounded-lg w-full max-w-2xl p-6 shadow-xl">
+            <h3 className="text-lg font-medium mb-4">Import Users</h3>
             
-            <div className="space-y-4 mb-6">
-              <p className="text-sm text-gray-600">
-                Upload a CSV or Excel file containing user data. The file should have columns for name, email, role, and status.
-              </p>
+            <div className="mb-6 bg-blue-50 rounded-md p-4 text-sm">
+              <h4 className="font-medium text-blue-800 mb-2">File Format Requirements:</h4>
+              <ul className="list-disc pl-5 text-blue-700 space-y-1">
+                <li><span className="font-medium">Supported formats:</span> CSV, JSON</li>
+                <li><span className="font-medium">Required fields:</span> name, email, role</li>
+                <li><span className="font-medium">Optional fields:</span> status</li>
+                <li><span className="font-medium">Valid roles:</span> admin, mentor, student</li>
+                <li><span className="font-medium">Valid statuses:</span> active, pending, inactive</li>
+              </ul>
               
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                {importFile ? (
-                  <div className="space-y-2">
-                    <CheckCircle className="mx-auto h-8 w-8 text-green-500" />
-                    <p className="text-sm font-medium">{importFile.name}</p>
-                    <p className="text-xs text-gray-500">
-                      {(importFile.size / 1024).toFixed(2)} KB
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => setImportFile(null)}
-                      className="text-sm text-red-600 hover:text-red-800"
-                    >
-                      Remove file
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <Upload className="mx-auto h-8 w-8 text-gray-400" />
-                    <p className="text-sm font-medium text-gray-700">
-                      Drag and drop your file here, or click to browse
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      Supported formats: CSV, Excel (.xlsx)
-                    </p>
-                    <input
-                      type="file"
-                      id="file-upload"
-                      className="hidden"
-                      accept=".csv,.xlsx,.xls"
-                      onChange={handleFileChange}
-                    />
-                    <label
-                      htmlFor="file-upload"
-                      className="inline-block px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium cursor-pointer"
-                    >
-                      Select File
-                    </label>
-                  </div>
-                )}
+              <div className="mt-3 bg-white rounded p-3 border border-blue-200">
+                <p className="font-medium text-blue-800 mb-1">CSV Example:</p>
+                <code className="text-xs bg-gray-100 p-2 rounded block overflow-x-auto">
+                  name,email,role,status<br />
+                  John Doe,john@example.com,student,active<br />
+                  Jane Smith,jane@example.com,mentor,active
+                </code>
+                
+                <p className="font-medium text-blue-800 mt-3 mb-1">JSON Example:</p>
+                <code className="text-xs bg-gray-100 p-2 rounded block overflow-x-auto">
+                  [<br />
+                  &nbsp;&nbsp;&#123;"name": "John Doe", "email": "john@example.com", "role": "student"&#125;,<br />
+                  &nbsp;&nbsp;&#123;"name": "Jane Smith", "email": "jane@example.com", "role": "mentor"&#125;<br />
+                  ]
+                </code>
               </div>
             </div>
             
+            <div className="mb-6">
+              <div className="flex items-center justify-center w-full">
+                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    <Upload className="w-8 h-8 mb-3 text-gray-500" />
+                    <p className="mb-2 text-sm text-gray-500">
+                      <span className="font-semibold">Click to upload</span> or drag and drop
+                    </p>
+                    <p className="text-xs text-gray-500">CSV or JSON file</p>
+                  </div>
+                  <input 
+                    type="file" 
+                    className="hidden" 
+                    accept=".csv,.json,.xlsx,.xls"
+                    onChange={handleFileChange}
+                  />
+                </label>
+              </div>
+              
+              {importFile && (
+                <div className="mt-3">
+                  <div className="flex items-center bg-gray-100 p-2 rounded">
+                    <div className="flex-1 truncate">{importFile.name}</div>
+                    <button 
+                      onClick={() => setImportFile(null)}
+                      className="ml-2 text-gray-500 hover:text-gray-700"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+            
             <div className="flex justify-end space-x-3">
-              <button
-                type="button"
-                onClick={handleImportCancel}
-                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-md"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
+              <Button variant="outline" onClick={handleImportCancel}>Cancel</Button>
+              <Button 
+                variant="default" 
                 onClick={handleImportConfirm}
                 disabled={!importFile}
-                className={`px-4 py-2 rounded-md text-white focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                  importFile 
-                    ? 'bg-blue-600 hover:bg-blue-700' 
-                    : 'bg-blue-400 cursor-not-allowed'
-                }`}
+                className="flex items-center"
               >
-                Import
-              </button>
+                <Upload className="h-4 w-4 mr-2" />
+                Import Users
+              </Button>
             </div>
           </div>
         </div>
