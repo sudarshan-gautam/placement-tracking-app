@@ -1,126 +1,149 @@
-import { getPool } from './db';
-import { v4 as uuidv4 } from 'uuid';
-import { db } from '@/lib/db';
+import { database } from '@/lib/db';
 
 // User operations
-export async function updateUserProfile(userId: string, data: { bio?: string; profileImage?: string; videoUrl?: string }) {
-  const pool = await getPool();
-  const connection = await pool.getConnection();
-  
+export async function updateUserProfile(userId: string, data: { profileImage?: string }) {
   try {
-    const [result] = await connection.query(
-      'UPDATE users SET ? WHERE id = ?',
-      [data, userId]
+    // Prepare query
+    const query = 'UPDATE users SET profileImage = ? WHERE id = ?';
+    await database.runQuery(query, [data.profileImage, userId]);
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating user profile:', error);
+    return { success: false, error };
+  }
+}
+
+// Job operations
+export async function getJobsByLocation(location: string) {
+  try {
+    return await database.getAll(
+      'SELECT * FROM jobs WHERE location LIKE ?',
+      [`%${location}%`]
     );
-    return result;
-  } finally {
-    connection.release();
+  } catch (error) {
+    console.error('Error getting jobs by location:', error);
+    return [];
   }
 }
 
-// Student operations
-export async function getStudentQualifications(studentId: string) {
-  return await db.qualification.findMany({
-    where: {
-      studentId: studentId
-    },
-    include: {
-      type: true,
-      grade: true
-    }
-  });
-}
-
-export async function getStudentSkills(studentId: string) {
-  return await db.skill.findMany({
-    where: {
-      studentId: studentId
-    },
-    include: {
-      category: true,
-      level: true
-    }
-  });
-}
-
-export async function getStudentJobInterests(studentId: string) {
-  return await db.jobInterest.findMany({
-    where: {
-      studentId: studentId
-    },
-    include: {
-      job: true
-    }
-  });
-}
-
-// Mentor operations
-export async function getMentorStudents(mentorId: string) {
-  const pool = await getPool();
-  const connection = await pool.getConnection();
-  
+export async function getJobsByStatus(status: string) {
   try {
-    const [rows] = await connection.query(`
-      SELECT u.*, ma.start_date, ma.status as assignment_status
-      FROM users u
-      JOIN mentor_assignments ma ON u.id = ma.student_id
-      WHERE ma.mentor_id = ? AND ma.status = 'active'
-    `, [mentorId]);
-    return rows;
-  } finally {
-    connection.release();
-  }
-}
-
-export async function getPendingVerifications(mentorId: string) {
-  const pool = await getPool();
-  const connection = await pool.getConnection();
-  
-  try {
-    const [rows] = await connection.query(`
-      SELECT av.*, sa.title as activity_title, sa.description as activity_description,
-             u.name as student_name, u.email as student_email
-      FROM activity_verifications av
-      JOIN student_activities sa ON av.activity_id = sa.id
-      JOIN users u ON sa.student_id = u.id
-      WHERE av.mentor_id = ? AND av.status = 'pending'
-      ORDER BY av.created_at DESC
-    `, [mentorId]);
-    return rows;
-  } finally {
-    connection.release();
-  }
-}
-
-// Admin operations
-export async function getSystemAccess(adminId: string) {
-  const pool = await getPool();
-  const connection = await pool.getConnection();
-  
-  try {
-    const [rows] = await connection.query(
-      'SELECT * FROM system_access WHERE admin_id = ? ORDER BY last_accessed DESC',
-      [adminId]
+    return await database.getAll(
+      'SELECT * FROM jobs WHERE status = ?',
+      [status]
     );
-    return rows;
-  } finally {
-    connection.release();
+  } catch (error) {
+    console.error('Error getting jobs by status:', error);
+    return [];
   }
 }
 
-// File upload operations
-export async function saveFileUrl(userId: string, fileType: 'image' | 'video', fileUrl: string) {
-  const pool = await getPool();
-  const connection = await pool.getConnection();
-  
+export async function createJob(jobData: {
+  title: string;
+  description: string;
+  requirements?: string;
+  salary_range?: string;
+  location?: string;
+  deadline?: string;
+  status?: 'active' | 'closed' | 'draft';
+}) {
   try {
-    const column = fileType === 'image' ? 'profileImage' : 'videoUrl';
-    await connection.query(
-      `UPDATE users SET ${column} = ? WHERE id = ?`,
-      [fileUrl, userId]
+    const id = generateUUID();
+    const now = new Date().toISOString();
+    const status = jobData.status || 'active';
+    
+    await database.runQuery(
+      `INSERT INTO jobs (
+        id, title, description, requirements, salary_range, 
+        location, deadline, status, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        id, 
+        jobData.title, 
+        jobData.description, 
+        jobData.requirements || null, 
+        jobData.salary_range || null,
+        jobData.location || null,
+        jobData.deadline || null,
+        status,
+        now,
+        now
+      ]
     );
-    return fileUrl;
-  } finally {
-    connection.release();
+    
+    return { success: true, id };
+  } catch (error) {
+    console.error('Error creating job:', error);
+    return { success: false, error };
   }
+}
+
+export async function updateJob(id: string, jobData: {
+  title?: string;
+  description?: string;
+  requirements?: string;
+  salary_range?: string;
+  location?: string;
+  deadline?: string;
+  status?: 'active' | 'closed' | 'draft';
+}) {
+  try {
+    const job = await database.getJobById(id);
+    if (!job) {
+      return { success: false, error: 'Job not found' };
+    }
+    
+    // Prepare update values
+    const updates = Object.entries(jobData)
+      .filter(([_, value]) => value !== undefined)
+      .map(([key]) => `${key} = ?`);
+    
+    if (updates.length === 0) {
+      return { success: true, message: 'No changes to apply' };
+    }
+    
+    // Add updated_at timestamp
+    updates.push('updated_at = ?');
+    
+    // Prepare values array with same order as updates
+    const values = Object.entries(jobData)
+      .filter(([_, value]) => value !== undefined)
+      .map(([_, value]) => value);
+    
+    // Add updated_at value and job id
+    values.push(new Date().toISOString());
+    values.push(id);
+    
+    // Execute query
+    await database.runQuery(
+      `UPDATE jobs SET ${updates.join(', ')} WHERE id = ?`,
+      values
+    );
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating job:', error);
+    return { success: false, error };
+  }
+}
+
+export async function deleteJob(id: string) {
+  try {
+    await database.runQuery(
+      'DELETE FROM jobs WHERE id = ?',
+      [id]
+    );
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting job:', error);
+    return { success: false, error };
+  }
+}
+
+// Helper function to generate UUID for new records
+function generateUUID() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
 } 

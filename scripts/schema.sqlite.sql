@@ -23,8 +23,8 @@ CREATE TABLE IF NOT EXISTS companies (
     updated_at TEXT DEFAULT (datetime('now'))
 );
 
--- Job Posts table
-CREATE TABLE IF NOT EXISTS job_posts (
+-- Jobs table
+CREATE TABLE IF NOT EXISTS jobs (
     id TEXT PRIMARY KEY,
     company_id TEXT NOT NULL,
     title TEXT NOT NULL,
@@ -42,14 +42,14 @@ CREATE TABLE IF NOT EXISTS job_posts (
 -- Applications table
 CREATE TABLE IF NOT EXISTS applications (
     id TEXT PRIMARY KEY,
-    job_post_id TEXT NOT NULL,
+    job_id TEXT NOT NULL,
     student_id TEXT NOT NULL,
     status TEXT CHECK(status IN ('pending', 'reviewed', 'shortlisted', 'rejected', 'accepted')) DEFAULT 'pending',
     resume_url TEXT,
     cover_letter TEXT,
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now')),
-    FOREIGN KEY (job_post_id) REFERENCES job_posts(id) ON DELETE CASCADE,
+    FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE,
     FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
@@ -172,9 +172,9 @@ BEGIN
     UPDATE companies SET updated_at = datetime('now') WHERE id = NEW.id;
 END;
 
-CREATE TRIGGER IF NOT EXISTS job_posts_updated_at AFTER UPDATE ON job_posts
+CREATE TRIGGER IF NOT EXISTS jobs_updated_at AFTER UPDATE ON jobs
 BEGIN
-    UPDATE job_posts SET updated_at = datetime('now') WHERE id = NEW.id;
+    UPDATE jobs SET updated_at = datetime('now') WHERE id = NEW.id;
 END;
 
 CREATE TRIGGER IF NOT EXISTS applications_updated_at AFTER UPDATE ON applications

@@ -1,7 +1,6 @@
 // SQLite database interface for user authentication
 import sqlite3 from 'sqlite3';
 import path from 'path';
-import { promisify } from 'util';
 
 // User types
 export type UserRole = 'admin' | 'mentor' | 'student';
@@ -15,25 +14,55 @@ export interface User {
   profileImage?: string;
 }
 
-// Mock the getPool function for compatibility with MySQL code
-// This allows us to keep the same API while using SQLite underneath
-export async function getPool() {
-  // Return an object that mimics a MySQL pool but uses our SQLite functions
-  return {
-    query: async (sql: string, params: any[] = []) => {
-      if (sql.toLowerCase().startsWith('select')) {
-        const results = await getAll(sql, params);
-        return [results, []];
-      } else {
-        const result = await runQuery(sql, params);
-        return [result, []];
-      }
-    }
-  };
+export interface Job {
+  id: string;
+  title: string;
+  description: string;
+  requirements?: string;
+  salary_range?: string;
+  location?: string;
+  deadline?: string;
+  status: 'active' | 'closed' | 'draft';
+  created_at?: string;
+  updated_at?: string;
 }
 
 // Database singleton
 let db: sqlite3.Database | null = null;
+
+// MySQL-like connection pool emulator for SQLite
+// This makes the code compatible with MySQL-based code using the same interface
+export async function getPool() {
+  // Ensure the database is initialized
+  getDb();
+  
+  // Return an object that mimics a MySQL pool interface
+  return {
+    query: (sql: string, params: any[] = []): Promise<[any[], any]> => {
+      return new Promise((resolve, reject) => {
+        getDb().all(sql, params, (err, rows) => {
+          if (err) return reject(err);
+          // Return in format similar to MySQL's [rows, fields]
+          resolve([rows || [], {}]);
+        });
+      });
+    },
+    execute: (sql: string, params: any[] = []): Promise<[any, any]> => {
+      return new Promise((resolve, reject) => {
+        getDb().run(sql, params, function(err) {
+          if (err) return reject(err);
+          // Return in format similar to MySQL's [result, fields]
+          resolve([{ insertId: this.lastID, affectedRows: this.changes }, {}]);
+        });
+      });
+    },
+    // Add other MySQL pool methods as needed
+    end: () => {
+      // No-op for SQLite, but matches MySQL pool API
+      return Promise.resolve();
+    }
+  };
+}
 
 // Function to get the database connection
 export function getDb(): sqlite3.Database {
@@ -103,6 +132,16 @@ export async function findUserByEmail(email: string): Promise<User | null> {
   }
 }
 
+// Function to find a user by ID
+export async function findUserById(id: string): Promise<User | null> {
+  try {
+    return await getOne<User>('SELECT * FROM users WHERE id = ?', [id]);
+  } catch (error) {
+    console.error('Error finding user:', error);
+    return null;
+  }
+}
+
 // Function to validate user credentials
 export async function validateUser(email: string, password: string): Promise<User | null> {
   try {
@@ -130,6 +169,26 @@ export async function validateUser(email: string, password: string): Promise<Use
   }
 }
 
+// Function to get all jobs
+export async function getAllJobs(): Promise<Job[]> {
+  try {
+    return await getAll<Job>('SELECT * FROM jobs');
+  } catch (error) {
+    console.error('Error getting all jobs:', error);
+    return [];
+  }
+}
+
+// Function to get job by ID
+export async function getJobById(id: string): Promise<Job | null> {
+  try {
+    return await getOne<Job>('SELECT * FROM jobs WHERE id = ?', [id]);
+  } catch (error) {
+    console.error('Error getting job by ID:', error);
+    return null;
+  }
+}
+
 // Function to close the database connection
 export function closeDb() {
   if (db) {
@@ -145,12 +204,17 @@ export function closeDb() {
 }
 
 // Export the database functions
-export default {
+export const database = {
   getDb,
   findUserByEmail,
+  findUserById,
   validateUser,
+  getAllJobs,
+  getJobById,
   closeDb,
   runQuery,
   getOne,
   getAll
-}; 
+};
+
+export default database; 

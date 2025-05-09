@@ -16,7 +16,13 @@ import {
   Share2, 
   Bookmark, 
   Send,
-  BookmarkCheck
+  BookmarkCheck,
+  Pencil,
+  Trash2,
+  Mail,
+  BookmarkPlus,
+  BookmarkMinus,
+  Award
 } from 'lucide-react';
 import Link from 'next/link';
 import { 
@@ -26,6 +32,7 @@ import {
   hasApplied,
   addJobApplication,
   getUserApplications,
+  deleteJob,
   Job,
   JobApplication
 } from '@/lib/jobs-service';
@@ -36,6 +43,8 @@ export default function JobDetailsPage({ params }: { params: { id: string } }) {
   const searchParams = useSearchParams();
   const showApplicationForm = searchParams?.get('apply') === 'true';
   const viewApplication = searchParams?.get('application') === 'view';
+  const fromMentor = searchParams?.get('from') === 'mentor';
+  const fromAdmin = searchParams?.get('from') === 'admin';
   
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
@@ -56,45 +65,67 @@ export default function JobDetailsPage({ params }: { params: { id: string } }) {
   const isStudent = mockUser?.role === 'student';
 
   useEffect(() => {
-    // Load job details and user-specific data
-    const jobId = parseInt(params.id);
-    const foundJob = getJobById(jobId);
-    
-    if (foundJob) {
-      setJob(foundJob);
-      
-      // Check if job is saved by the user
-      if (mockUser?.id) {
-        const jobSaved = isJobSaved(mockUser.id, jobId);
-        setIsSaved(jobSaved);
+    const loadJobData = async () => {
+      try {
+        setLoading(true);
+        // Use the ID directly without parsing
+        const jobId = params.id;
+        const foundJob = await getJobById(jobId);
         
-        // Check if user has already applied
-        const applied = hasApplied(mockUser.id, jobId);
-        setHasUserApplied(applied);
-        
-        // If user has applied, get their application
-        if (applied) {
-          const applications = getUserApplications(mockUser.id);
-          const userApp = applications.find(app => app.jobId === jobId);
-          if (userApp) {
-            setUserApplication(userApp);
-            // Pre-fill form with existing application data
-            setApplicationData({
-              coverLetter: userApp.coverLetter,
-              availability: userApp.additionalInfo?.split('\n')[0] || '',
-              additionalInfo: userApp.additionalInfo?.split('\n').slice(1).join('\n') || '',
-            });
+        if (foundJob) {
+          setJob(foundJob);
+          
+          // Check if job is saved by the user
+          if (mockUser?.id) {
+            const jobSaved = await isJobSaved(mockUser.id, jobId);
+            setIsSaved(jobSaved);
+            
+            // Check if user has already applied
+            const applied = await hasApplied(mockUser.id, jobId);
+            setHasUserApplied(applied);
+            
+            // If user has applied, get their application
+            if (applied) {
+              const applications = await getUserApplications(mockUser.id);
+              
+              if (Array.isArray(applications) && applications.length > 0) {
+                // Find the application for this job
+                const userApp = applications.find(app => {
+                  // Compare IDs directly
+                  return String(app.jobId) === String(jobId);
+                });
+                
+                if (userApp) {
+                  setUserApplication(userApp);
+                  // Pre-fill form with existing application data
+                  setApplicationData({
+                    coverLetter: userApp.coverLetter || '',
+                    availability: userApp.additionalInfo?.split('\n')[0] || '',
+                    additionalInfo: userApp.additionalInfo?.split('\n').slice(1).join('\n') || '',
+                  });
+                }
+              }
+            }
           }
         }
+      } catch (error) {
+        console.error('Error loading job details:', error);
+      } finally {
+        setLoading(false);
       }
-    }
-    setLoading(false);
+    };
+    
+    loadJobData();
   }, [params.id, mockUser?.id]);
 
-  const handleSaveJob = () => {
+  const handleSaveJob = async () => {
     if (job && mockUser?.id) {
-      const isNowSaved = toggleSaveJob(mockUser.id, job.id);
-      setIsSaved(isNowSaved);
+      try {
+        const isNowSaved = await toggleSaveJob(mockUser.id, job.id);
+        setIsSaved(isNowSaved);
+      } catch (error) {
+        console.error('Error toggling save status:', error);
+      }
     }
   };
 
@@ -106,33 +137,41 @@ export default function JobDetailsPage({ params }: { params: { id: string } }) {
     });
   };
 
-  const handleSubmitApplication = (e: React.FormEvent) => {
+  const handleSubmitApplication = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!job || !mockUser?.id) return;
     
-    // Format additional info to include availability
-    const formattedAdditionalInfo = `${applicationData.availability}\n${applicationData.additionalInfo}`;
-    
-    // Create new application
-    const newApplication = {
-      jobId: job.id,
-      userId: mockUser.id,
-      status: 'submitted' as const,
-      dateApplied: new Date().toISOString().split('T')[0],
-      coverLetter: applicationData.coverLetter,
-      additionalInfo: formattedAdditionalInfo
-    };
-    
-    // Add application to storage
-    const savedApplication = addJobApplication(newApplication);
-    
-    if (savedApplication) {
-      setHasUserApplied(true);
-      setUserApplication(savedApplication);
-      alert('Your application has been submitted!');
-      // Redirect to the job page with a view parameter
-      router.push(`/jobs/${job.id}?application=view`);
+    try {
+      // Format additional info to include availability
+      const formattedAdditionalInfo = `${applicationData.availability}\n${applicationData.additionalInfo}`;
+      
+      // Ensure userId is a number
+      const userId = typeof mockUser.id === 'string' ? parseInt(mockUser.id, 10) : mockUser.id;
+      
+      // Create new application
+      const newApplication = {
+        jobId: job.id,
+        userId: userId,
+        status: 'submitted' as const,
+        dateApplied: new Date().toISOString().split('T')[0],
+        coverLetter: applicationData.coverLetter,
+        additionalInfo: formattedAdditionalInfo
+      };
+      
+      // Add application to storage
+      const savedApplication = await addJobApplication(newApplication);
+      
+      if (savedApplication) {
+        setHasUserApplied(true);
+        setUserApplication(savedApplication);
+        alert('Your application has been submitted!');
+        // Redirect to the job page with a view parameter
+        router.push(`/jobs/${job.id}?application=view${fromMentor ? '&from=mentor' : ''}`);
+      }
+    } catch (error) {
+      console.error('Error submitting application:', error);
+      alert('There was an error submitting your application. Please try again.');
     }
   };
 
@@ -153,7 +192,16 @@ export default function JobDetailsPage({ params }: { params: { id: string } }) {
         <div className="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-sm">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Job Not Found</h1>
           <p className="text-gray-600 mb-6">The job you're looking for doesn't exist or has been removed.</p>
-          <Link href="/jobs" className="flex items-center text-blue-600 hover:text-blue-800">
+          <Link 
+            href={
+              isAdmin || fromAdmin
+                ? "/admin/jobs" 
+                : isMentor || fromMentor 
+                  ? "/mentor/jobs" 
+                  : "/jobs"
+            } 
+            className="flex items-center text-blue-600 hover:text-blue-800"
+          >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Jobs
           </Link>
@@ -267,7 +315,7 @@ export default function JobDetailsPage({ params }: { params: { id: string } }) {
               
               <div className="flex justify-end space-x-3">
                 <Link
-                  href={`/jobs/${job.id}`}
+                  href={`/jobs/${job.id}${fromMentor ? '?from=mentor' : ''}`}
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
                 >
                   Cancel
@@ -290,11 +338,56 @@ export default function JobDetailsPage({ params }: { params: { id: string } }) {
   return (
     <div className="min-h-screen bg-gray-50 p-6 pb-40">
       {/* Back button */}
-      <div className="max-w-4xl mx-auto mb-6">
-        <Link href="/jobs" className="flex items-center text-blue-600 hover:text-blue-800">
-          <ArrowLeft className="h-4 w-4 mr-2" />
+      <div className="max-w-4xl mx-auto mb-6 flex justify-between items-center">
+        <Link 
+          href={
+            isAdmin || fromAdmin
+              ? "/admin/jobs" 
+              : isMentor || fromMentor 
+                ? "/mentor/jobs" 
+                : "/jobs"
+          } 
+          className="flex items-center text-sm text-gray-600 hover:text-gray-900"
+        >
+          <ArrowLeft className="h-4 w-4 mr-1" />
           Back to Jobs
         </Link>
+        
+        {/* Admin actions */}
+        {isAdmin && (
+          <div className="flex items-center space-x-2">
+            <Link 
+              href={`/admin/jobs/edit/${job.id}`}
+              className="flex items-center px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            >
+              <Pencil className="h-3 w-3 mr-1" />
+              Edit
+            </Link>
+            
+            <button
+              onClick={async () => {
+                if (confirm('Are you sure you want to delete this job? This action cannot be undone.')) {
+                  try {
+                    const success = await deleteJob(job.id);
+                    if (success) {
+                      alert('Job deleted successfully');
+                      router.push('/admin/jobs');
+                    } else {
+                      alert('Failed to delete job');
+                    }
+                  } catch (error) {
+                    console.error('Error deleting job:', error);
+                    alert('An error occurred while deleting the job');
+                  }
+                }
+              }}
+              className="flex items-center px-3 py-1 text-sm bg-red-600 text-white rounded-md hover:bg-red-700"
+            >
+              <Trash2 className="h-3 w-3 mr-1" />
+              Delete
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Application section - conditionally displayed */}
@@ -328,15 +421,17 @@ export default function JobDetailsPage({ params }: { params: { id: string } }) {
               </div>
             </div>
             
-            {/* Match Percentage */}
-            <div className={`w-16 h-16 rounded-full flex items-center justify-center text-white font-medium ${
-              job.match >= 80 ? 'bg-green-500' : 
-              job.match >= 60 ? 'bg-yellow-500' : 
-              'bg-red-500'
-            }`}>
-              {job.match}%
-              <span className="text-xs ml-0.5">match</span>
-            </div>
+            {/* Match Percentage - only show for students and mentors, not for admins */}
+            {(isStudent || isMentor) && !isAdmin && !fromAdmin && (
+              <div className={`w-16 h-16 rounded-full flex items-center justify-center text-white font-medium ${
+                job.match >= 80 ? 'bg-green-500' : 
+                job.match >= 60 ? 'bg-yellow-500' : 
+                'bg-red-500'
+              }`}>
+                {job.match}%
+                <span className="text-xs ml-0.5">match</span>
+              </div>
+            )}
           </div>
           
           {/* Student-specific actions */}
@@ -363,7 +458,7 @@ export default function JobDetailsPage({ params }: { params: { id: string } }) {
               
               {!hasUserApplied ? (
                 <Link
-                  href={`/jobs/${job.id}?apply=true`}
+                  href={`/jobs/${job.id}?apply=true${fromMentor ? '&from=mentor' : ''}`}
                   className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
                 >
                   <Send className="h-4 w-4 mr-2" />
@@ -371,7 +466,7 @@ export default function JobDetailsPage({ params }: { params: { id: string } }) {
                 </Link>
               ) : (
                 <Link
-                  href={`/jobs/${job.id}?application=view`}
+                  href={`/jobs/${job.id}?application=view${fromMentor ? '&from=mentor' : ''}`}
                   className="flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium"
                 >
                   <CheckCircle className="h-4 w-4 mr-2" />
@@ -462,7 +557,7 @@ export default function JobDetailsPage({ params }: { params: { id: string } }) {
               
               {isStudent && !hasUserApplied && (
                 <Link
-                  href={`/jobs/${job.id}?apply=true`}
+                  href={`/jobs/${job.id}?apply=true${fromMentor ? '&from=mentor' : ''}`}
                   className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
                 >
                   <Send className="h-4 w-4 mr-2" />
@@ -520,7 +615,8 @@ export default function JobDetailsPage({ params }: { params: { id: string } }) {
             </CardContent>
           </Card>
           
-          {isStudent && (
+          {/* Only show match information for students and mentors, not for admins */}
+          {(isStudent || isMentor) && !isAdmin && !fromAdmin && (
             <Card>
               <CardHeader>
                 <CardTitle>Skills Match</CardTitle>
@@ -594,7 +690,7 @@ export default function JobDetailsPage({ params }: { params: { id: string } }) {
                 {/* Link to detailed match analysis */}
                 <div className="mt-6">
                   <Link 
-                    href={`/profile/job-match/${job.id}`}
+                    href={`/profile/job-match/${job.id}${fromMentor ? '?from=mentor' : ''}`}
                     className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center"
                   >
                     View Detailed Match Analysis

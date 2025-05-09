@@ -247,7 +247,7 @@ export async function GET() {
             ELSE 'Low'
           END as priority
         FROM applications a
-        JOIN job_posts j ON a.job_post_id = j.id
+        JOIN jobs j ON a.job_id = j.id
         JOIN users u ON a.student_id = u.id
         WHERE a.status = 'pending'
         ORDER BY a.created_at DESC

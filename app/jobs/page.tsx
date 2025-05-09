@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Search, Filter, Briefcase, MapPin, Clock, ChevronDown, ChevronUp, X, Bookmark, CheckCircle, Building } from 'lucide-react';
+import { Search, Filter, Briefcase, MapPin, Clock, ChevronDown, ChevronUp, X, Bookmark, CheckCircle, Building, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { 
   getAllJobs, 
@@ -25,10 +25,18 @@ export default function JobsPage() {
     match: 0,
     status: 'all', // 'all', 'saved', 'applied'
   });
+  const [pagination, setPagination] = useState({
+    total: 0,
+    page: 1,
+    limit: 10,
+    pages: 1
+  });
   const [showFilters, setShowFilters] = useState(false);
   const [expandedJob, setExpandedJob] = useState<number | null>(null);
   const [savedJobs, setSavedJobs] = useState<number[]>([]);
   const [appliedJobs, setAppliedJobs] = useState<number[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
   // Create a mock user for demo purposes if none exists
   const mockUser = user || { id: 1, role: 'student', name: 'Student User' };
@@ -39,20 +47,53 @@ export default function JobsPage() {
 
   // Load jobs and user-specific data
   useEffect(() => {
-    const loadedJobs = getAllJobs();
-    setJobs(loadedJobs);
+    loadData(pagination.page, pagination.limit);
+  }, [mockUser?.id, pagination.page, pagination.limit]);
+  
+  const loadData = async (page = 1, limit = 10) => {
+    setIsLoading(true);
+    setError(null);
     
-    // If student, load their saved and applied jobs
-    if (mockUser?.id) {
-      const userSavedJobs = getSavedJobs(mockUser.id);
-      setSavedJobs(userSavedJobs);
+    try {
+      const loadedJobsData = await getAllJobs(page, limit);
+      setJobs(loadedJobsData.jobs);
+      setPagination(loadedJobsData.pagination);
       
-      const userApplications = getUserApplications(mockUser.id);
-      setAppliedJobs(userApplications.map(app => app.jobId));
-      
-      console.log(`Loaded ${loadedJobs.length} jobs, ${userSavedJobs.length} saved, ${userApplications.length} applied`);
+      // If student, load their saved and applied jobs
+      if (mockUser?.id) {
+        const userId = typeof mockUser.id === 'string' ? parseInt(mockUser.id, 10) : mockUser.id;
+        try {
+          const userSavedJobs = await getSavedJobs(userId);
+          setSavedJobs(Array.isArray(userSavedJobs) ? userSavedJobs : []);
+          
+          const userApplications = await getUserApplications(userId);
+          setAppliedJobs(
+            Array.isArray(userApplications) 
+              ? userApplications.map(app => typeof app.jobId === 'string' ? parseInt(app.jobId, 10) : app.jobId) 
+              : []
+          );
+          
+          console.log(`Loaded ${loadedJobsData.jobs.length} jobs, ${userSavedJobs.length} saved, ${userApplications.length} applied`);
+        } catch (userDataError) {
+          console.error('Error loading user-specific job data:', userDataError);
+          // Continue with jobs but without user-specific data
+          setSavedJobs([]);
+          setAppliedJobs([]);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading jobs:', error);
+      setError('Failed to load jobs. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
-  }, [mockUser?.id]);
+  };
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage > 0 && newPage <= pagination.pages) {
+      loadData(newPage, pagination.limit);
+    }
+  };
 
   const toggleJobExpand = (jobId: number) => {
     setExpandedJob(expandedJob === jobId ? null : jobId);
@@ -82,18 +123,24 @@ export default function JobsPage() {
     });
   };
 
-  const handleToggleSaveJob = (jobId: number, event: React.MouseEvent) => {
+  const handleToggleSaveJob = async (jobId: number, event: React.MouseEvent) => {
     event.stopPropagation(); // Prevent expanding job card
     
-    if (mockUser?.id) {
-      const isNowSaved = toggleSaveJob(mockUser.id, jobId);
-      
-      // Update local state
-      if (isNowSaved) {
-        setSavedJobs([...savedJobs, jobId]);
-      } else {
-        setSavedJobs(savedJobs.filter(id => id !== jobId));
+    try {
+      if (mockUser?.id) {
+        const userId = typeof mockUser.id === 'string' ? parseInt(mockUser.id, 10) : mockUser.id;
+        const isNowSaved = await toggleSaveJob(userId, jobId);
+        
+        // Update local state
+        if (isNowSaved) {
+          setSavedJobs([...savedJobs, jobId]);
+        } else {
+          setSavedJobs(savedJobs.filter(id => id !== jobId));
+        }
       }
+    } catch (error) {
+      console.error('Error toggling saved job:', error);
+      alert('Failed to save/unsave the job. Please try again.');
     }
   };
 
@@ -101,7 +148,7 @@ export default function JobsPage() {
   const filteredJobs = jobs.filter(job => {
     // Search term filter
     if (searchTerm && !job.title.toLowerCase().includes(searchTerm.toLowerCase()) && 
-        !job.organization.toLowerCase().includes(searchTerm.toLowerCase())) {
+        !job.organization?.toLowerCase().includes(searchTerm.toLowerCase())) {
       return false;
     }
     
@@ -122,10 +169,10 @@ export default function JobsPage() {
     
     // Status filter (for students)
     if (isStudent) {
-      if (filters.status === 'saved' && !savedJobs.includes(job.id)) {
+      if (filters.status === 'saved' && Array.isArray(savedJobs) && !savedJobs.includes(job.id)) {
         return false;
       }
-      if (filters.status === 'applied' && !appliedJobs.includes(job.id)) {
+      if (filters.status === 'applied' && Array.isArray(appliedJobs) && !appliedJobs.includes(job.id)) {
         return false;
       }
     }
@@ -134,8 +181,8 @@ export default function JobsPage() {
   });
 
   // Get unique locations and job types for filter options
-  const locations = Array.from(new Set(jobs.map(job => job.location)));
-  const jobTypes = Array.from(new Set(jobs.map(job => job.type)));
+  const locations = Array.from(new Set(jobs.map(job => job.location).filter(Boolean)));
+  const jobTypes = Array.from(new Set(jobs.map(job => job.type).filter(Boolean)));
 
   return (
     <div className="min-h-screen bg-gray-50 p-6 pb-40">
@@ -289,7 +336,24 @@ export default function JobsPage() {
 
       {/* Jobs List */}
       <div className="space-y-6">
-        {filteredJobs.length === 0 ? (
+        {isLoading ? (
+          <div className="bg-white p-6 rounded-lg shadow-sm text-center">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+            <p className="text-gray-600">Loading jobs...</p>
+          </div>
+        ) : error ? (
+          <div className="bg-white p-6 rounded-lg shadow-sm text-center">
+            <AlertCircle className="h-12 w-12 mx-auto text-red-500 mb-4" />
+            <h3 className="text-xl font-medium text-gray-900 mb-1">Error loading jobs</h3>
+            <p className="text-gray-500 mb-4">{error}</p>
+            <button 
+              onClick={() => loadData(pagination.page, pagination.limit)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md"
+            >
+              Try Again
+            </button>
+          </div>
+        ) : filteredJobs.length === 0 ? (
           <div className="bg-white p-6 rounded-lg shadow-sm text-center">
             <Briefcase className="h-12 w-12 mx-auto text-gray-400 mb-4" />
             <h3 className="text-xl font-medium text-gray-900 mb-1">No jobs found</h3>
@@ -298,156 +362,210 @@ export default function JobsPage() {
             </p>
           </div>
         ) : (
-          filteredJobs.map((job) => (
-            <div 
-              key={job.id} 
-              className="bg-white p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-              onClick={() => toggleJobExpand(job.id)}
-            >
-              <div className="flex justify-between items-start">
-                <div>
-                  <h3 className="text-xl font-medium text-gray-900 mb-1">
-                    {job.title}
-                  </h3>
-                  <div className="flex flex-wrap gap-4 text-sm text-gray-500 mb-2">
-                    <span className="flex items-center">
-                      <Building className="h-4 w-4 mr-1" />
-                      {job.organization}
-                    </span>
-                    <span className="flex items-center">
-                      <MapPin className="h-4 w-4 mr-1" />
-                      {job.location}
-                    </span>
-                    <span className="flex items-center">
-                      <Briefcase className="h-4 w-4 mr-1" />
-                      {job.type}
-                    </span>
-                    <span className="flex items-center">
-                      <Clock className="h-4 w-4 mr-1" />
-                      Posted: {new Date(job.posted).toLocaleDateString()}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  {/* Match Percentage */}
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-medium ${
-                    job.match >= 80 ? 'bg-green-500' : 
-                    job.match >= 60 ? 'bg-yellow-500' : 
-                    'bg-red-500'
-                  }`}>
-                    {job.match}%
-                  </div>
-                  
-                  {/* Status Indicators for Students */}
-                  {isStudent && (
-                    <div className="flex flex-col items-center space-y-2">
-                      {savedJobs.includes(job.id) && (
-                        <span 
-                          className="rounded-full bg-blue-100 p-1" 
-                          title="Saved job"
-                          onClick={(e) => handleToggleSaveJob(job.id, e)}
-                        >
-                          <Bookmark className="h-4 w-4 text-blue-600" fill="currentColor" />
-                        </span>
-                      )}
-                      {appliedJobs.includes(job.id) && (
-                        <span className="rounded-full bg-green-100 p-1" title="Applied job">
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                        </span>
-                      )}
+          <>
+            {filteredJobs.map((job) => (
+              <div 
+                key={job.id} 
+                className="bg-white p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                onClick={() => toggleJobExpand(job.id)}
+              >
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="text-xl font-medium text-gray-900 mb-1">
+                      {job.title}
+                    </h3>
+                    <div className="flex flex-wrap gap-4 text-sm text-gray-500 mb-2">
+                      <span className="flex items-center">
+                        <Building className="h-4 w-4 mr-1" />
+                        {job.organization}
+                      </span>
+                      <span className="flex items-center">
+                        <MapPin className="h-4 w-4 mr-1" />
+                        {job.location}
+                      </span>
+                      <span className="flex items-center">
+                        <Briefcase className="h-4 w-4 mr-1" />
+                        {job.type}
+                      </span>
+                      <span className="flex items-center">
+                        <Clock className="h-4 w-4 mr-1" />
+                        Posted: {new Date(job.posted).toLocaleDateString()}
+                      </span>
                     </div>
-                  )}
-                </div>
-              </div>
-              
-              {/* Expanded Job Content */}
-              {expandedJob === job.id && (
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <p className="text-gray-700 mb-4">{job.description}</p>
-                  
-                  {/* Requirements */}
-                  <div className="mb-4">
-                    <h4 className="text-lg font-medium text-gray-900 mb-2">Requirements</h4>
-                    <ul className="space-y-2">
-                      {job.requirements.map((requirement) => (
-                        <li key={requirement.id} className="flex items-start">
-                          {requirement.met ? (
-                            <CheckCircle className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
-                          ) : (
-                            <X className="h-5 w-5 text-red-500 mr-2 flex-shrink-0 mt-0.5" />
-                          )}
-                          <span className={`${requirement.essential ? 'font-medium' : ''}`}>
-                            {requirement.text}
-                            {requirement.essential && (
-                              <span className="ml-2 text-xs font-medium text-red-500">Essential</span>
-                            )}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
                   </div>
-                  
-                  <div className="flex justify-between items-center">
-                    <Link 
-                      href={`/jobs/${job.id}`} 
-                      className="text-blue-600 hover:text-blue-800 font-medium"
-                    >
-                      View Full Details
-                    </Link>
+                  <div className="flex items-center space-x-2">
+                    {/* Match Percentage */}
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-medium ${
+                      job.match >= 80 ? 'bg-green-500' : 
+                      job.match >= 60 ? 'bg-yellow-500' : 
+                      'bg-red-500'
+                    }`}>
+                      {job.match}%
+                    </div>
                     
-                    {/* Student-specific actions */}
+                    {/* Status Indicators for Students */}
                     {isStudent && (
-                      <div className="flex space-x-2">
-                        {!savedJobs.includes(job.id) ? (
-                          <button
+                      <div className="flex flex-col items-center space-y-2">
+                        {Array.isArray(savedJobs) && savedJobs.includes(job.id) && (
+                          <span 
+                            className="rounded-full bg-blue-100 p-1" 
+                            title="Saved job"
                             onClick={(e) => handleToggleSaveJob(job.id, e)}
-                            className="px-3 py-1.5 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 text-sm font-medium flex items-center"
                           >
-                            <Bookmark className="h-4 w-4 mr-1" />
-                            Save Job
-                          </button>
-                        ) : (
-                          <button
-                            onClick={(e) => handleToggleSaveJob(job.id, e)}
-                            className="px-3 py-1.5 border border-blue-300 rounded-md text-blue-700 bg-blue-50 hover:bg-blue-100 text-sm font-medium flex items-center"
-                          >
-                            <Bookmark className="h-4 w-4 mr-1" fill="currentColor" />
-                            Saved
-                          </button>
+                            <Bookmark className="h-4 w-4 text-blue-600" fill="currentColor" />
+                          </span>
                         )}
-                        
-                        {!appliedJobs.includes(job.id) ? (
-                          <Link 
-                            href={`/jobs/${job.id}?apply=true`}
-                            className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
-                          >
-                            Apply Now
-                          </Link>
-                        ) : (
-                          <Link 
-                            href={`/jobs/${job.id}?application=view`}
-                            className="px-3 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium flex items-center"
-                          >
-                            <CheckCircle className="h-4 w-4 mr-1" />
-                            Applied
-                          </Link>
+                        {Array.isArray(appliedJobs) && appliedJobs.includes(job.id) && (
+                          <span className="rounded-full bg-green-100 p-1" title="Applied job">
+                            <CheckCircle className="h-4 w-4 text-green-600" />
+                          </span>
                         )}
                       </div>
                     )}
-                    
-                    {/* Mentor-specific actions */}
-                    {isMentor && (
-                      <button
-                        className="px-3 py-1.5 bg-purple-600 text-white rounded-md hover:bg-purple-700 text-sm font-medium"
-                      >
-                        Recommend to Students
-                      </button>
-                    )}
                   </div>
                 </div>
-              )}
-            </div>
-          ))
+                
+                {/* Expanded Job Content */}
+                {expandedJob === job.id && (
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <p className="text-gray-700 mb-4">{job.description}</p>
+                    
+                    {/* Requirements */}
+                    <div className="mb-4">
+                      <h4 className="text-lg font-medium text-gray-900 mb-2">Requirements</h4>
+                      <ul className="space-y-2">
+                        {job.requirements.map((requirement) => (
+                          <li key={requirement.id} className="flex items-start">
+                            {requirement.met ? (
+                              <CheckCircle className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
+                            ) : (
+                              <X className="h-5 w-5 text-red-500 mr-2 flex-shrink-0 mt-0.5" />
+                            )}
+                            <span className={`${requirement.essential ? 'font-medium' : ''}`}>
+                              {requirement.text}
+                              {requirement.essential && (
+                                <span className="ml-2 text-xs font-medium text-red-500">Essential</span>
+                              )}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    
+                    <div className="flex justify-between items-center">
+                      <Link 
+                        href={`/jobs/${job.id}`} 
+                        className="text-blue-600 hover:text-blue-800 font-medium"
+                      >
+                        View Full Details
+                      </Link>
+                      
+                      {/* Student-specific actions */}
+                      {isStudent && (
+                        <div className="flex space-x-2">
+                          {!Array.isArray(savedJobs) || !savedJobs.includes(job.id) ? (
+                            <button
+                              onClick={(e) => handleToggleSaveJob(job.id, e)}
+                              className="px-3 py-1.5 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 text-sm font-medium flex items-center"
+                            >
+                              <Bookmark className="h-4 w-4 mr-1" />
+                              Save Job
+                            </button>
+                          ) : (
+                            <button
+                              onClick={(e) => handleToggleSaveJob(job.id, e)}
+                              className="px-3 py-1.5 border border-blue-300 rounded-md text-blue-700 bg-blue-50 hover:bg-blue-100 text-sm font-medium flex items-center"
+                            >
+                              <Bookmark className="h-4 w-4 mr-1" fill="currentColor" />
+                              Saved
+                            </button>
+                          )}
+                          
+                          {!Array.isArray(appliedJobs) || !appliedJobs.includes(job.id) ? (
+                            <Link 
+                              href={`/jobs/${job.id}?apply=true`}
+                              className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
+                            >
+                              Apply Now
+                            </Link>
+                          ) : (
+                            <Link 
+                              href={`/jobs/${job.id}?application=view`}
+                              className="px-3 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium flex items-center"
+                            >
+                              <CheckCircle className="h-4 w-4 mr-1" />
+                              Applied
+                            </Link>
+                          )}
+                        </div>
+                      )}
+                      
+                      {/* Mentor-specific actions */}
+                      {isMentor && (
+                        <button
+                          className="px-3 py-1.5 bg-purple-600 text-white rounded-md hover:bg-purple-700 text-sm font-medium"
+                        >
+                          Recommend to Students
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+            
+            {/* Pagination UI */}
+            {pagination.pages > 1 && (
+              <div className="flex justify-center mt-8">
+                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+                  <button
+                    onClick={() => handlePageChange(pagination.page - 1)}
+                    disabled={pagination.page === 1}
+                    className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium ${
+                      pagination.page === 1 
+                        ? 'text-gray-300 cursor-not-allowed' 
+                        : 'text-gray-500 hover:bg-gray-50'
+                    }`}
+                  >
+                    <span className="sr-only">Previous</span>
+                    <ChevronDown className="h-5 w-5 rotate-90" />
+                  </button>
+                  
+                  {/* Page numbers */}
+                  {Array.from({ length: pagination.pages }, (_, i) => i + 1).map(page => (
+                    <button
+                      key={page}
+                      onClick={() => handlePageChange(page)}
+                      className={`relative inline-flex items-center px-4 py-2 border ${
+                        page === pagination.page
+                          ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
+                          : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                      } text-sm font-medium`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                  
+                  <button
+                    onClick={() => handlePageChange(pagination.page + 1)}
+                    disabled={pagination.page === pagination.pages}
+                    className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium ${
+                      pagination.page === pagination.pages 
+                        ? 'text-gray-300 cursor-not-allowed' 
+                        : 'text-gray-500 hover:bg-gray-50'
+                    }`}
+                  >
+                    <span className="sr-only">Next</span>
+                    <ChevronDown className="h-5 w-5 -rotate-90" />
+                  </button>
+                </nav>
+                
+                <div className="ml-4 flex items-center text-sm text-gray-500">
+                  Page {pagination.page} of {pagination.pages} ({pagination.total} jobs)
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
