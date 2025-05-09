@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment, useRef } from 'react';
 import Link from 'next/link';
 import { 
   Search, UserPlus, Filter, Edit, Trash2, CheckCircle, XCircle, Shield, 
   GraduationCap, Briefcase, ChevronDown, Download, Upload, Info, HelpCircle, ShieldCheck, User,
-  Users, UserCheck, X, Plus, ArrowRightLeft, Eye
+  Users, UserCheck, X, Plus, ArrowRightLeft, Eye, UploadCloud
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
@@ -18,9 +18,11 @@ import {
   getStudentsForMentor, 
   getMentorForStudent,
   getMentorsWithStudentCounts
-} from '@/lib/mentor-student-service';
+} from '@/lib/db-mentor-student-service';
 import userProfiles from '@/lib/user-profiles';
 import { User as UserType, UserRole, UserStatus } from '@/types/user';
+import { toast } from 'sonner';
+import ManageMentorshipModal from '@/app/components/ManageMentorshipModal';
 
 // Define User type
 interface User {
@@ -148,6 +150,14 @@ export default function AdminUsersPage() {
     notes: ''
   });
 
+  // Add new state variables for tracking mentors and their students
+  const [mentorStudentsMap, setMentorStudentsMap] = useState<Record<string, string[]>>({});
+  const [studentMentorMap, setStudentMentorMap] = useState<Record<string, string>>({});
+
+  // Add these states after the other state variables
+  const [showMentorshipModal, setShowMentorshipModal] = useState<boolean>(false);
+  const [selectedUserForMentorship, setSelectedUserForMentorship] = useState<User | null>(null);
+
   // Fetch users from the database
   useEffect(() => {
     // Check if user is admin
@@ -156,32 +166,86 @@ export default function AdminUsersPage() {
       return;
     }
 
-    const fetchUsers = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch('/api/admin/users');
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch users');
-        }
-        
-        const data = await response.json();
-        // Handle the response which directly returns the users array
-        setUsers(Array.isArray(data) ? data : []);
-      } catch (error) {
-        console.error('Error fetching users:', error);
-        toast({
-          title: 'Error',
-          description: 'Failed to fetch users. Please try again.',
-          variant: 'destructive',
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-    
     fetchUsers();
   }, [user, router, toast]);
+
+  // Function to fetch users data
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/admin/users');
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch users');
+      }
+      
+      const data = await response.json();
+      // Handle the response which directly returns the users array
+      setUsers(Array.isArray(data) ? data : []);
+      
+      // After fetching users, load mentor-student assignments
+      if (Array.isArray(data) && data.length > 0) {
+        fetchMentorStudentAssignments();
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch users. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Add a useEffect to load all mentor-student assignments
+  useEffect(() => {
+    // Load mentor-student assignments when users are loaded
+    if (users.length > 0 && !loading) {
+      fetchMentorStudentAssignments();
+    }
+  }, [users, loading]);
+
+  // Function to fetch all mentor-student assignments 
+  const fetchMentorStudentAssignments = async () => {
+    try {
+      const response = await fetch('/api/admin/mentorship');
+      if (!response.ok) {
+        throw new Error('Failed to fetch mentor-student assignments');
+      }
+      
+      const assignments = await response.json();
+      
+      // Build maps for easy lookup
+      const mentorsMap: Record<string, string[]> = {};
+      const studentsMap: Record<string, string> = {};
+      
+      assignments.forEach((assignment: any) => {
+        const mentorId = assignment.mentor_id;
+        const studentId = assignment.student_id;
+        
+        // Add to mentor's student list
+        if (!mentorsMap[mentorId]) {
+          mentorsMap[mentorId] = [];
+        }
+        mentorsMap[mentorId].push(studentId);
+        
+        // Add to student's mentor
+        studentsMap[studentId] = mentorId;
+      });
+      
+      setMentorStudentsMap(mentorsMap);
+      setStudentMentorMap(studentsMap);
+      
+      // Log for debugging
+      console.log("Updated mentor-student assignments:");
+      console.log("Mentors map:", mentorsMap);
+      console.log("Students map:", studentsMap);
+    } catch (error) {
+      console.error('Error fetching mentor-student assignments:', error);
+    }
+  };
 
   // Filter users based on search term and filters
   const filteredUsers = users.filter((user: User) => {
@@ -404,12 +468,6 @@ export default function AdminUsersPage() {
     
     if (!userToEdit || !validateForm()) return;
     
-    // Check if admin password is provided for sensitive changes
-    if (!editFormData.adminPassword) {
-      showToast('Please enter your admin password to confirm changes', 'error');
-      return;
-    }
-    
     try {
       // Update user with PATCH method to proper endpoint
       const response = await fetch(`/api/admin/users/${userToEdit.id}`, {
@@ -422,14 +480,13 @@ export default function AdminUsersPage() {
           email: editFormData.email,
           role: editFormData.role,
           status: editFormData.status,
-          password: editFormData.password || undefined,
-          adminPassword: editFormData.adminPassword // Send admin password for verification
+          password: editFormData.password || undefined
         }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to update user');
+        throw new Error(errorData.error || errorData.details || 'Failed to update user');
       }
 
       const data = await response.json();
@@ -491,7 +548,7 @@ export default function AdminUsersPage() {
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to delete user');
+        throw new Error(errorData.error || errorData.details || 'Failed to delete user');
       }
       
       // Remove user from the users array
@@ -1021,135 +1078,93 @@ export default function AdminUsersPage() {
     }
   };
 
-  // New function to handle opening the assignment modal
-  const handleOpenAssignmentModal = (mentorUser: User) => {
+  // Updated function to handle opening the assignment modal
+  const handleOpenAssignmentModal = async (mentorUser: User) => {
     setSelectedMentor(mentorUser);
     
-    // Get students assigned to this mentor
-    const mentorId = typeof mentorUser.id === 'string' 
-      ? parseInt(mentorUser.id, 10) 
-      : mentorUser.id;
-    
-    const assignedIds = getStudentsForMentor(mentorId);
-    setAssignedStudentIds(assignedIds);
-    
-    // Get all student users for the selection dropdown
-    const studentUsers = users.filter(u => u.role === 'student');
-    setAvailableStudents(studentUsers);
-    
-    // Reset form data
-    setAssignmentFormData({
-      studentId: '',
-      notes: ''
-    });
-    
-    setShowAssignmentModal(true);
-  };
-  
-  // Function to handle assigning a student to the selected mentor
-  const handleAssignStudent = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!selectedMentor || !assignmentFormData.studentId) {
-      showToast('Please select a student to assign', 'error');
-      return;
-    }
-    
-    const mentorId = typeof selectedMentor.id === 'string' 
-      ? parseInt(selectedMentor.id, 10) 
-      : selectedMentor.id;
-    
-    const studentId = parseInt(assignmentFormData.studentId, 10);
-    
-    // Assign the student to the mentor
-    const success = assignStudentToMentor(
-      mentorId, 
-      studentId, 
-      assignmentFormData.notes
-    );
-    
-    if (success) {
-      // Update the local state
-      setAssignedStudentIds([...assignedStudentIds, studentId]);
+    try {
+      // Get all students assigned to this mentor from API
+      const response = await fetch(`/api/admin/mentorship/students/${mentorUser.id}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch students for mentor');
+      }
       
-      // Reset the form
+      const students = await response.json();
+      
+      // Convert string IDs to numbers for compatibility with existing code
+      const studentIds = students.map((s: any) => 
+        typeof s.student_id === 'string' ? parseInt(s.student_id, 10) : s.student_id
+      );
+      
+      setAssignedStudentIds(studentIds);
+      
+      // Get all student users for the selection dropdown
+      const studentUsers = users.filter(u => u.role === 'student');
+      setAvailableStudents(studentUsers);
+      
+      // Reset form data
       setAssignmentFormData({
         studentId: '',
         notes: ''
       });
       
-      // Show success message
-      showToast('Student assigned successfully', 'success');
-      
-      // Update the users array to show the updated count
-      const updatedUsers = users.map(u => {
-        if (u.id === selectedMentor.id) {
-          return {
-            ...u,
-            assignedStudents: (u.assignedStudents || 0) + 1
-          };
-        }
-        return u;
-      });
-      
-      setUsers(updatedUsers);
-    } else {
-      showToast('Failed to assign student. Please try again.', 'error');
+      setShowAssignmentModal(true);
+    } catch (error) {
+      console.error('Error opening assignment modal:', error);
+      showToast('Failed to load students for this mentor', 'error');
     }
   };
   
-  // Function to handle unassigning a student
   const handleOpenUnassignModal = (student: User) => {
     setStudentToUnassign(student);
     setUnassignReason('');
     setShowUnassignModal(true);
   };
   
-  const handleUnassignStudent = () => {
-    if (!selectedMentor || !studentToUnassign) {
+  const handleUnassignStudent = async () => {
+    if (!studentToUnassign) {
       return;
     }
     
-    const mentorId = typeof selectedMentor.id === 'string' 
-      ? parseInt(selectedMentor.id, 10) 
-      : selectedMentor.id;
-    
-    const studentId = typeof studentToUnassign.id === 'string'
-      ? parseInt(studentToUnassign.id, 10)
-      : studentToUnassign.id;
-    
-    // Unassign the student from the mentor
-    const success = unassignStudentFromMentor(
-      mentorId,
-      studentId,
-      unassignReason
-    );
-    
-    if (success) {
-      // Update the local state
-      setAssignedStudentIds(assignedStudentIds.filter(id => id !== studentId));
+    try {
+      // Delete the assignment using the API
+      const response = await fetch(`/api/admin/mentorship?student_id=${studentToUnassign.id}`, {
+        method: 'DELETE'
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || errorData.details || 'Failed to unassign student');
+      }
+      
+      // If this was called from the assignments modal, refresh the assigned students list
+      if (selectedMentor) {
+        const studentsResponse = await fetch(`/api/admin/mentorship/students/${selectedMentor.id}`);
+        if (studentsResponse.ok) {
+          const studentsData = await studentsResponse.json();
+          // Convert string IDs to numbers for compatibility with existing code
+          setAssignedStudentIds(studentsData.map((s: any) => 
+            typeof s.student_id === 'string' ? parseInt(s.student_id, 10) : s.student_id
+          ));
+        }
+      }
       
       // Close the modal
       setShowUnassignModal(false);
       setStudentToUnassign(null);
+      setUnassignReason('');
       
       // Show success message
       showToast('Student unassigned successfully', 'success');
       
-      // Update the users array to show the updated count
-      const updatedUsers = users.map(u => {
-        if (u.id === selectedMentor.id && u.assignedStudents && u.assignedStudents > 0) {
-          return {
-            ...u,
-            assignedStudents: u.assignedStudents - 1
-          };
-        }
-        return u;
-      });
+      // Refresh all users to get updated counts
+      const usersResponse = await fetch('/api/admin/users');
+      const usersData = await usersResponse.json();
+      setUsers(Array.isArray(usersData) ? usersData : []);
       
-      setUsers(updatedUsers);
-    } else {
-      showToast('Failed to unassign student. Please try again.', 'error');
+    } catch (error) {
+      console.error('Error unassigning student:', error);
+      showToast((error as Error).message || 'Failed to unassign student', 'error');
     }
   };
   
@@ -1217,26 +1232,28 @@ export default function AdminUsersPage() {
     setViewAsModalOpen(false);
   };
 
-  // Function to get mentor name for a student
+  // Get student count for a mentor from the current state
+  const getStudentCountForMentor = (mentorId: string | number) => {
+    // Use the mentorStudentsMap which contains all mentor-student assignments
+    const studentsList = mentorStudentsMap[mentorId.toString()] || [];
+    return studentsList.length;
+  };
+
+  // Get mentor name for a student from the current state (using the users array)
   const getMentorNameForStudent = (studentId: string | number) => {
-    const numericStudentId = typeof studentId === 'string' ? parseInt(studentId, 10) : studentId;
-    const mentorId = getMentorForStudent(numericStudentId);
+    const studentIdString = studentId.toString();
+    const mentorId = studentMentorMap[studentIdString];
     
     if (!mentorId) return null;
     
-    const mentor = users.find(u => {
-      const uid = typeof u.id === 'string' ? parseInt(u.id, 10) : u.id;
-      return uid === mentorId;
-    });
-    
+    const mentor = users.find(u => u.id.toString() === mentorId.toString());
     return mentor ? mentor.name : null;
   };
 
-  // Function to get student count for a mentor
-  const getStudentCountForMentor = (mentorId: string | number) => {
-    const numericMentorId = typeof mentorId === 'string' ? parseInt(mentorId, 10) : mentorId;
-    const students = getStudentsForMentor(numericMentorId);
-    return students.length;
+  // Memoized function to get all student IDs assigned to the current mentor
+  const getStudentIdsForCurrentMentor = () => {
+    if (!selectedMentor) return [];
+    return assignedStudentIds;
   };
 
   const handleCloseUnassignModal = () => {
@@ -1246,31 +1263,40 @@ export default function AdminUsersPage() {
   };
 
   // Function to open the mentor assignment modal for a student
-  const handleOpenMentorAssignmentModal = (studentUser: User) => {
+  const handleOpenMentorAssignmentModal = async (studentUser: User) => {
     setSelectedStudent(studentUser);
     
     // Get all mentor users for the selection dropdown
     const mentorUsers = users.filter(u => u.role === 'mentor');
     setAvailableMentors(mentorUsers);
     
-    // Get current mentor if any
-    const studentId = typeof studentUser.id === 'string' 
-      ? parseInt(studentUser.id, 10) 
-      : studentUser.id;
-    
-    const currentMentorId = getMentorForStudent(studentId);
-    
-    // Reset form data with current mentor if one exists
-    setMentorAssignmentFormData({
-      mentorId: currentMentorId ? currentMentorId.toString() : '',
-      notes: ''
-    });
+    // Get current mentor if any using API
+    const studentId = studentUser.id.toString();
+    try {
+      const mentorResponse = await fetch(`/api/admin/mentorship/mentor/${studentId}`);
+      const mentorData = await mentorResponse.json();
+      
+      // Reset form data with current mentor if one exists
+      setMentorAssignmentFormData({
+        mentorId: mentorData && mentorData.mentor_id ? mentorData.mentor_id.toString() : '',
+        notes: ''
+      });
+    } catch (error) {
+      console.error('Error fetching mentor for student:', error);
+      setMentorAssignmentFormData({
+        mentorId: '',
+        notes: ''
+      });
+    }
     
     setShowMentorAssignmentModal(true);
   };
   
   // Function to close the mentor assignment modal
   const handleCloseMentorAssignmentModal = () => {
+    // Refresh data before closing
+    fetchUsers();
+    
     setShowMentorAssignmentModal(false);
     setSelectedStudent(null);
     setAvailableMentors([]);
@@ -1286,7 +1312,7 @@ export default function AdminUsersPage() {
   };
   
   // Function to handle assigning a mentor to the selected student
-  const handleAssignMentor = (e: React.FormEvent) => {
+  const handleAssignMentor = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!selectedStudent || !mentorAssignmentFormData.mentorId) {
@@ -1294,36 +1320,44 @@ export default function AdminUsersPage() {
       return;
     }
     
-    const studentId = typeof selectedStudent.id === 'string' 
-      ? parseInt(selectedStudent.id, 10) 
-      : selectedStudent.id;
+    // Use string IDs directly without parsing as integers
+    const studentId = selectedStudent.id.toString();
+    const mentorId = mentorAssignmentFormData.mentorId.toString();
     
-    const mentorId = parseInt(mentorAssignmentFormData.mentorId, 10);
-    
-    // First unassign from any existing mentor if needed
-    const currentMentorId = getMentorForStudent(studentId);
-    if (currentMentorId) {
-      unassignStudentFromMentor(currentMentorId, studentId, 'Reassigning to different mentor');
-    }
-    
-    // Assign the student to the new mentor
-    const success = assignStudentToMentor(
-      mentorId, 
-      studentId, 
-      mentorAssignmentFormData.notes
-    );
-    
-    if (success) {
-      // Show success message
-      showToast('Mentor assigned successfully', 'success');
+    try {
+      // Check if the student has an assigned mentor
+      const mentorResponse = await fetch(`/api/admin/mentorship/mentor/${studentId}`);
+      if (mentorResponse.ok) {
+        const mentorData = await mentorResponse.json();
+        
+        // If the student has a mentor, unassign them first
+        if (mentorData && mentorData.mentor_id) {
+          await unassignStudentFromMentor(studentId);
+        }
+      }
       
-      // Update the users array to show the updated data
-      // This is a simplification - a real app would refetch the data
+      // Assign the student to the new mentor
+      const success = await assignStudentToMentor(
+        mentorId, 
+        studentId, 
+        mentorAssignmentFormData.notes
+      );
       
-      // Close the modal
-      handleCloseMentorAssignmentModal();
-    } else {
-      showToast('Failed to assign mentor. Please try again.', 'error');
+      if (success) {
+        // Show success message
+        showToast('Mentor assigned successfully', 'success');
+        
+        // Update the users array to show the updated data
+        fetchUsers();
+        
+        // Close the modal
+        handleCloseMentorAssignmentModal();
+      } else {
+        showToast('Failed to assign mentor. Please try again.', 'error');
+      }
+    } catch (error) {
+      console.error('Error assigning mentor:', error);
+      showToast((error as Error).message || 'Failed to assign mentor', 'error');
     }
   };
   
@@ -1331,7 +1365,7 @@ export default function AdminUsersPage() {
   const handleQuickAssignMentor = (mentorId: string | number) => {
     if (!selectedStudent) return;
     
-    // Update the form data
+    // Update the form data with the string ID
     setMentorAssignmentFormData(prev => ({
       ...prev,
       mentorId: mentorId.toString()
@@ -1344,6 +1378,69 @@ export default function AdminUsersPage() {
     
     // Use the existing function
     handleAssignMentor(fakeEvent);
+  };
+
+  // Add these functions after other handler functions
+  const handleOpenMentorshipModal = (user: User) => {
+    setSelectedUserForMentorship(user);
+    setShowMentorshipModal(true);
+  };
+
+  const handleCloseMentorshipModal = () => {
+    setShowMentorshipModal(false);
+    setSelectedUserForMentorship(null);
+    fetchUsers(); // Refresh users to show updated mentorship data
+  };
+
+  // Function to handle assigning a student to the selected mentor
+  const handleAssignStudent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!selectedMentor || !assignmentFormData.studentId) {
+      showToast('Please select a student to assign', 'error');
+      return;
+    }
+    
+    try {
+      // Use string IDs directly
+      const mentorId = selectedMentor.id.toString();
+      const studentId = assignmentFormData.studentId.toString();
+      
+      const success = await assignStudentToMentor(
+        mentorId, 
+        studentId, 
+        assignmentFormData.notes
+      );
+      
+      if (success) {
+        showToast('Student assigned successfully', 'success');
+        
+        // Refresh the assigned students list
+        const studentsResponse = await fetch(`/api/admin/mentorship/students/${mentorId}`);
+        if (studentsResponse.ok) {
+          const studentsData = await studentsResponse.json();
+          // Store student IDs as strings
+          setAssignedStudentIds(studentsData.map((s: any) => s.student_id.toString()));
+        }
+        
+        // Reset form
+        setAssignmentFormData({
+          studentId: '',
+          notes: ''
+        });
+        
+        // Refresh users to update the UI
+        fetchUsers();
+        
+        // Close the assignment modal if needed
+        handleCloseAssignmentModal();
+      } else {
+        showToast('Failed to assign student', 'error');
+      }
+    } catch (error) {
+      console.error('Error assigning student:', error);
+      showToast((error as Error).message || 'Failed to assign student', 'error');
+    }
   };
 
   if (loading) {
@@ -2108,7 +2205,7 @@ export default function AdminUsersPage() {
               <div className="flex items-center justify-center w-full">
                 <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
                   <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                    <Upload className="w-8 h-8 mb-3 text-gray-500" />
+                    <UploadCloud className="w-8 h-8 mb-3 text-gray-500" />
                     <p className="mb-2 text-sm text-gray-500">
                       <span className="font-semibold">Click to upload</span> or drag and drop
                     </p>
@@ -2492,6 +2589,17 @@ export default function AdminUsersPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Mentorship Modal */}
+      {showMentorshipModal && selectedUserForMentorship && (
+        <ManageMentorshipModal
+          isOpen={showMentorshipModal}
+          onClose={handleCloseMentorshipModal}
+          user={selectedUserForMentorship}
+          allUsers={users}
+          onUpdate={fetchUsers}
+        />
       )}
     </div>
   );

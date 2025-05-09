@@ -37,7 +37,7 @@ export async function GET() {
         'pending' as status
       FROM student_activities sa
       JOIN users u ON sa.student_id = u.id
-      JOIN mentor_students ms ON u.id = ms.student_id
+      JOIN mentor_student_assignments ms ON u.id = ms.student_id
       WHERE ms.mentor_id = ? AND sa.status = 'pending'
       ORDER BY sa.date_completed DESC
     `, [mentorId]);

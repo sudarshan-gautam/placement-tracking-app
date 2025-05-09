@@ -33,7 +33,7 @@ export async function GET() {
         u.name,
         u.email
       FROM users u
-      JOIN mentor_students ms ON u.id = ms.student_id
+      JOIN mentor_student_assignments ms ON u.id = ms.student_id
       WHERE ms.mentor_id = ?
     `, [mentorId]);
 

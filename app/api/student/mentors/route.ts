@@ -33,7 +33,7 @@ export async function GET() {
         mentor.name as name,
         mentor.email as email,
         ms.assigned_date as assignedDate
-      FROM mentor_students ms
+      FROM mentor_student_assignments ms
       JOIN users mentor ON ms.mentor_id = mentor.id
       WHERE ms.student_id = ?
       ORDER BY mentor.name

@@ -162,7 +162,7 @@ export async function POST(request: Request) {
       else if (receiver.role === 'student') {
         // Check if this student is assigned to the mentor
         const [assignmentCheck] = await pool.query(
-          'SELECT 1 FROM mentor_students WHERE mentor_id = ? AND student_id = ?',
+          'SELECT 1 FROM mentor_student_assignments WHERE mentor_id = ? AND student_id = ?',
           [user.id, receiverId]
         );
         
@@ -187,7 +187,7 @@ export async function POST(request: Request) {
       if (receiver.role === 'mentor') {
         // Check if this mentor is assigned to the student
         const [assignmentCheck] = await pool.query(
-          'SELECT 1 FROM mentor_students WHERE student_id = ? AND mentor_id = ?',
+          'SELECT 1 FROM mentor_student_assignments WHERE student_id = ? AND mentor_id = ?',
           [user.id, receiverId]
         );
         

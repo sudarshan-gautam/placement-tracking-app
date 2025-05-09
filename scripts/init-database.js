@@ -167,9 +167,45 @@ async function initializeDatabase() {
       console.log('Job_skills table already exists');
     }
     
+    // ===== MENTOR STUDENT ASSIGNMENTS TABLE =====
+    console.log('\n=== Checking mentor_student_assignments table ===');
+    const mentorStudentTableCheck = await db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='mentor_student_assignments'");
+    
+    if (!mentorStudentTableCheck) {
+      console.log('Creating mentor_student_assignments table...');
+      await db.run(`
+        CREATE TABLE mentor_student_assignments (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          mentor_id TEXT NOT NULL,
+          student_id TEXT NOT NULL,
+          assigned_date DATETIME DEFAULT (datetime('now')),
+          notes TEXT,
+          FOREIGN KEY (mentor_id) REFERENCES users(id) ON DELETE CASCADE,
+          FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE,
+          UNIQUE(student_id)
+        )
+      `);
+      console.log('Successfully created mentor_student_assignments table');
+      
+      // Add sample mentor-student assignments if we have users
+      const mentors = await db.all("SELECT id FROM users WHERE role = 'mentor' LIMIT 1");
+      const students = await db.all("SELECT id FROM users WHERE role = 'student' LIMIT 1");
+      
+      if (mentors.length > 0 && students.length > 0) {
+        console.log('Adding sample mentor-student assignment...');
+        await db.run(`
+          INSERT INTO mentor_student_assignments (mentor_id, student_id, notes) 
+          VALUES (?, ?, 'Initial sample assignment')
+        `, mentors[0].id, students[0].id);
+        console.log('Added sample mentor-student assignment');
+      }
+    } else {
+      console.log('Mentor_student_assignments table already exists');
+    }
+    
     // Check for any other tables and drop them if not in the allowed list
     console.log('\n=== Cleaning up unnecessary tables ===');
-    const tables = await db.all("SELECT name FROM sqlite_master WHERE type='table' AND name NOT IN ('users', 'jobs', 'user_skills', 'user_profiles', 'saved_jobs', 'job_applications', 'job_skills', 'sqlite_sequence')");
+    const tables = await db.all("SELECT name FROM sqlite_master WHERE type='table' AND name NOT IN ('users', 'jobs', 'user_skills', 'user_profiles', 'saved_jobs', 'job_applications', 'job_skills', 'mentor_student_assignments', 'sqlite_sequence')");
     
     for (const table of tables) {
       console.log(`Dropping unnecessary table: ${table.name}`);
