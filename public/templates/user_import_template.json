@@ -1,0 +1,37 @@
+[
+  {
+    "name": "John Doe",
+    "email": "john.doe@example.com",
+    "role": "student",
+    "status": "active",
+    "password": "password123"
+  },
+  {
+    "name": "Jane Smith",
+    "email": "jane.smith@example.com",
+    "role": "mentor",
+    "status": "active",
+    "password": "password123"
+  },
+  {
+    "name": "Admin User",
+    "email": "admin@example.com",
+    "role": "admin",
+    "status": "active",
+    "password": "password123"
+  },
+  {
+    "name": "Robert Johnson",
+    "email": "robert.johnson@example.com",
+    "role": "student",
+    "status": "pending",
+    "password": "password123"
+  },
+  {
+    "name": "Mary Williams",
+    "email": "mary.williams@example.com",
+    "role": "mentor",
+    "status": "inactive",
+    "password": "password123"
+  }
+] 

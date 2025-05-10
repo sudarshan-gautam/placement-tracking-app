@@ -1,0 +1,6 @@
+name,email,role,status,password
+John Doe,john.doe@example.com,student,active,password123
+Jane Smith,jane.smith@example.com,mentor,active,password123
+Admin User,admin@example.com,admin,active,password123
+Robert Johnson,robert.johnson@example.com,student,pending,password123
+Mary Williams,mary.williams@example.com,mentor,inactive,password123 

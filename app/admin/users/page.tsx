@@ -23,6 +23,7 @@ import userProfiles from '@/lib/user-profiles';
 import { User as UserType, UserRole, UserStatus } from '@/types/user';
 import { toast } from 'sonner';
 import ManageMentorshipModal from '@/app/components/ManageMentorshipModal';
+import { parseImportFile } from '@/lib/file-parsers';
 
 // Define User type
 interface User {
@@ -99,6 +100,7 @@ export default function AdminUsersPage() {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [exportFormat, setExportFormat] = useState('csv');
   const [exportSelection, setExportSelection] = useState('all');
+  const [isLoading, setIsLoading] = useState(false);
   const [editFormData, setEditFormData] = useState({
     name: '',
     email: '',
@@ -845,7 +847,7 @@ export default function AdminUsersPage() {
   };
 
   // Handle import confirm
-  const handleImportConfirm = () => {
+  const handleImportConfirm = async () => {
     if (!importFile) {
       toast({
         title: 'Error',
@@ -855,226 +857,53 @@ export default function AdminUsersPage() {
       return;
     }
 
-    const reader = new FileReader();
+    setIsLoading(true);
     
-    reader.onload = async (e) => {
-      try {
-        const fileContent = e.target?.result;
-        if (!fileContent) {
-          throw new Error('Failed to read file content');
-        }
-
-        let importedUsers = [];
-        const fileExt = importFile.name.split('.').pop()?.toLowerCase();
-        
-        // Parse CSV
-        if (fileExt === 'csv') {
-          const lines = (fileContent as string).split('\n');
-          const headers = lines[0].split(',').map(h => h.trim());
-          
-          // Validate headers
-          const requiredHeaders = ['name', 'email', 'role'];
-          const missingHeaders = requiredHeaders.filter(h => !headers.map(header => header.toLowerCase()).includes(h));
-          
-          if (missingHeaders.length > 0) {
-            throw new Error(`CSV is missing required headers: ${missingHeaders.join(', ')}`);
-          }
-          
-          // Map indexes for required fields
-          const nameIndex = headers.findIndex(h => h.toLowerCase() === 'name');
-          const emailIndex = headers.findIndex(h => h.toLowerCase() === 'email');
-          const roleIndex = headers.findIndex(h => h.toLowerCase() === 'role');
-          const statusIndex = headers.findIndex(h => h.toLowerCase() === 'status');
-          
-          // Parse CSV data
-          for (let i = 1; i < lines.length; i++) {
-            if (!lines[i].trim()) continue; // Skip empty lines
-            
-            const values = lines[i].split(',').map(v => v.trim());
-            if (values.length < headers.length) continue; // Skip malformed lines
-            
-            const name = values[nameIndex];
-            const email = values[emailIndex];
-            const role = values[roleIndex]?.toLowerCase();
-            const status = statusIndex >= 0 ? values[statusIndex]?.toLowerCase() : 'active';
-            
-            // Validate data
-            if (!name || !email) {
-              console.warn(`Skipping line ${i+1}: Missing name or email`);
-              continue;
-            }
-            
-            if (!['admin', 'mentor', 'student'].includes(role)) {
-              console.warn(`Skipping line ${i+1}: Invalid role "${role}". Must be admin, mentor, or student.`);
-              continue;
-            }
-            
-            if (status && !['active', 'pending', 'inactive'].includes(status)) {
-              console.warn(`Skipping line ${i+1}: Invalid status "${status}". Defaulting to "active".`);
-            }
-            
-            // Validate email format
-            if (!/\S+@\S+\.\S+/.test(email)) {
-              console.warn(`Skipping line ${i+1}: Invalid email format "${email}"`);
-              continue;
-            }
-            
-            importedUsers.push({
-              name,
-              email,
-              role,
-              status: ['active', 'pending', 'inactive'].includes(status) ? status : 'active',
-              password: 'password123' // Default password
-            });
-          }
-        }
-        // Parse JSON
-        else if (fileExt === 'json') {
-          const jsonData = JSON.parse(fileContent as string);
-          
-          if (!Array.isArray(jsonData)) {
-            throw new Error('JSON file must contain an array of user objects');
-          }
-          
-          // Validate and process JSON data
-          importedUsers = jsonData.filter(user => {
-            // Validate required fields
-            if (!user.name || !user.email) {
-              console.warn(`Skipping user: Missing name or email`, user);
-              return false;
-            }
-            
-            // Validate role
-            if (!user.role || !['admin', 'mentor', 'student'].includes(user.role.toLowerCase())) {
-              console.warn(`Skipping user: Invalid role "${user.role}". Must be admin, mentor, or student.`, user);
-              return false;
-            }
-            
-            // Validate email format
-            if (!/\S+@\S+\.\S+/.test(user.email)) {
-              console.warn(`Skipping user: Invalid email format "${user.email}"`, user);
-              return false;
-            }
-            
-            // Format and normalize data
-            user.role = user.role.toLowerCase();
-            user.status = user.status && ['active', 'pending', 'inactive'].includes(user.status.toLowerCase()) 
-              ? user.status.toLowerCase() 
-              : 'active';
-            user.password = user.password || 'password123';
-            
-            return true;
-          });
-        } 
-        // Parse Excel (XLSX)
-        else if (fileExt === 'xlsx' || fileExt === 'xls') {
-          toast({
-            title: 'Error',
-            description: 'Excel import is not implemented yet. Please use CSV or JSON format.',
-            variant: 'destructive',
-          });
-          return;
-        }
-        else {
-          throw new Error('Unsupported file format. Please use CSV or JSON.');
-        }
-        
-        if (importedUsers.length === 0) {
-          throw new Error('No valid users found in the import file');
-        }
-        
-        // Validate for duplicate emails in the import file
-        const uniqueEmails = new Set<string>();
-        const duplicateEmails: string[] = [];
-        
-        importedUsers = importedUsers.filter(user => {
-          if (uniqueEmails.has(user.email.toLowerCase())) {
-            duplicateEmails.push(user.email);
-            return false;
-          }
-          uniqueEmails.add(user.email.toLowerCase());
-          return true;
-        });
-        
-        if (duplicateEmails.length > 0) {
-          console.warn(`Removed ${duplicateEmails.length} duplicate email(s) from import:`, duplicateEmails);
-        }
-        
-        // Create users
-        let createdCount = 0;
-        let errorCount = 0;
-        
-        for (const userData of importedUsers) {
-          try {
-            const response = await fetch('/api/admin/users', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify(userData),
-            });
-            
-            if (response.ok) {
-              createdCount++;
-            } else {
-              const error = await response.json();
-              console.error(`Failed to create user ${userData.email}:`, error);
-              errorCount++;
-            }
-          } catch (error) {
-            console.error(`Failed to create user ${userData.email}:`, error);
-            errorCount++;
-          }
-        }
-        
-        setShowImportModal(false);
-        setImportFile(null);
-        
-        // Refresh user list
-        const response = await fetch('/api/admin/users');
-        const data = await response.json();
-        setUsers(Array.isArray(data) ? data : []);
-        
-        toast({
-          title: 'Import Complete',
-          description: `Created ${createdCount} users. ${errorCount} errors.`,
-          variant: errorCount > 0 ? 'destructive' : 'default',
-        });
-        
-      } catch (error) {
-        console.error('Import error:', error);
-        toast({
-          title: 'Import Failed',
-          description: error instanceof Error ? error.message : 'Failed to import users',
-          variant: 'destructive',
-        });
+    try {
+      // Parse the file using our utility function
+      const importedUsers = await parseImportFile(importFile);
+      
+      if (importedUsers.length === 0) {
+        throw new Error('No valid users found in the import file');
       }
-    };
-    
-    reader.onerror = () => {
+      
+      // Send the users to the API for bulk import
+      const response = await fetch('/api/admin/users/import', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ users: importedUsers }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to import users');
+      }
+      
+      const result = await response.json();
+      
+      // Show import results
       toast({
-        title: 'Error',
-        description: 'Failed to read file',
+        title: 'Import Complete',
+        description: result.message,
+        variant: 'default',
+      });
+      
+      // Refresh user list
+      await fetchUsers();
+      
+      // Close modal
+      setShowImportModal(false);
+    } catch (error: any) {
+      console.error('Import error:', error);
+      toast({
+        title: 'Import Failed',
+        description: error.message || 'Failed to import users',
         variant: 'destructive',
       });
-    };
-    
-    const fileExt = importFile.name.split('.').pop()?.toLowerCase();
-
-    if (fileExt === 'csv' || fileExt === 'json') {
-      reader.readAsText(importFile);
-    } else if (fileExt === 'xlsx' || fileExt === 'xls') {
-      toast({
-        title: 'Error',
-        description: 'Excel import is not implemented yet. Please use CSV or JSON format.',
-        variant: 'destructive',
-      });
-    } else {
-      toast({
-        title: 'Error',
-        description: 'Unsupported file format. Please use CSV or JSON.',
-        variant: 'destructive',
-      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -1500,6 +1329,32 @@ export default function AdminUsersPage() {
               <span className="font-medium">Format example:</span> 
               <code className="bg-blue-100 px-1 py-0.5 rounded text-xs">name,email,role,status</code>
             </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <a 
+                href="/templates/user_import_template.csv" 
+                download 
+                className="inline-flex items-center text-xs bg-blue-100 hover:bg-blue-200 text-blue-800 px-2 py-1 rounded"
+              >
+                <Download className="h-3 w-3 mr-1" />
+                CSV Template
+              </a>
+              <a 
+                href="/templates/user_import_template.xlsx" 
+                download 
+                className="inline-flex items-center text-xs bg-blue-100 hover:bg-blue-200 text-blue-800 px-2 py-1 rounded"
+              >
+                <Download className="h-3 w-3 mr-1" />
+                Excel Template
+              </a>
+              <a 
+                href="/templates/user_import_template.json" 
+                download 
+                className="inline-flex items-center text-xs bg-blue-100 hover:bg-blue-200 text-blue-800 px-2 py-1 rounded"
+              >
+                <Download className="h-3 w-3 mr-1" />
+                JSON Template
+              </a>
+            </div>
           </div>
         </div>
       </div>
@@ -2240,11 +2095,23 @@ export default function AdminUsersPage() {
               <Button 
                 variant="default" 
                 onClick={handleImportConfirm}
-                disabled={!importFile}
+                disabled={!importFile || isLoading}
                 className="flex items-center"
               >
-                <Upload className="h-4 w-4 mr-2" />
-                Import Users
+                {isLoading ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Importing...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Import Users
+                  </>
+                )}
               </Button>
             </div>
           </div>
