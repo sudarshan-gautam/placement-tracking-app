@@ -70,17 +70,33 @@ export async function PATCH(
         }, { status: 400 });
       }
       
-      // Validate secondary email is not already in use by another user
-      const [existingSecondaryEmail] = await pool.query(
-        'SELECT user_id FROM user_profiles WHERE secondary_email = ? AND user_id != ?',
-        [secondary_email, params.id]
+      // First, get the user's current secondary email
+      const [currentSecEmail] = await pool.query(
+        'SELECT secondary_email FROM user_profiles WHERE user_id = ?',
+        [params.id]
       );
       
-      if (existingSecondaryEmail && (existingSecondaryEmail as any[]).length > 0) {
-        console.log('Secondary email already exists for another user');
-        return NextResponse.json({ 
-          error: 'Secondary email already exists for another user' 
-        }, { status: 400 });
+      // If the secondary email is the same as what they already have, skip the validation
+      const currentSecondaryEmail = currentSecEmail && 
+                                   (currentSecEmail as any[]).length > 0 && 
+                                   (currentSecEmail as any[])[0].secondary_email;
+                                   
+      if (currentSecondaryEmail !== secondary_email) {
+        // Only validate if they're trying to change to a different secondary email
+        // Validate secondary email is not already in use by another user
+        const [existingSecondaryEmail] = await pool.query(
+          'SELECT user_id FROM user_profiles WHERE secondary_email = ? AND user_id != ?',
+          [secondary_email, params.id]
+        );
+        
+        if (existingSecondaryEmail && (existingSecondaryEmail as any[]).length > 0) {
+          console.log('Secondary email already exists for another user');
+          return NextResponse.json({ 
+            error: 'Secondary email already exists for another user' 
+          }, { status: 400 });
+        }
+      } else {
+        console.log('Secondary email unchanged, skipping validation');
       }
     }
     
@@ -88,16 +104,33 @@ export async function PATCH(
     if (phone) {
       // Validate phone is not already in use by another user
       const pool = await getPool();
-      const [existingPhone] = await pool.query(
-        'SELECT user_id FROM user_profiles WHERE phone = ? AND user_id != ?',
-        [phone, params.id]
+      
+      // First, get the user's current phone number
+      const [currentPhoneNumber] = await pool.query(
+        'SELECT phone FROM user_profiles WHERE user_id = ?',
+        [params.id]
       );
       
-      if (existingPhone && (existingPhone as any[]).length > 0) {
-        console.log('Phone number already exists for another user');
-        return NextResponse.json({ 
-          error: 'Phone number already exists for another user' 
-        }, { status: 400 });
+      // If the phone number is the same as what they already have, skip the validation
+      const currentPhone = currentPhoneNumber && 
+                          (currentPhoneNumber as any[]).length > 0 && 
+                          (currentPhoneNumber as any[])[0].phone;
+                          
+      if (currentPhone !== phone) {
+        // Only validate if they're trying to change to a different phone number
+        const [existingPhone] = await pool.query(
+          'SELECT user_id FROM user_profiles WHERE phone = ? AND user_id != ?',
+          [phone, params.id]
+        );
+        
+        if (existingPhone && (existingPhone as any[]).length > 0) {
+          console.log('Phone number already exists for another user');
+          return NextResponse.json({ 
+            error: 'Phone number already exists for another user' 
+          }, { status: 400 });
+        }
+      } else {
+        console.log('Phone number unchanged, skipping validation');
       }
     }
 

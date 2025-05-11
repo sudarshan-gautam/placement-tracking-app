@@ -203,9 +203,62 @@ async function initializeDatabase() {
       console.log('Mentor_student_assignments table already exists');
     }
     
+    // ===== USER EDUCATION TABLE =====
+    console.log('\n=== Checking user_education table ===');
+    const userEducationTableCheck = await db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='user_education'");
+    
+    if (!userEducationTableCheck) {
+      console.log('Creating user_education table...');
+      await db.run(`
+        CREATE TABLE user_education (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          institution TEXT NOT NULL,
+          degree TEXT NOT NULL,
+          field_of_study TEXT,
+          start_date TEXT,
+          end_date TEXT,
+          description TEXT,
+          created_at TEXT DEFAULT (datetime('now')),
+          updated_at TEXT DEFAULT (datetime('now')),
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+      `);
+      console.log('Successfully created user_education table');
+    } else {
+      console.log('User_education table already exists');
+    }
+    
+    // ===== USER EXPERIENCE TABLE =====
+    console.log('\n=== Checking user_experience table ===');
+    const userExperienceTableCheck = await db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='user_experience'");
+    
+    if (!userExperienceTableCheck) {
+      console.log('Creating user_experience table...');
+      await db.run(`
+        CREATE TABLE user_experience (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          title TEXT NOT NULL,
+          company TEXT NOT NULL,
+          location TEXT,
+          start_date TEXT,
+          end_date TEXT,
+          current BOOLEAN DEFAULT 0,
+          description TEXT,
+          created_at TEXT DEFAULT (datetime('now')),
+          updated_at TEXT DEFAULT (datetime('now')),
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+      `);
+      console.log('Successfully created user_experience table');
+    } else {
+      console.log('User_experience table already exists');
+    }
+    
     // Check for any other tables and drop them if not in the allowed list
     console.log('\n=== Cleaning up unnecessary tables ===');
-    const tables = await db.all("SELECT name FROM sqlite_master WHERE type='table' AND name NOT IN ('users', 'jobs', 'user_skills', 'user_profiles', 'saved_jobs', 'job_applications', 'job_skills', 'mentor_student_assignments', 'sqlite_sequence')");
+    const tables = await db.all("SELECT name FROM sqlite_master WHERE type='table' AND name NOT IN ('users', 'jobs', 'user_skills', 'user_profiles', 'saved_jobs', 'job_applications', 'job_skills', 'mentor_student_assignments', 'sqlite_sequence', 'user_education', 'user_experience')");
     
     for (const table of tables) {
       console.log(`Dropping unnecessary table: ${table.name}`);

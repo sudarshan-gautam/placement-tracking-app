@@ -10,6 +10,10 @@ import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Responsi
 import { toast } from '@/components/ui/use-toast';
 import { QualificationModal } from '@/components/qualification-modal';
 import { getStudentsForMentor } from '@/lib/db-mentor-student-service';
+import EducationForm from '@/app/components/profile/EducationForm';
+import ExperienceForm from '@/app/components/profile/ExperienceForm';
+import ProfileEducationView from '@/app/components/profile/ProfileEducationView';
+import ProfileExperienceView from '@/app/components/profile/ProfileExperienceView';
 
 // Verification status type
 type VerificationStatus = 'unverified' | 'pending' | 'rejected' | 'verified';
@@ -143,7 +147,7 @@ export default function ProfilePage() {
     role: '',
     bio: '',
     education: '',  // From user_profiles table
-    graduation_year: null, // From user_profiles table
+    graduation_year: '', // From user_profiles table - changed from null to empty string
     preferred_job_type: '', // From user_profiles table
     preferred_location: '', // From user_profiles table
     years_experience: 0 // From user_skills
@@ -1098,6 +1102,8 @@ export default function ProfilePage() {
     } else if (user.role === 'mentor') {
       return (
         <>
+          {skillsSection}
+          
           {/* Assigned Students */}
           <Card className="mb-6">
             <CardHeader 
@@ -1179,6 +1185,8 @@ export default function ProfilePage() {
     } else if (user.role === 'admin') {
       return (
         <>
+          {skillsSection}
+          
           {/* Admin Settings */}
           <Card className="mb-6">
             <CardHeader>
@@ -1451,6 +1459,26 @@ export default function ProfilePage() {
                     </button>
                     <button
                       className={`py-2 px-4 font-medium border-b-2 whitespace-nowrap ${
+                        activeTab === 'education' 
+                          ? 'border-blue-600 text-blue-600' 
+                          : 'border-transparent text-gray-500 hover:text-gray-700'
+                      }`}
+                      onClick={() => setActiveTab('education')}
+                    >
+                      Education
+                    </button>
+                    <button
+                      className={`py-2 px-4 font-medium border-b-2 whitespace-nowrap ${
+                        activeTab === 'experience' 
+                          ? 'border-blue-600 text-blue-600' 
+                          : 'border-transparent text-gray-500 hover:text-gray-700'
+                      }`}
+                      onClick={() => setActiveTab('experience')}
+                    >
+                      Experience
+                    </button>
+                    <button
+                      className={`py-2 px-4 font-medium border-b-2 whitespace-nowrap ${
                         activeTab === 'skills' 
                           ? 'border-blue-600 text-blue-600' 
                           : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -1638,6 +1666,38 @@ export default function ProfilePage() {
                     </div>
                   )}
                  
+                  {/* Education Tab */}
+                  {activeTab === 'education' && (
+                    <div className="space-y-4">
+                      <EducationForm 
+                        userId={user?.id ? String(user.id) : ''} 
+                        onUpdate={() => {
+                          // Callback when education is updated
+                          toast({
+                            title: 'Education Updated',
+                            description: 'Your education history has been updated.'
+                          });
+                        }} 
+                      />
+                    </div>
+                  )}
+                  
+                  {/* Experience Tab */}
+                  {activeTab === 'experience' && (
+                    <div className="space-y-4">
+                      <ExperienceForm 
+                        userId={user?.id ? String(user.id) : ''} 
+                        onUpdate={() => {
+                          // Callback when experience is updated
+                          toast({
+                            title: 'Experience Updated',
+                            description: 'Your work experience has been updated.'
+                          });
+                        }} 
+                      />
+                    </div>
+                  )}
+                  
                   {/* Skills Tab */}
                   {activeTab === 'skills' && (
                     <div className="space-y-4">
@@ -1857,63 +1917,71 @@ export default function ProfilePage() {
       
       {/* Main Content Area */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - Contact & Education Information */}
+        {/* Left Column - Contact & Education Information - make it sticky */}
         <div className="lg:col-span-1">
-          
-          <Card className="mb-6">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-xl font-bold">Contact Information</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center">
-                  <Mail className="h-4 w-4 text-gray-400 mr-2" />
-                  <span className="text-gray-700">{personalDetails.email}</span>
-                </div>
-                
-                {personalDetails.phone && (
-                  <div className="flex items-center">
-                    <Phone className="h-4 w-4 text-gray-400 mr-2" />
-                    <span className="text-gray-700">{personalDetails.countryCode} {personalDetails.phone}</span>
-                  </div>
-                )}
-                
-                {personalDetails.secondary_email && (
+          <div className="lg:sticky lg:top-4 space-y-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-xl font-bold">Contact Information</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
                   <div className="flex items-center">
                     <Mail className="h-4 w-4 text-gray-400 mr-2" />
-                    <span className="text-gray-700">{personalDetails.secondary_email} (Secondary)</span>
+                    <span className="text-gray-700">{personalDetails.email}</span>
                   </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="mb-6">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-xl font-bold">Education & Experience</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <h3 className="text-sm font-semibold mb-1">Education</h3>
-                  <div className="flex items-center">
-                    <GraduationCap className="h-4 w-4 text-gray-400 mr-2" />
-                    <span className="text-gray-700">{personalDetails.education || 'Not specified'}</span>
-                  </div>
-                </div>
-                
-                {personalDetails.graduation_year && (
-                  <div>
-                    <h3 className="text-sm font-semibold mb-1">Graduation Year</h3>
+                  
+                  {personalDetails.phone && (
                     <div className="flex items-center">
-                      <Calendar className="h-4 w-4 text-gray-400 mr-2" />
-                      <span className="text-gray-700">{personalDetails.graduation_year}</span>
+                      <Phone className="h-4 w-4 text-gray-400 mr-2" />
+                      <span className="text-gray-700">{personalDetails.countryCode} {personalDetails.phone}</span>
                     </div>
+                  )}
+                  
+                  {personalDetails.secondary_email && (
+                    <div className="flex items-center">
+                      <Mail className="h-4 w-4 text-gray-400 mr-2" />
+                      <span className="text-gray-700">{personalDetails.secondary_email} (Secondary)</span>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+            
+            {/* Education Card */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-xl font-bold">Education</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {user?.id ? (
+                  <ProfileEducationView userId={String(user.id)} />
+                ) : (
+                  <div className="text-center py-4 text-gray-500">
+                    <School className="mx-auto h-8 w-8 text-gray-400 mb-2" />
+                    <p>Sign in to view your education history</p>
                   </div>
                 )}
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+            
+            {/* Experience Card */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-xl font-bold">Experience</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {user?.id ? (
+                  <ProfileExperienceView userId={String(user.id)} />
+                ) : (
+                  <div className="text-center py-4 text-gray-500">
+                    <Briefcase className="mx-auto h-8 w-8 text-gray-400 mb-2" />
+                    <p>Sign in to view your work experience</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
         
         {/* Right Column - Role-specific content */}
