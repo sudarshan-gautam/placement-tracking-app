@@ -48,6 +48,7 @@ interface SkillData {
   self: number;
   mentor: number;
   fullMark: number;
+  years_experience: number;
 }
 
 // Initialize empty arrays for state instead of using constants
@@ -64,6 +65,25 @@ const formatDate = (dateString: string) => {
     month: '2-digit',
     day: '2-digit'
   });
+};
+
+// Helper function to convert skill level to numeric score for chart
+const convertLevelToScore = (level: string): number => {
+  switch (level) {
+    case 'beginner': return 25;
+    case 'intermediate': return 50;
+    case 'advanced': return 75;
+    case 'expert': return 100;
+    default: return 0;
+  }
+};
+
+// Helper function to get readable label for skill level
+const getSkillLevelLabel = (level: number): string => {
+  if (level <= 25) return 'Beginner';
+  if (level <= 50) return 'Intermediate';
+  if (level <= 75) return 'Advanced';
+  return 'Expert';
 };
 
 export default function ProfilePage() {
@@ -115,7 +135,10 @@ export default function ProfilePage() {
     role: '',
     bio: '',
     education: '',  // From user_profiles table
-    graduation_year: null, // From user_profiles table 
+    graduation_year: null, // From user_profiles table
+    preferred_job_type: '', // From user_profiles table
+    preferred_location: '', // From user_profiles table
+    years_experience: 0 // From user_skills
   });
   
   const [expandedSections, setExpandedSections] = useState({
@@ -210,6 +233,8 @@ export default function ProfilePage() {
               bio: profileData.bio || prev.bio,
               education: profileData.education || prev.education,
               graduation_year: profileData.graduation_year || prev.graduation_year,
+              preferred_job_type: profileData.preferred_job_type || prev.preferred_job_type,
+              preferred_location: profileData.preferred_location || prev.preferred_location,
               // Parse phone to separate country code and number if it exists
               ...(profileData.phone && profileData.phone.startsWith('+') 
                 ? {
@@ -301,7 +326,8 @@ export default function ProfilePage() {
               subject: skill.skill,
               self: convertLevelToScore(skill.level),
               mentor: Math.max(20, convertLevelToScore(skill.level) - 10), // Simulated mentor score
-              fullMark: 100
+              fullMark: 100,
+              years_experience: skill.years_experience || 0
             }));
             
             setStudentSkillsData(formattedSkills);
@@ -310,17 +336,6 @@ export default function ProfilePage() {
           }
         } catch (error) {
           console.error('Error fetching skills data:', error);
-        }
-      };
-      
-      // Helper function to convert skill level to numeric score for chart
-      const convertLevelToScore = (level: string): number => {
-        switch (level) {
-          case 'beginner': return 25;
-          case 'intermediate': return 50;
-          case 'advanced': return 75;
-          case 'expert': return 100;
-          default: return 0;
         }
       };
       
@@ -475,6 +490,8 @@ export default function ProfilePage() {
         bio: personalDetails.bio,
         education: personalDetails.education,
         graduation_year: personalDetails.graduation_year,
+        preferred_job_type: personalDetails.preferred_job_type,
+        preferred_location: personalDetails.preferred_location,
         phone: formattedPhone,
         secondary_email: personalDetails.secondary_email,
         social_media: socialMedia
@@ -493,9 +510,9 @@ export default function ProfilePage() {
         return;
       }
       
-      // Save profile data to the server
+      // Save profile data to the server - changed from PUT to PATCH
       const response = await fetch(`/api/${user?.role}/${user?.id}/profile`, {
-        method: 'PUT',
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
@@ -503,7 +520,40 @@ export default function ProfilePage() {
         body: JSON.stringify(profileData)
       });
       
-      if (response.ok) {
+      let updateSuccessful = response.ok;
+      
+      // Also save skills data if there are any
+      if (studentSkillsData.length > 0 && user) {
+        try {
+          // Prepare skills data for API
+          const skillsData = studentSkillsData.map(skill => ({
+            user_id: user.id,
+            skill: skill.subject,
+            level: getSkillLevelLabel(skill.self).toLowerCase(),
+            years_experience: skill.years_experience
+          }));
+          
+          // Save skills data
+          const skillsResponse = await fetch(`/api/skills/${user.id}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(skillsData)
+          });
+          
+          if (!skillsResponse.ok) {
+            console.error('Error saving skills data:', await skillsResponse.text());
+            updateSuccessful = false;
+          }
+        } catch (error) {
+          console.error('Error saving skills data:', error);
+          updateSuccessful = false;
+        }
+      }
+      
+      if (updateSuccessful) {
         toast({
           title: "Profile Updated",
           description: "Your profile has been successfully updated"
@@ -525,10 +575,9 @@ export default function ProfilePage() {
           socialMedia: false
         });
       } else {
-        const errorData = await response.json();
         toast({
           title: "Error Updating Profile",
-          description: errorData.message || "An error occurred while updating your profile",
+          description: "An error occurred while updating your profile",
           variant: "destructive"
         });
       }
@@ -816,30 +865,59 @@ export default function ProfilePage() {
             <p className="text-gray-600 text-sm mb-4">Your skills levels and comparisons</p>
             
             {studentSkillsData.length > 0 ? (
-              <div className="aspect-square max-w-md mx-auto">
-                <ResponsiveContainer width="100%" height="100%">
-                  <RadarChart outerRadius={90} data={studentSkillsData}>
-                    <PolarGrid />
-                    <PolarAngleAxis dataKey="subject" />
-                    <PolarRadiusAxis domain={[0, 100]} />
-                    <Radar
-                      name="Self Assessment"
-                      dataKey="self"
-                      stroke="#8884d8"
-                      fill="#8884d8"
-                      fillOpacity={0.6}
-                    />
-                    <Radar
-                      name="Mentor Evaluation"
-                      dataKey="mentor"
-                      stroke="#82ca9d"
-                      fill="#82ca9d"
-                      fillOpacity={0.6}
-                    />
-                    <RechartsTooltip />
-                  </RadarChart>
-                </ResponsiveContainer>
-              </div>
+              <>
+                <div className="aspect-square max-w-md mx-auto">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RadarChart outerRadius={90} data={studentSkillsData}>
+                      <PolarGrid />
+                      <PolarAngleAxis dataKey="subject" />
+                      <PolarRadiusAxis domain={[0, 100]} />
+                      <Radar
+                        name="Self Assessment"
+                        dataKey="self"
+                        stroke="#8884d8"
+                        fill="#8884d8"
+                        fillOpacity={0.6}
+                      />
+                      <Radar
+                        name="Mentor Evaluation"
+                        dataKey="mentor"
+                        stroke="#82ca9d"
+                        fill="#82ca9d"
+                        fillOpacity={0.6}
+                      />
+                      <RechartsTooltip />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </div>
+
+                {/* Detailed Skills List */}
+                <div className="mt-8">
+                  <h3 className="text-lg font-medium mb-4">My Skills</h3>
+                  <div className="space-y-4">
+                    {studentSkillsData.map((skill, index) => (
+                      <div key={index} className="border rounded-lg p-4">
+                        <div className="flex justify-between items-center mb-2">
+                          <h4 className="font-medium">{skill.subject}</h4>
+                          <span className="text-sm font-semibold bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                            {getSkillLevelLabel(skill.self)}
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2">
+                          <div 
+                            className="bg-blue-600 h-2.5 rounded-full" 
+                            style={{ width: `${skill.self}%` }}
+                          ></div>
+                        </div>
+                        <div className="flex justify-between text-xs text-gray-500 mt-1">
+                          <span>Experience: {skill.years_experience} {skill.years_experience === 1 ? 'year' : 'years'}</span>
+                          <span>Self Assessment: {skill.self}%</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
             ) : (
               <div className="text-center p-8 text-gray-500">
                 <BarChart className="h-12 w-12 mx-auto mb-4 opacity-40" />
@@ -1310,7 +1388,7 @@ export default function ProfilePage() {
                   >
                     Personal Info
                   </button>
-                  <button 
+                  <button
                     className={`py-2 px-4 font-medium border-b-2 ${
                       activeTab === 'contact' 
                         ? 'border-blue-600 text-blue-600' 
@@ -1320,7 +1398,17 @@ export default function ProfilePage() {
                   >
                     Contact Info
                   </button>
-                  <button 
+                  <button
+                    className={`py-2 px-4 font-medium border-b-2 ${
+                      activeTab === 'skills' 
+                        ? 'border-blue-600 text-blue-600' 
+                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+                    onClick={() => setActiveTab('skills')}
+                  >
+                    Skills
+                  </button>
+                  <button
                     className={`py-2 px-4 font-medium border-b-2 ${
                       activeTab === 'social' 
                         ? 'border-blue-600 text-blue-600' 
@@ -1342,7 +1430,7 @@ export default function ProfilePage() {
                       <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
                         Full Name
                       </label>
-                      <input
+                      <input 
                         type="text"
                         id="name"
                         name="name"
@@ -1387,7 +1475,7 @@ export default function ProfilePage() {
                       <label htmlFor="graduation_year" className="block text-sm font-medium text-gray-700 mb-1">
                         Graduation Year
                       </label>
-                      <input
+                      <input 
                         type="number"
                         id="graduation_year"
                         name="graduation_year"
@@ -1395,6 +1483,36 @@ export default function ProfilePage() {
                         onChange={handlePersonalDetailsChange}
                         className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="Year of graduation"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="preferred_job_type" className="block text-sm font-medium text-gray-700 mb-1">
+                        Preferred Job Type
+                      </label>
+                      <input
+                        type="text"
+                        id="preferred_job_type"
+                        name="preferred_job_type"
+                        value={personalDetails.preferred_job_type || ''}
+                        onChange={handlePersonalDetailsChange}
+                        className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="e.g. Full-time, Part-time, Remote"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="preferred_location" className="block text-sm font-medium text-gray-700 mb-1">
+                        Preferred Location
+                      </label>
+                      <input
+                        type="text"
+                        id="preferred_location"
+                        name="preferred_location"
+                        value={personalDetails.preferred_location || ''}
+                        onChange={handlePersonalDetailsChange}
+                        className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Your preferred work location"
                       />
                     </div>
                   </div>
@@ -1462,6 +1580,126 @@ export default function ProfilePage() {
                         />
                       </div>
                     </div>
+                  </div>
+                )}
+                
+                {/* Skills Tab */}
+                {activeTab === 'skills' && (
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium mb-2">My Skills</h3>
+                    <p className="text-gray-500 text-sm mb-4">Manage your skills and experience levels</p>
+                    
+                    {studentSkillsData.length > 0 ? (
+                      <div className="space-y-3">
+                        {studentSkillsData.map((skill, index) => (
+                          <div key={index} className="border rounded-lg p-3">
+                            <div className="grid grid-cols-12 gap-2 items-center">
+                              <div className="col-span-4">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Skill
+                                </label>
+                                <input
+                                  type="text"
+                                  value={skill.subject}
+                                  onChange={(e) => {
+                                    const updatedSkills = [...studentSkillsData];
+                                    updatedSkills[index].subject = e.target.value;
+                                    setStudentSkillsData(updatedSkills);
+                                  }}
+                                  className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                                />
+                              </div>
+                              
+                              <div className="col-span-4">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Level
+                                </label>
+                                <select
+                                  value={skill.self}
+                                  onChange={(e) => {
+                                    const updatedSkills = [...studentSkillsData];
+                                    updatedSkills[index].self = parseInt(e.target.value);
+                                    setStudentSkillsData(updatedSkills);
+                                  }}
+                                  className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                                >
+                                  <option value="25">Beginner</option>
+                                  <option value="50">Intermediate</option>
+                                  <option value="75">Advanced</option>
+                                  <option value="100">Expert</option>
+                                </select>
+                              </div>
+                              
+                              <div className="col-span-3">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Years
+                                </label>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="50"
+                                  value={skill.years_experience}
+                                  onChange={(e) => {
+                                    const updatedSkills = [...studentSkillsData];
+                                    updatedSkills[index].years_experience = parseInt(e.target.value);
+                                    setStudentSkillsData(updatedSkills);
+                                  }}
+                                  className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                                />
+                              </div>
+                              
+                              <div className="col-span-1 flex items-end justify-center pb-1">
+                                <button
+                                  onClick={() => {
+                                    const updatedSkills = studentSkillsData.filter((_, i) => i !== index);
+                                    setStudentSkillsData(updatedSkills);
+                                  }}
+                                  className="text-red-500 hover:text-red-700"
+                                >
+                                  <X size={18} />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        
+                        <button
+                          onClick={() => {
+                            setStudentSkillsData([
+                              ...studentSkillsData, 
+                              {
+                                subject: '',
+                                self: 25,
+                                mentor: 0,
+                                fullMark: 100,
+                                years_experience: 0
+                              }
+                            ]);
+                          }}
+                          className="mt-2 flex items-center text-blue-600 hover:text-blue-800"
+                        >
+                          + Add a skill
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="border border-dashed border-gray-300 rounded-lg p-6 text-center">
+                        <p className="text-gray-500 mb-4">You haven't added any skills yet</p>
+                        <button
+                          onClick={() => {
+                            setStudentSkillsData([{
+                              subject: '',
+                              self: 25,
+                              mentor: 0,
+                              fullMark: 100,
+                              years_experience: 0
+                            }]);
+                          }}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                        >
+                          Add your first skill
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
                 
