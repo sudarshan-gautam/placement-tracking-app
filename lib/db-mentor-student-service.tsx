@@ -91,13 +91,19 @@ export async function unassignStudentFromMentor(
 // Get all students assigned to a mentor
 export async function getStudentsForMentor(mentorId: string | number): Promise<any[]> {
   try {
+    console.log('db-mentor-student-service: Fetching students for mentor:', mentorId);
     const response = await fetch(`/api/admin/mentorship/students/${mentorId.toString()}`);
     if (!response.ok) {
+      console.error('db-mentor-student-service: Error response:', response.status, response.statusText);
       throw new Error('Failed to fetch students for mentor');
     }
-    return await response.json();
+    
+    const data = await response.json();
+    console.log('db-mentor-student-service: Students data received:', JSON.stringify(data, null, 2));
+    
+    return data;
   } catch (error) {
-    console.error('Error fetching students for mentor:', error);
+    console.error('db-mentor-student-service: Error fetching students for mentor:', error);
     return [];
   }
 }

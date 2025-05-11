@@ -150,16 +150,16 @@ export default function StudentsPage() {
       const enrichedStudents = assignedStudents.map(student => {
         // Find matching sample data to enrich the student data
         const sampleData = studentsData.find(sample => 
-          sample.email.toLowerCase() === student.email.toLowerCase()
+          sample.email.toLowerCase() === (student.student_email || student.email || '').toLowerCase()
         );
         
         return {
           ...sampleData || studentsData[0], // Use first sample as fallback
-          id: parseInt(student.student_id), // Use real student_id
-          name: student.name,
-          email: student.email,
-          status: student.status,
-          progress: student.progress
+          id: parseInt(student.student_id || student.id || '0'), // Use real student_id
+          name: student.student_name || student.name || '',
+          email: student.student_email || student.email || '',
+          status: student.status || 'Active',
+          progress: student.progress || Math.floor(Math.random() * 100)
         };
       });
       
