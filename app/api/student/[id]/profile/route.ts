@@ -88,16 +88,33 @@ export async function PATCH(
     if (phone) {
       // Validate phone is not already in use by another user
       const pool = await getPool();
-      const [existingPhone] = await pool.query(
-        'SELECT user_id FROM user_profiles WHERE phone = ? AND user_id != ?',
-        [phone, params.id]
+      
+      // First, get the user's current phone number
+      const [currentPhoneNumber] = await pool.query(
+        'SELECT phone FROM user_profiles WHERE user_id = ?',
+        [params.id]
       );
       
-      if (existingPhone && (existingPhone as any[]).length > 0) {
-        console.log('Phone number already exists for another user');
-        return NextResponse.json({ 
-          error: 'Phone number already exists for another user' 
-        }, { status: 400 });
+      // If the phone number is the same as what they already have, skip the validation
+      const currentPhone = currentPhoneNumber && 
+                          (currentPhoneNumber as any[]).length > 0 && 
+                          (currentPhoneNumber as any[])[0].phone;
+                          
+      if (currentPhone !== phone) {
+        // Only validate if they're trying to change to a different phone number
+        const [existingPhone] = await pool.query(
+          'SELECT user_id FROM user_profiles WHERE phone = ? AND user_id != ?',
+          [phone, params.id]
+        );
+        
+        if (existingPhone && (existingPhone as any[]).length > 0) {
+          console.log('Phone number already exists for another user');
+          return NextResponse.json({ 
+            error: 'Phone number already exists for another user' 
+          }, { status: 400 });
+        }
+      } else {
+        console.log('Phone number unchanged, skipping validation');
       }
     }
 

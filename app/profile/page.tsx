@@ -86,6 +86,14 @@ const getSkillLevelLabel = (level: number): string => {
   return 'Expert';
 };
 
+// Helper function to convert numeric skill level to text
+const getSkillLevelText = (level: number): string => {
+  if (level <= 25) return 'beginner';
+  if (level <= 50) return 'intermediate';
+  if (level <= 75) return 'advanced';
+  return 'expert';
+};
+
 export default function ProfilePage() {
   const { user, updateUser } = useAuth();
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -321,21 +329,35 @@ export default function ProfilePage() {
             const skillsData = await response.json();
             console.log('Skills data received:', skillsData);
             
-            // Transform skills data for radar chart
-            const formattedSkills = skillsData.map((skill: any) => ({
-              subject: skill.skill,
-              self: convertLevelToScore(skill.level),
-              mentor: Math.max(20, convertLevelToScore(skill.level) - 10), // Simulated mentor score
-              fullMark: 100,
-              years_experience: skill.years_experience || 0
-            }));
-            
-            setStudentSkillsData(formattedSkills);
+            if (skillsData && Array.isArray(skillsData)) {
+              // Transform skills data for radar chart
+              const formattedSkills = skillsData.map((skill: any) => {
+                // Use helper function to convert text level to numeric score
+                const selfScore = convertLevelToScore(skill.level || 'intermediate');
+                // Create a simulated mentor score that's slightly different
+                const mentorScore = Math.max(20, selfScore - 10);
+                
+                return {
+                  subject: skill.skill || '',
+                  self: selfScore,
+                  mentor: mentorScore,
+                  fullMark: 100,
+                  years_experience: skill.years_experience || 0
+                };
+              });
+              
+              setStudentSkillsData(formattedSkills);
+            } else {
+              console.error('Skills data is not an array:', skillsData);
+              setStudentSkillsData([]);
+            }
           } else {
             console.error('Failed to fetch skills data:', response.status);
+            setStudentSkillsData([]);
           }
         } catch (error) {
           console.error('Error fetching skills data:', error);
+          setStudentSkillsData([]);
         }
       };
       
@@ -520,40 +542,62 @@ export default function ProfilePage() {
         body: JSON.stringify(profileData)
       });
       
-      let updateSuccessful = response.ok;
+      let profileUpdateSuccessful = response.ok;
+      let errorMessage = '';
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        errorMessage = errorData.error || 'Failed to update profile';
+        console.error('Error updating profile:', errorMessage);
+      }
       
       // Also save skills data if there are any
+      let skillsUpdateSuccessful = true;
       if (studentSkillsData.length > 0 && user) {
         try {
-          // Prepare skills data for API
-          const skillsData = studentSkillsData.map(skill => ({
-            user_id: user.id,
-            skill: skill.subject,
-            level: getSkillLevelLabel(skill.self).toLowerCase(),
-            years_experience: skill.years_experience
-          }));
+          // Clean up empty skills
+          const validSkills = studentSkillsData.filter(skill => 
+            skill.subject && skill.subject.trim() !== ''
+          );
           
-          // Save skills data
-          const skillsResponse = await fetch(`/api/skills/${user.id}`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify(skillsData)
-          });
-          
-          if (!skillsResponse.ok) {
-            console.error('Error saving skills data:', await skillsResponse.text());
-            updateSuccessful = false;
+          if (validSkills.length > 0) {
+            // Prepare skills data for API
+            const skillsData = validSkills.map(skill => ({
+              user_id: user.id,
+              skill: skill.subject,
+              level: getSkillLevelText(skill.self),
+              years_experience: skill.years_experience
+            }));
+            
+            // Save skills data
+            const skillsResponse = await fetch(`/api/skills/${user.id}`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify(skillsData)
+            });
+            
+            if (!skillsResponse.ok) {
+              const skillsErrorData = await skillsResponse.json();
+              console.error('Error saving skills data:', skillsErrorData);
+              skillsUpdateSuccessful = false;
+              if (!errorMessage) {
+                errorMessage = skillsErrorData.error || 'Failed to update skills';
+              }
+            }
           }
         } catch (error) {
           console.error('Error saving skills data:', error);
-          updateSuccessful = false;
+          skillsUpdateSuccessful = false;
+          if (!errorMessage) {
+            errorMessage = error instanceof Error ? error.message : 'Unknown error updating skills';
+          }
         }
       }
       
-      if (updateSuccessful) {
+      if (profileUpdateSuccessful && skillsUpdateSuccessful) {
         toast({
           title: "Profile Updated",
           description: "Your profile has been successfully updated"
@@ -574,10 +618,15 @@ export default function ProfilePage() {
           education: false,
           socialMedia: false
         });
+        
+        // Refresh the page to show updated data
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
       } else {
         toast({
           title: "Error Updating Profile",
-          description: "An error occurred while updating your profile",
+          description: errorMessage || "An error occurred while updating your profile",
           variant: "destructive"
         });
       }

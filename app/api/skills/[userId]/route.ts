@@ -67,46 +67,59 @@ export async function POST(
     }
     
     // Get skill data from request
-    const { skill, level, years_experience } = await request.json();
+    const requestData = await request.json();
     
-    // Validate inputs
-    if (!skill) {
-      return NextResponse.json(
-        { error: 'Skill is required' },
-        { status: 400 }
-      );
-    }
+    // First, clear existing skills
+    await runQuery('DELETE FROM user_skills WHERE user_id = ?', [userId]);
     
-    // Valid levels
+    // Handle both single skill object and array of skills
+    const skillsArray = Array.isArray(requestData) ? requestData : [requestData];
+    
+    // Valid levels for validation
     const validLevels = ['beginner', 'intermediate', 'advanced', 'expert'];
-    if (!validLevels.includes(level)) {
-      return NextResponse.json(
-        { error: 'Invalid skill level' },
-        { status: 400 }
-      );
+    
+    // Process each skill
+    const results = [];
+    for (const skillData of skillsArray) {
+      const { skill, level, years_experience } = skillData;
+      
+      // Skip empty skills
+      if (!skill || skill.trim() === '') {
+        continue;
+      }
+      
+      // Validate level
+      const effectiveLevel = validLevels.includes(level) ? level : 'intermediate';
+      
+      try {
+        // Insert skill
+        await runQuery(
+          'INSERT INTO user_skills (user_id, skill, level, years_experience) VALUES (?, ?, ?, ?)',
+          [userId, skill, effectiveLevel, years_experience || 0]
+        );
+        
+        results.push({
+          skill,
+          status: 'success',
+          message: 'Added successfully'
+        });
+      } catch (error: any) {
+        // Log but continue with other skills
+        console.error(`Error adding skill "${skill}":`, error);
+        results.push({
+          skill,
+          status: 'error',
+          message: error.message
+        });
+      }
     }
     
-    // Insert skill
-    await runQuery(
-      'INSERT INTO user_skills (user_id, skill, level, years_experience) VALUES (?, ?, ?, ?)',
-      [userId, skill, level, years_experience || 0]
-    );
-    
-    return NextResponse.json(
-      { message: 'Skill added successfully' },
-      { status: 201 }
-    );
+    return NextResponse.json({
+      message: 'Skills processing completed',
+      results
+    }, { status: 200 });
   } catch (error: any) {
-    console.error('Error adding user skill:', error);
-    
-    // Check for duplicate constraint error
-    if (error.message && error.message.includes('UNIQUE constraint failed')) {
-      return NextResponse.json(
-        { error: 'This skill already exists for this user' },
-        { status: 409 }
-      );
-    }
-    
+    console.error('Error processing skills:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
