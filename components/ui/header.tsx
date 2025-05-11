@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Bell, User, Settings, LogOut, ChevronDown, 
-  LayoutDashboard, HelpCircle, Mail, Shield, BookOpen, AlertCircle, FileText, Briefcase, UserCog, ArrowLeft, File, Award } from 'lucide-react';
+  LayoutDashboard, HelpCircle, Mail, Shield, BookOpen, AlertCircle, FileText, Briefcase, UserCog, ArrowLeft, File, Award, ClipboardCheck } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
@@ -647,29 +647,56 @@ export function Header() {
                     
                     {/* Qualifications links - role specific */}
                     {user?.role === 'admin' ? (
-                      <Link
-                        href="/admin/qualifications"
-                        className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
-                      >
-                        <Award className="mr-2 h-4 w-4" />
-                        Qualifications
-                      </Link>
+                      <>
+                        <Link
+                          href="/admin/verifications"
+                          className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
+                        >
+                          <ClipboardCheck className="mr-2 h-4 w-4" />
+                          Verifications Center
+                        </Link>
+                        <Link
+                          href="/admin/qualifications"
+                          className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
+                        >
+                          <Award className="mr-2 h-4 w-4" />
+                          Qualifications
+                        </Link>
+                      </>
                     ) : user?.role === 'mentor' ? (
-                      <Link
-                        href="/mentor/verifications/qualifications"
-                        className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
-                      >
-                        <Award className="mr-2 h-4 w-4" />
-                        Verify Qualifications
-                      </Link>
+                      <>
+                        <Link
+                          href="/mentor/verifications"
+                          className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
+                        >
+                          <ClipboardCheck className="mr-2 h-4 w-4" />
+                          Verifications Center
+                        </Link>
+                        <Link
+                          href="/mentor/qualifications"
+                          className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
+                        >
+                          <Award className="mr-2 h-4 w-4" />
+                          Qualifications
+                        </Link>
+                      </>
                     ) : (
-                      <Link
-                        href="/qualifications"
-                        className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
-                      >
-                        <Award className="mr-2 h-4 w-4" />
-                        My Qualifications
-                      </Link>
+                      <>
+                        <Link
+                          href="/verifications/status"
+                          className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
+                        >
+                          <ClipboardCheck className="mr-2 h-4 w-4" />
+                          Verification Status
+                        </Link>
+                        <Link
+                          href="/qualifications"
+                          className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
+                        >
+                          <Award className="mr-2 h-4 w-4" />
+                          My Qualifications
+                        </Link>
+                      </>
                     )}
                     
                     {user?.role === 'admin' ? (

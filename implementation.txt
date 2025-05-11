@@ -1,115 +1,161 @@
-# Qualifications and Certifications Implementation Plan
+# Combined Verifications Implementation Plan
 
-## 1. Database Structure
+## 1. Database Structure Requirements
 
-Ensure the qualifications table exists in the database:
+We need to ensure the following tables exist in the database:
 
 ```sql
-CREATE TABLE qualifications (
+-- For session verifications
+CREATE TABLE IF NOT EXISTS session_verifications (
     id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL,
     student_id TEXT NOT NULL,
-    title TEXT NOT NULL,
-    issuing_organization TEXT NOT NULL,
-    description TEXT,
-    date_obtained TEXT NOT NULL,
-    expiry_date TEXT,
-    certificate_url TEXT,
-    type TEXT CHECK(type IN ('degree', 'certificate', 'license', 'course', 'other')) NOT NULL,
     verification_status TEXT CHECK(verification_status IN ('pending', 'verified', 'rejected')) DEFAULT 'pending',
     verified_by TEXT,
+    feedback TEXT,
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
     FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (verified_by) REFERENCES users(id) ON DELETE SET NULL
-)
+);
+
+-- For activity verifications
+CREATE TABLE IF NOT EXISTS activity_verifications (
+    id TEXT PRIMARY KEY,
+    activity_id TEXT NOT NULL,
+    student_id TEXT NOT NULL,
+    verification_status TEXT CHECK(verification_status IN ('pending', 'verified', 'rejected')) DEFAULT 'pending',
+    verified_by TEXT,
+    feedback TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (activity_id) REFERENCES activities(id) ON DELETE CASCADE,
+    FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (verified_by) REFERENCES users(id) ON DELETE SET NULL
+);
+
+-- For competency verifications
+CREATE TABLE IF NOT EXISTS competency_verifications (
+    id TEXT PRIMARY KEY,
+    student_competency_id TEXT NOT NULL,
+    student_id TEXT NOT NULL,
+    verification_status TEXT CHECK(verification_status IN ('pending', 'verified', 'rejected')) DEFAULT 'pending',
+    verified_by TEXT,
+    feedback TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (student_competency_id) REFERENCES student_competencies(id) ON DELETE CASCADE,
+    FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (verified_by) REFERENCES users(id) ON DELETE SET NULL
+);
+
+-- For profile verifications
+CREATE TABLE IF NOT EXISTS profile_verifications (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    document_url TEXT,
+    verification_status TEXT CHECK(verification_status IN ('pending', 'verified', 'rejected')) DEFAULT 'pending',
+    verified_by TEXT,
+    feedback TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (verified_by) REFERENCES users(id) ON DELETE SET NULL
+);
 ```
 
 ## 2. API Endpoints
 
 Create the following API endpoints:
 
-1. GET /api/qualifications - List all qualifications (admin only)
-2. GET /api/student/[id]/qualifications - Get qualifications for a specific student
-3. POST /api/student/[id]/qualifications - Add a new qualification
-4. PATCH /api/student/[id]/qualifications/[qualificationId] - Update a qualification
-5. DELETE /api/student/[id]/qualifications/[qualificationId] - Delete a qualification
-6. POST /api/mentor/[id]/verifications/qualifications/[qualificationId] - Verify a qualification
-7. POST /api/admin/verifications/qualifications/[qualificationId] - Admin verification endpoint
+1. Common endpoints:
+   - `GET /api/verifications` - Get all verifications with filtering
+   - `GET /api/verifications/[type]/[id]` - Get details for a specific verification
+   - `PATCH /api/verifications/[type]/[id]` - Update status of a verification
+
+2. Type-specific endpoints:
+   - `GET /api/sessions` - Get all sessions
+   - `GET /api/activities` - Get all activities
+   - `GET /api/competencies` - Get all competencies
+   - `GET /api/profile-verifications` - Get all profile verifications
+   - `GET /api/students` - Get all students (for filtering)
 
 ## 3. Component Structure
 
-### UI Components:
+### UI Components
 
-1. QualificationForm.tsx (updating the existing component):
-   - Form component for adding/editing qualifications
-   - File upload for certificates
-   - Fields for all qualification details
-   - Submission handling
+1. Tabs Component (for switching between verification types):
+   - Create a reusable Tabs component (`components/ui/tabs.tsx`)
 
-2. QualificationList.tsx (new component):
-   - List of qualifications with status indicators
-   - Filter and sort options
-   - Actions for edit/delete/verify
+2. Table Components (for displaying verification lists):
+   - Create a reusable Table component (`components/ui/table.tsx`)
+   - Add Badge component for status indicators (`components/ui/badge.tsx`)
 
-3. QualificationCard.tsx (new component):
-   - Display a single qualification with all details
-   - Status badge
-   - Actions based on user role
+3. VerificationDetail Component (for viewing and updating verification):
+   - Create a reusable component for all verification types 
+   - Include verification form with feedback entry
+   - Add verification controls (verify/reject buttons)
 
-4. VerificationModal.tsx (extending existing component):
-   - Support for qualification verification
-   - Approval/rejection interface
-   - Feedback and verification notes
+### Pages
 
-### Pages:
+1. Mentor Verifications Page (`app/mentor/verifications/page.tsx`):
+   - Main dashboard with tabs for different verification types
+   - Summary statistics at the top
+   - Filterable list of verifications
+   - Limited to assigned students only
 
-1. app/qualifications/page.tsx (student view):
-   - Display student's qualifications
-   - Add new qualification button
-   - View verification status
+2. Admin Verifications Page (`app/admin/verifications/page.tsx`):
+   - Admin-specific view with additional controls
+   - Additional filters (by student, etc.)
+   - Full access to all verifications
 
-2. app/mentor/verifications/qualifications/page.tsx:
-   - List of pending qualification verifications
-   - Review interface
-   - Verification history
+3. Detail Pages:
+   - `app/mentor/verifications/[type]/[id]/page.tsx`
+   - `app/admin/verifications/[type]/[id]/page.tsx`
 
-3. app/admin/verifications/qualifications/page.tsx:
-   - Admin verification dashboard
-   - Override verification decisions
-   - Verification statistics
+# Combined Verifications Implementation Summary
 
-## 4. Navigation Updates:
+We have successfully implemented the combined verifications system with the following components:
 
-1. Update dropdown menu:
-   - For students: Add "Qualifications" option
-   - For mentors: Add "Verifications" option
-   - For admins: Add "Verification Center" option
+## Backend Implementation:
+1. Created API routes for all verification types:
+   - `/api/verifications` - Main endpoint to fetch all types of verifications
+   - `/api/verifications/[type]/[id]` - For specific verification details and updates
+   - `/api/sessions` - For session data
+   - `/api/activities` - For activity data
+   - `/api/competencies` - For competency data
+   - `/api/profile-verifications` - For profile verification data
+   - `/api/students` - For fetching student data for filters
 
-## 5. Implementation Order:
+2. Implemented role-based access control in all API routes:
+   - Students can only view their own data
+   - Mentors can only view/verify data for their assigned students
+   - Admins can view/verify all data
 
-1. Database Updates:
-   - Check if qualifications table exists, create if needed
-   - Add sample data for testing
+## Frontend Implementation:
+1. Created UI components:
+   - `VerificationDetail.tsx` - Reusable component for all verification types
+   - Added necessary UI components (Badge, Table, Separator, etc.)
+   - Added formatDate utility for consistent date formatting
 
-2. API Development:
-   - Create basic endpoints for CRUD operations
-   - Implement verification endpoints
-   - Add authentication/authorization checks
+2. Created verification pages:
+   - `/mentor/verifications` - Combined verification dashboard for mentors
+   - `/admin/verifications` - Combined verification dashboard for admins
+   - Detail pages for each verification type
 
-3. Component Development:
-   - Develop/update form components
-   - Create list and card components
-   - Integrate with API endpoints
+3. Implemented features:
+   - Tab-based interface for switching between verification types
+   - Verification counts dashboard
+   - Search and filtering by student, status, etc.
+   - Verification status badges
+   - Feedback mechanism for rejected verifications
 
-4. Page Integration:
-   - Implement student qualification page
-   - Create mentor verification interface
-   - Build admin verification dashboard
+## User Experience Improvements:
+1. Consistent UI across all verification types
+2. Easy navigation between different verification types
+3. Quick access to pending verifications with counts
+4. Detailed view of each verification with relevant information
+5. Feedback mechanism for rejected verifications
 
-5. Navigation Updates:
-   - Add qualification options to dropdown menu
-
-6. Testing:
-   - Test all user flows
-   - Verify role-based access controls
-   - Ensure proper notifications 
+The system now provides a unified interface for mentors and admins to manage all types of verifications (qualifications, sessions, activities, competencies, and profile verifications) in one place, while maintaining proper access controls and data integrity. 

@@ -1,201 +1,114 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { roleMiddleware } from "@/lib/auth-middleware";
 import sqlite3 from 'sqlite3';
 import { open } from 'sqlite';
 import path from 'path';
 
+// Helper function to open the database connection
+async function openDb() {
+  return open({
+    filename: path.join(process.cwd(), 'database.sqlite'),
+    driver: sqlite3.Database
+  });
+}
+
 // GET a list of activities or a single activity
 export async function GET(req: NextRequest) {
-  console.log('GET /api/activities - Request received');
   try {
-    // Check authentication using custom headers
-    const roleHeader = req.headers.get('X-User-Role');
-    const userId = req.headers.get('X-User-ID');
-    
-    // Extract the activity ID from the URL if present
-    const url = new URL(req.url);
-    const activityId = url.pathname.match(/\/api\/activities\/(\d+)/)?.[1];
-    const studentId = url.searchParams.get('studentId');
-    
-    console.log('API: Auth headers received:', { 
-      roleHeader,
-      userId
-    });
-    
-    if (!roleHeader) {
-      console.log('API: Unauthorized access attempt - no role specified');
-      return NextResponse.json({ 
-        error: 'Unauthorized - Role is required',
-        roleProvided: roleHeader 
-      }, { status: 401 });
+    // Authenticate and authorize the user
+    const user = await roleMiddleware(req);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    
+
+    const { searchParams } = new URL(req.url);
+    const studentId = searchParams.get("studentId");
+    const status = searchParams.get("status");
+    const activityType = searchParams.get("type");
+
     // Open database connection
-    const db = await open({
-      filename: path.join(process.cwd(), 'database.sqlite'),
-      driver: sqlite3.Database
-    });
+    const db = await openDb();
 
-    try {
-      // If activityId is provided, fetch just that activity
-      if (activityId) {
-        console.log('API: Fetching single activity with ID:', activityId);
-        
-        // Build the query for a single activity
-        const query = `
-          SELECT 
-            a.id, 
-            a.title, 
-            a.type,
-            a.status,
-            a.date,
-            a.duration,
-            a.description,
-            a.reflection,
-            a.rejection_reason,
-            a.activity_type,
-            a.location,
-            a.learning_outcomes,
-            a.feedback_comments,
-            s.id as student_id,
-            s.name as student_name,
-            m.id as mentor_id,
-            m.name as mentor_name
-          FROM activities a
-          LEFT JOIN users s ON a.student_id = s.id
-          LEFT JOIN users m ON a.mentor_id = m.id
-          WHERE a.id = ?
-        `;
-        
-        // Fetch the activity
-        const activity = await db.get(query, [activityId]);
-        
-        if (!activity) {
-          return NextResponse.json({ error: 'Activity not found' }, { status: 404 });
-        }
-        
-        // Check authorization - users can only access their own activities unless admin
-        if (roleHeader !== 'admin' && 
-            roleHeader === 'student' && 
-            activity.student_id.toString() !== userId?.toString()) {
-          return NextResponse.json({ error: 'Unauthorized - You can only access your own activities' }, { status: 403 });
-        }
-        
-        // Format the activity
-        const formattedActivity = {
-          id: activity.id,
-          title: activity.title,
-          type: activity.type,
-          status: activity.status || 'pending',
-          date: activity.date,
-          duration: activity.duration,
-          description: activity.description || '',
-          reflection: activity.reflection || '',
-          rejectionReason: activity.rejection_reason || '',
-          activityType: activity.activity_type || activity.type,
-          location: activity.location || '',
-          learningOutcomes: activity.learning_outcomes || '',
-          feedbackComments: activity.feedback_comments || '',
-          student: {
-            id: activity.student_id,
-            name: activity.student_name
-          },
-          mentor: {
-            id: activity.mentor_id,
-            name: activity.mentor_name || 'Unassigned'
-          }
-        };
-        
-        return NextResponse.json({ activity: formattedActivity });
-      }
+    let sql = `
+      SELECT 
+        a.id, 
+        a.title, 
+        a.description, 
+        a.activity_type,
+        a.date_completed,
+        a.duration_minutes,
+        a.evidence_url,
+        a.status,
+        a.created_at,
+        a.updated_at,
+        a.student_id,
+        u.name as student_name,
+        av.id as verification_id,
+        av.verification_status,
+        av.feedback,
+        vm.name as verified_by_name
+      FROM activities a
+      JOIN users u ON a.student_id = u.id
+      LEFT JOIN activity_verifications av ON a.id = av.activity_id
+      LEFT JOIN users vm ON av.verified_by = vm.id
+      WHERE 1=1
+    `;
+
+    const params: any[] = [];
+
+    // Apply appropriate filters based on user role
+    if (user.role === 'student') {
+      // Students can only see their own activities
+      sql += " AND a.student_id = ?";
+      params.push(user.id);
+    } else if (user.role === 'mentor') {
+      // For mentors, only show activities for students they are mentoring
+      sql += ` AND a.student_id IN (
+        SELECT student_id FROM mentor_student_assignments WHERE mentor_id = ?
+      )`;
+      params.push(user.id);
       
-      // Build the query based on user role for listing activities
-      let query = `
-        SELECT 
-          a.id, 
-          a.title, 
-          a.type,
-          a.status,
-          a.date,
-          a.duration,
-          a.description,
-          a.reflection,
-          a.rejection_reason,
-          a.activity_type,
-          a.location,
-          a.learning_outcomes,
-          a.feedback_comments,
-          s.id as student_id,
-          s.name as student_name,
-          m.id as mentor_id,
-          m.name as mentor_name
-        FROM activities a
-        LEFT JOIN users s ON a.student_id = s.id
-        LEFT JOIN users m ON a.mentor_id = m.id
-      `;
-      
-      const params = [];
-      
-      // Filter by role-specific criteria
+      // Apply additional studentId filter if provided
       if (studentId) {
-        // Admin wants to see a specific student's activities
-        query += ' WHERE a.student_id = ?';
+        sql += " AND a.student_id = ?";
         params.push(studentId);
-      } else if (roleHeader === 'student' && userId) {
-        query += ' WHERE a.student_id = ?';
-        params.push(userId);
-      } else if (roleHeader === 'mentor' && userId) {
-        query += ' WHERE a.mentor_id = ? OR a.status = "pending"';
-        params.push(userId);
       }
-      
-      // Add ordering
-      query += ' ORDER BY a.date DESC';
-      
-      console.log('API: Executing query:', query);
-      console.log('API: With params:', params);
-      
-      // Fetch activities
-      const activities = await db.all(query, params);
-      
-      // Transform data for the frontend
-      const formattedActivities = activities.map(activity => ({
-        id: activity.id,
-        title: activity.title,
-        type: activity.type,
-        status: activity.status || 'pending',
-        date: activity.date,
-        duration: activity.duration,
-        description: activity.description || '',
-        reflection: activity.reflection || '',
-        rejectionReason: activity.rejection_reason || '',
-        activityType: activity.activity_type || activity.type,
-        location: activity.location || '',
-        learningOutcomes: activity.learning_outcomes || '',
-        feedbackComments: activity.feedback_comments || '',
-        student: {
-          id: activity.student_id,
-          name: activity.student_name
-        },
-        mentor: {
-          id: activity.mentor_id,
-          name: activity.mentor_name || 'Unassigned'
-        }
-      }));
-
-      console.log(`API: Fetched ${formattedActivities.length} activities`);
-      return NextResponse.json({ 
-        activities: formattedActivities,
-        total: formattedActivities.length
-      });
-    } catch (dbError: any) {
-      console.error('Database error:', dbError);
-      return NextResponse.json({ error: 'Database error', details: dbError.message }, { status: 500 });
-    } finally {
-      await db.close();
+    } else if (user.role === 'admin') {
+      // Admins can see all activities or filter by studentId
+      if (studentId) {
+        sql += " AND a.student_id = ?";
+        params.push(studentId);
+      }
     }
+
+    // Apply status filter if provided
+    if (status) {
+      sql += " AND a.status = ?";
+      params.push(status);
+    }
+
+    // Apply activity type filter if provided
+    if (activityType) {
+      sql += " AND a.activity_type = ?";
+      params.push(activityType);
+    }
+
+    // Add order by clause
+    sql += " ORDER BY a.date_completed DESC";
+
+    // Execute query
+    const activities = await db.all(sql, ...params);
+
+    // Close database connection
+    await db.close();
+
+    return NextResponse.json(activities);
   } catch (error) {
-    console.error('API: Error fetching activities:', error);
-    return NextResponse.json({ error: 'Failed to fetch activities' }, { status: 500 });
+    console.error("Error fetching activities:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch activities" },
+      { status: 500 }
+    );
   }
 }
 

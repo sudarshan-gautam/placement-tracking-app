@@ -25,16 +25,16 @@ export function QuickActionsModal({ isOpen, onClose }: QuickActionsModalProps) {
       bgColor: 'bg-blue-600 hover:bg-blue-700'
     },
     {
+      href: '/admin/verifications',
+      icon: ClipboardCheck,
+      label: 'Verifications Center',
+      bgColor: 'bg-purple-600 hover:bg-purple-700'
+    },
+    {
       href: '/admin/qualifications',
       icon: Award,
       label: 'Manage Qualifications',
       bgColor: 'bg-emerald-600 hover:bg-emerald-700'
-    },
-    {
-      href: '/admin/verifications',
-      icon: ClipboardCheck,
-      label: 'Verifications',
-      bgColor: 'bg-purple-600 hover:bg-purple-700'
     },
     {
       href: '/admin/messages',
@@ -65,16 +65,16 @@ export function QuickActionsModal({ isOpen, onClose }: QuickActionsModalProps) {
   // Mentor-specific actions
   const mentorActions = [
     {
+      href: '/mentor/verifications',
+      icon: ClipboardCheck,
+      label: 'Verifications Center',
+      bgColor: 'bg-purple-600 hover:bg-purple-700'
+    },
+    {
       href: '/activities',
       icon: FileText,
       label: 'Activities',
       bgColor: 'bg-blue-600 hover:bg-blue-700'
-    },
-    {
-      href: '/mentor/verifications/qualifications',
-      icon: Award,
-      label: 'Verify Qualifications',
-      bgColor: 'bg-emerald-600 hover:bg-emerald-700'
     },
     {
       href: '/mentor/sessions',
@@ -87,12 +87,6 @@ export function QuickActionsModal({ isOpen, onClose }: QuickActionsModalProps) {
       icon: User,
       label: 'View Students',
       bgColor: 'bg-green-600 hover:bg-green-700'
-    },
-    {
-      href: '/mentor/verifications',
-      icon: ClipboardCheck,
-      label: 'Verifications',
-      bgColor: 'bg-purple-600 hover:bg-purple-700'
     },
     {
       href: '/mentor/jobs',
@@ -121,6 +115,12 @@ export function QuickActionsModal({ isOpen, onClose }: QuickActionsModalProps) {
       icon: Award,
       label: 'My Qualifications',
       bgColor: 'bg-emerald-600 hover:bg-emerald-700'
+    },
+    {
+      href: '/verifications/status',
+      icon: ClipboardCheck,
+      label: 'Check Verifications',
+      bgColor: 'bg-purple-600 hover:bg-purple-700'
     },
     {
       href: '/profile',

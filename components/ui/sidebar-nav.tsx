@@ -11,7 +11,8 @@ import {
   FileText,
   MessageCircle,
   User,
-  Settings
+  Settings,
+  ClipboardCheck
 } from 'lucide-react';
 
 interface NavChildItem {
@@ -53,6 +54,11 @@ const studentNav: NavItem[] = [
     ]
   },
   {
+    title: "Verifications",
+    href: "/verifications/status",
+    icon: <ClipboardCheck className="h-5 w-5" />,
+  },
+  {
     title: "Job Board",
     href: "/jobs",
     icon: <Briefcase className="h-5 w-5" />,
@@ -90,6 +96,32 @@ const mentorNav: NavItem[] = [
     title: "Verifications",
     href: "/mentor/verifications",
     icon: <ListChecks className="h-5 w-5" />,
+    children: [
+      {
+        title: "All Verifications",
+        href: "/mentor/verifications",
+      },
+      {
+        title: "Qualifications",
+        href: "/mentor/verifications?tab=qualifications",
+      },
+      {
+        title: "Sessions",
+        href: "/mentor/verifications?tab=sessions",
+      },
+      {
+        title: "Activities",
+        href: "/mentor/verifications?tab=activities",
+      },
+      {
+        title: "Competencies",
+        href: "/mentor/verifications?tab=competencies",
+      },
+      {
+        title: "Profiles",
+        href: "/mentor/verifications?tab=profiles",
+      }
+    ]
   },
   {
     title: "Messages",
@@ -119,6 +151,32 @@ const adminNav: NavItem[] = [
     title: "Verifications",
     href: "/admin/verifications",
     icon: <ListChecks className="h-5 w-5" />,
+    children: [
+      {
+        title: "All Verifications",
+        href: "/admin/verifications",
+      },
+      {
+        title: "Qualifications",
+        href: "/admin/verifications?tab=qualifications",
+      },
+      {
+        title: "Sessions",
+        href: "/admin/verifications?tab=sessions",
+      },
+      {
+        title: "Activities",
+        href: "/admin/verifications?tab=activities",
+      },
+      {
+        title: "Competencies",
+        href: "/admin/verifications?tab=competencies",
+      },
+      {
+        title: "Profiles",
+        href: "/admin/verifications?tab=profiles",
+      }
+    ]
   },
   {
     title: "Jobs",

@@ -258,7 +258,7 @@ async function initializeDatabase() {
     
     // Check for any other tables and drop them if not in the allowed list
     console.log('\n=== Cleaning up unnecessary tables ===');
-    const tables = await db.all("SELECT name FROM sqlite_master WHERE type='table' AND name NOT IN ('users', 'jobs', 'user_skills', 'user_profiles', 'saved_jobs', 'job_applications', 'job_skills', 'mentor_student_assignments', 'sqlite_sequence', 'user_education', 'user_experience', 'qualifications')");
+    const tables = await db.all("SELECT name FROM sqlite_master WHERE type='table' AND name NOT IN ('users', 'jobs', 'user_skills', 'user_profiles', 'saved_jobs', 'job_applications', 'job_skills', 'mentor_student_assignments', 'sqlite_sequence', 'user_education', 'user_experience', 'qualifications', 'sessions', 'activities', 'competencies', 'student_competencies', 'session_verifications', 'activity_verifications', 'competency_verifications', 'profile_verifications')");
     
     for (const table of tables) {
       console.log(`Dropping unnecessary table: ${table.name}`);

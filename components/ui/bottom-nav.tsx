@@ -26,9 +26,9 @@ export function BottomNav() {
               <Home className="h-6 w-6" />
               <span className="text-xs">Dashboard</span>
             </Link>
-            <Link href="/admin/jobs" className={`flex flex-col items-center ${pathname.startsWith('/admin/jobs') ? 'text-blue-600' : 'text-gray-600 hover:text-blue-600'}`}>
-              <Briefcase className="h-6 w-6" />
-              <span className="text-xs">Jobs</span>
+            <Link href="/admin/verifications" className={`flex flex-col items-center ${pathname.startsWith('/admin/verifications') ? 'text-blue-600' : 'text-gray-600 hover:text-blue-600'}`}>
+              <ClipboardCheck className="h-6 w-6" />
+              <span className="text-xs">Verify</span>
             </Link>
             <div className="relative -top-0">
               <button 
@@ -73,9 +73,9 @@ export function BottomNav() {
               <Home className="h-6 w-6" />
               <span className="text-xs">Dashboard</span>
             </Link>
-            <Link href="/mentor/jobs" className={`flex flex-col items-center ${pathname.startsWith('/mentor/jobs') ? 'text-blue-600' : 'text-gray-600 hover:text-blue-600'}`}>
-              <Briefcase className="h-6 w-6" />
-              <span className="text-xs">Jobs</span>
+            <Link href="/mentor/verifications" className={`flex flex-col items-center ${pathname.startsWith('/mentor/verifications') ? 'text-blue-600' : 'text-gray-600 hover:text-blue-600'}`}>
+              <ClipboardCheck className="h-6 w-6" />
+              <span className="text-xs">Verify</span>
             </Link>
             <div className="relative -top-0">
               <button 
@@ -119,9 +119,9 @@ export function BottomNav() {
             <Home className="h-6 w-6" />
             <span className="text-xs">Dashboard</span>
           </Link>
-          <Link href="/jobs" className={`flex flex-col items-center ${pathname.startsWith('/jobs') ? 'text-blue-600' : 'text-gray-600 hover:text-blue-600'}`}>
-            <Briefcase className="h-6 w-6" />
-            <span className="text-xs">Jobs</span>
+          <Link href="/verifications/status" className={`flex flex-col items-center ${pathname.startsWith('/verifications') ? 'text-blue-600' : 'text-gray-600 hover:text-blue-600'}`}>
+            <ClipboardCheck className="h-6 w-6" />
+            <span className="text-xs">Verify</span>
           </Link>
           <div className="relative -top-0">
             <button 
@@ -131,6 +131,10 @@ export function BottomNav() {
               <Plus className="h-8 w-8" />
             </button>
           </div>
+          <Link href="/jobs" className={`flex flex-col items-center ${pathname.startsWith('/jobs') ? 'text-blue-600' : 'text-gray-600 hover:text-blue-600'}`}>
+            <Briefcase className="h-6 w-6" />
+            <span className="text-xs">Jobs</span>
+          </Link>
           <Link href="/student/messages" className={`flex flex-col items-center ${pathname.startsWith('/student/messages') ? 'text-blue-600' : 'text-gray-600 hover:text-blue-600'}`}>
             <div className="relative">
               <MessageNotification />
