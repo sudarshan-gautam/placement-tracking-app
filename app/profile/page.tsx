@@ -186,12 +186,12 @@ export default function ProfilePage() {
       }
       
       // Set initial user data
-      setPersonalDetails(prev => ({
-        ...prev,
-        name: user.name || prev.name,
-        email: user.email || prev.email,
-        role: user.role || prev.role
-      }));
+          setPersonalDetails(prev => ({
+            ...prev,
+            name: user.name || prev.name,
+            email: user.email || prev.email,
+            role: user.role || prev.role
+          }));
       
       // Load profile image from user data only as a fallback
       if (user.profileImage) {
@@ -278,7 +278,7 @@ export default function ProfilePage() {
                 });
                 
                 console.log('Loaded social media data:', socialMediaData);
-              } catch (error) {
+            } catch (error) {
                 console.error('Error parsing social media data:', error);
               }
             }
@@ -645,10 +645,10 @@ export default function ProfilePage() {
   };
 
   const toggleSection = (section: string) => {
-    setExpandedSections({
-      ...expandedSections,
-      [section]: !expandedSections[section as keyof typeof expandedSections],
-    });
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section as keyof typeof prev],
+    }));
   };
 
   const handleProfileImageClick = () => {
@@ -726,17 +726,17 @@ export default function ProfilePage() {
           profileImage: data.imageUrl
         }));
           
-        toast({
+      toast({
           title: "Profile image updated",
           description: "Your profile image has been updated successfully"
-        });
+      });
       })
       .catch(error => {
         console.error('Error uploading profile image:', error);
-        toast({
-          title: "Error",
+      toast({
+        title: "Error",
           description: error.message || "Failed to upload profile image",
-          variant: "destructive"
+        variant: "destructive"
         });
         
         // Restore previous image if upload fails
@@ -765,7 +765,7 @@ export default function ProfilePage() {
       });
     }
   };
-
+  
   const handleVerificationDocClick = () => {
     verificationDocRef.current?.click();
   };
@@ -903,59 +903,59 @@ export default function ProfilePage() {
     
     // Common skills section for all roles
     const skillsSection = (
-      <Card className="mb-6">
-        <CardHeader 
-          className="flex flex-row items-center justify-between cursor-pointer"
+          <Card className="mb-6">
+            <CardHeader 
+              className="flex flex-row items-center justify-between cursor-pointer"
           onClick={() => toggleSection('qualifications')}
-        >
-          <CardTitle className="text-xl font-bold">Skills & Development</CardTitle>
+            >
+              <CardTitle className="text-xl font-bold">Skills & Development</CardTitle>
           <ChevronDown className={`h-5 w-5 transition-transform ${expandedSections.qualifications ? 'rotate-180' : ''}`} />
-        </CardHeader>
-        
+            </CardHeader>
+            
         {expandedSections.qualifications && (
-          <CardContent>
+              <CardContent>
             <h3 className="text-lg font-medium mb-4">Skills Overview</h3>
             <p className="text-gray-600 text-sm mb-4">Your skills levels and comparisons</p>
-            
+                  
             {studentSkillsData.length > 0 ? (
               <>
-                <div className="aspect-square max-w-md mx-auto">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RadarChart outerRadius={90} data={studentSkillsData}>
-                      <PolarGrid />
-                      <PolarAngleAxis dataKey="subject" />
-                      <PolarRadiusAxis domain={[0, 100]} />
-                      <Radar
-                        name="Self Assessment"
-                        dataKey="self"
-                        stroke="#8884d8"
-                        fill="#8884d8"
-                        fillOpacity={0.6}
-                      />
-                      <Radar
-                        name="Mentor Evaluation"
-                        dataKey="mentor"
-                        stroke="#82ca9d"
-                        fill="#82ca9d"
-                        fillOpacity={0.6}
-                      />
-                      <RechartsTooltip />
-                    </RadarChart>
-                  </ResponsiveContainer>
+                  <div className="aspect-square max-w-md mx-auto">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RadarChart outerRadius={90} data={studentSkillsData}>
+                        <PolarGrid />
+                        <PolarAngleAxis dataKey="subject" />
+                        <PolarRadiusAxis domain={[0, 100]} />
+                        <Radar
+                          name="Self Assessment"
+                          dataKey="self"
+                          stroke="#8884d8"
+                          fill="#8884d8"
+                          fillOpacity={0.6}
+                        />
+                        <Radar
+                          name="Mentor Evaluation"
+                          dataKey="mentor"
+                          stroke="#82ca9d"
+                          fill="#82ca9d"
+                          fillOpacity={0.6}
+                        />
+                        <RechartsTooltip />
+                      </RadarChart>
+                    </ResponsiveContainer>
                 </div>
-
+                
                 {/* Detailed Skills List */}
                 <div className="mt-8">
                   <h3 className="text-lg font-medium mb-4">My Skills</h3>
-                  <div className="space-y-4">
+                <div className="space-y-4">
                     {studentSkillsData.map((skill, index) => (
                       <div key={index} className="border rounded-lg p-4">
-                        <div className="flex justify-between items-center mb-2">
+                      <div className="flex justify-between items-center mb-2">
                           <h4 className="font-medium">{skill.subject}</h4>
                           <span className="text-sm font-semibold bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
                             {getSkillLevelLabel(skill.self)}
-                          </span>
-                        </div>
+                        </span>
+                      </div>
                         <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2">
                           <div 
                             className="bg-blue-600 h-2.5 rounded-full" 
@@ -965,10 +965,10 @@ export default function ProfilePage() {
                         <div className="flex justify-between text-xs text-gray-500 mt-1">
                           <span>Experience: {skill.years_experience} {skill.years_experience === 1 ? 'year' : 'years'}</span>
                           <span>Self Assessment: {skill.self}%</span>
-                        </div>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))}
+                </div>
                 </div>
               </>
             ) : (
@@ -978,9 +978,9 @@ export default function ProfilePage() {
                 <p className="text-sm mt-2">Add skills to see your development radar</p>
               </div>
             )}
-          </CardContent>
-        )}
-      </Card>
+              </CardContent>
+            )}
+          </Card>
     );
 
     // Role-specific sections
@@ -1005,7 +1005,7 @@ export default function ProfilePage() {
                 <p className="text-gray-600 text-sm mb-4">Jobs that match your skills and preferences</p>
                 
                 {jobInterests.length > 0 ? (
-                  <div className="space-y-4">
+                <div className="space-y-4">
                     {jobInterests.map((job) => (
                       <div key={job.id} className="border rounded-lg p-4">
                         <div className="flex justify-between mb-2">
@@ -1017,14 +1017,14 @@ export default function ProfilePage() {
                             className="bg-green-600 h-2.5 rounded-full" 
                             style={{ width: `${job.match}%` }}
                           ></div>
-                        </div>
                       </div>
-                    ))}
-                    
+                    </div>
+                  ))}
+                  
                     <button className="w-full mt-4 py-2 text-center text-blue-600 hover:text-blue-800 font-medium">
                       View All Job Matches
-                    </button>
-                  </div>
+                  </button>
+                </div>
                 ) : (
                   <div className="text-center p-8 text-gray-500">
                     <Briefcase className="h-12 w-12 mx-auto mb-4 opacity-40" />
@@ -1060,11 +1060,11 @@ export default function ProfilePage() {
             {expandedSections.qualifications && (
               <CardContent>
                 {qualifications.length > 0 ? (
-                  <div className="space-y-4">
+                <div className="space-y-4">
                     {qualifications.map((qualification) => (
                       <div key={qualification.id} className="flex items-start border-b border-gray-100 pb-4">
                         <div className="flex-shrink-0 mr-3">
-                          {qualification.verified ? (
+                        {qualification.verified ? (
                             <div className="bg-green-100 text-green-700 p-2 rounded-full">
                               <CheckCircle2 className="h-5 w-5" />
                             </div>
@@ -1072,8 +1072,8 @@ export default function ProfilePage() {
                             <div className="bg-gray-100 text-gray-400 p-2 rounded-full">
                               <Award className="h-5 w-5" />
                             </div>
-                          )}
-                        </div>
+                        )}
+                      </div>
                         <div className="flex-grow">
                           <div className="flex justify-between">
                             <h4 className="font-medium">{qualification.title}</h4>
@@ -1084,9 +1084,9 @@ export default function ProfilePage() {
                             {qualification.verified ? 'Verified' : 'Pending Verification'}
                           </span>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))}
+                </div>
                 ) : (
                   <div className="text-center p-8 text-gray-500">
                     <Award className="h-12 w-12 mx-auto mb-4 opacity-40" />
@@ -1119,41 +1119,41 @@ export default function ProfilePage() {
                 <h3 className="text-lg font-medium mb-4">Students under your mentorship</h3>
                 
                 {mentorStudents.length > 0 ? (
-                  <div className="space-y-4">
+                <div className="space-y-4">
                     {mentorStudents.map((student) => (
                       <div key={student.id} className="border rounded-lg p-4">
                         <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-2">
-                          <div>
+                        <div>
                             <h4 className="font-medium">{student.name}</h4>
                             <p className="text-gray-600 text-sm">{student.email}</p>
                             <span className={`inline-block mt-1 text-xs px-2 py-1 rounded-full ${
                               student.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                            }`}>
-                              {student.status}
-                            </span>
-                          </div>
+                        }`}>
+                          {student.status}
+                        </span>
+                      </div>
                           <div className="md:text-right">
                             <p className="text-sm text-gray-600">Progress</p>
                             <div className="w-full md:w-32 bg-gray-200 rounded-full h-2.5 mt-1">
-                              <div 
-                                className="bg-blue-600 h-2.5 rounded-full" 
-                                style={{ width: `${student.progress}%` }}
-                              ></div>
+                          <div 
+                            className="bg-blue-600 h-2.5 rounded-full" 
+                            style={{ width: `${student.progress}%` }}
+                          ></div>
                             </div>
                             <p className="text-sm mt-1">{student.progress}%</p>
-                          </div>
                         </div>
                       </div>
-                    ))}
-                    
+                    </div>
+                  ))}
+                  
                     <div className="flex justify-center mt-4">
                       <Link 
                         href="/mentor/students"
                         className="text-blue-600 hover:text-blue-800 font-medium"
                       >
-                        View All Students
-                      </Link>
-                    </div>
+                    View All Students
+                  </Link>
+                </div>
                   </div>
                 ) : (
                   <div className="text-center p-8 text-gray-500">
@@ -1193,7 +1193,7 @@ export default function ProfilePage() {
               <CardTitle className="text-xl font-bold">Admin Settings</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Link href="/admin/users" className="block p-4 border rounded-lg hover:bg-gray-50">
                   <div className="flex items-center">
                     <div className="bg-blue-100 text-blue-700 p-3 rounded-full mr-3">
@@ -1203,9 +1203,9 @@ export default function ProfilePage() {
                       <h4 className="font-medium">User Management</h4>
                       <p className="text-sm text-gray-600">Manage user accounts and permissions</p>
                     </div>
-                  </div>
-                </Link>
-                
+                    </div>
+                  </Link>
+                  
                 <Link href="/admin/settings" className="block p-4 border rounded-lg hover:bg-gray-50">
                   <div className="flex items-center">
                     <div className="bg-purple-100 text-purple-700 p-3 rounded-full mr-3">
@@ -1215,9 +1215,9 @@ export default function ProfilePage() {
                       <h4 className="font-medium">System Settings</h4>
                       <p className="text-sm text-gray-600">Configure system preferences</p>
                     </div>
-                  </div>
-                </Link>
-                
+                    </div>
+                  </Link>
+                  
                 <Link href="/admin/jobs" className="block p-4 border rounded-lg hover:bg-gray-50">
                   <div className="flex items-center">
                     <div className="bg-green-100 text-green-700 p-3 rounded-full mr-3">
@@ -1227,9 +1227,9 @@ export default function ProfilePage() {
                       <h4 className="font-medium">Job Management</h4>
                       <p className="text-sm text-gray-600">Manage job listings and applications</p>
                     </div>
-                  </div>
-                </Link>
-                
+                    </div>
+                  </Link>
+                  
                 <Link href="/admin/reports" className="block p-4 border rounded-lg hover:bg-gray-50">
                   <div className="flex items-center">
                     <div className="bg-orange-100 text-orange-700 p-3 rounded-full mr-3">
@@ -1239,8 +1239,8 @@ export default function ProfilePage() {
                       <h4 className="font-medium">Reports & Analytics</h4>
                       <p className="text-sm text-gray-600">View system reports and statistics</p>
                     </div>
-                  </div>
-                </Link>
+                    </div>
+                  </Link>
               </div>
             </CardContent>
           </Card>
@@ -1308,14 +1308,14 @@ export default function ProfilePage() {
             className="object-cover w-full h-full"
           />
           <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-            <button 
+                    <button
               className="bg-white text-gray-800 font-bold py-2 px-4 rounded flex items-center"
               onClick={handleCoverImageClick}
             >
               <Camera className="h-4 w-4 mr-2" />
               Change Cover
-            </button>
-          </div>
+                    </button>
+              </div>
           <input 
             type="file" 
             ref={coverInputRef} 
@@ -1329,30 +1329,30 @@ export default function ProfilePage() {
         <div className="absolute -bottom-16 left-1/2 transform -translate-x-1/2">
           <div className="relative">
             <div className="h-32 w-32 rounded-full border-4 border-white shadow-lg overflow-hidden bg-white">
-              <Image 
-                src={profileImage} 
-                alt="Profile" 
-                width={128} 
-                height={128} 
-                className="object-cover w-full h-full"
-              />
+                    <Image 
+                      src={profileImage} 
+                      alt="Profile" 
+                      width={128} 
+                      height={128} 
+                      className="object-cover w-full h-full"
+                    />
               <button 
                 className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity rounded-full"
-                onClick={handleProfileImageClick}
-              >
+                      onClick={handleProfileImageClick}
+                    >
                 <Camera className="h-5 w-5 text-white" />
               </button>
-            </div>
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              className="hidden" 
-              accept="image/*"
-              onChange={handleProfileImageChange}
-            />
+                    </div>
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    className="hidden" 
+                    accept="image/*"
+                    onChange={handleProfileImageChange}
+                  />
           </div>
-        </div>
-        
+                </div>
+                
         {/* User Name and Role - Below Profile Image */}
         <div className="absolute -bottom-28 left-1/2 transform -translate-x-1/2 text-center">
           <h2 className="text-2xl font-bold flex items-center justify-center">
@@ -1390,11 +1390,11 @@ export default function ProfilePage() {
               <Twitter className="h-5 w-5 text-gray-600" />
             </a>
           )}
-        </div>
-        
+                </div>
+                
         {/* Edit Profile Button */}
         <div className="absolute -bottom-12 right-4">
-          <button 
+                      <button 
             onClick={() => {
               if (isEditingProfile) {
                 handleSaveProfile();
@@ -1414,8 +1414,8 @@ export default function ProfilePage() {
                 Edit Profile
               </>
             )}
-          </button>
-        </div>
+                      </button>
+                    </div>
       </div>
       
       {/* Edit Profile Modal */}
@@ -1424,20 +1424,20 @@ export default function ProfilePage() {
           <div className="bg-white rounded-lg w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
             <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white z-10">
               <h2 className="text-xl font-bold">Edit Profile</h2>
-              <button 
+                    <button
                 onClick={() => setIsEditingProfile(false)}
                 className="text-gray-500 hover:text-gray-700"
-              >
+                    >
                 <X size={24} />
-              </button>
-            </div>
+                    </button>
+                  </div>
                     
             {/* Tabbed Interface */}
             <div className="flex-1 overflow-auto">
               <div className="px-4 pt-4">
                 <div className="mb-6 border-b overflow-x-auto">
                   <div className="flex space-x-1 min-w-max pb-1">
-                    <button 
+                      <button 
                       className={`py-2 px-4 font-medium border-b-2 whitespace-nowrap ${
                         activeTab === 'personal' 
                           ? 'border-blue-600 text-blue-600' 
@@ -1446,8 +1446,8 @@ export default function ProfilePage() {
                       onClick={() => setActiveTab('personal')}
                     >
                       Personal Info
-                    </button>
-                    <button
+                      </button>
+                      <button 
                       className={`py-2 px-4 font-medium border-b-2 whitespace-nowrap ${
                         activeTab === 'contact' 
                           ? 'border-blue-600 text-blue-600' 
@@ -1456,8 +1456,8 @@ export default function ProfilePage() {
                       onClick={() => setActiveTab('contact')}
                     >
                       Contact Info
-                    </button>
-                    <button
+                      </button>
+                      <button
                       className={`py-2 px-4 font-medium border-b-2 whitespace-nowrap ${
                         activeTab === 'education' 
                           ? 'border-blue-600 text-blue-600' 
@@ -1466,8 +1466,8 @@ export default function ProfilePage() {
                       onClick={() => setActiveTab('education')}
                     >
                       Education
-                    </button>
-                    <button
+                      </button>
+                      <button
                       className={`py-2 px-4 font-medium border-b-2 whitespace-nowrap ${
                         activeTab === 'experience' 
                           ? 'border-blue-600 text-blue-600' 
@@ -1496,8 +1496,8 @@ export default function ProfilePage() {
                       onClick={() => setActiveTab('social')}
                     >
                       Social Media
-                    </button>
-                  </div>
+                      </button>
+                    </div>
                 </div>
               
                 {/* Tab Content */}
@@ -1510,7 +1510,7 @@ export default function ProfilePage() {
                           <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
                             Full Name
                           </label>
-                          <input 
+                    <input 
                             type="text"
                             id="name"
                             name="name"
@@ -1518,8 +1518,8 @@ export default function ProfilePage() {
                             onChange={handlePersonalDetailsChange}
                             className="w-full p-2 border border-gray-300 rounded-md"
                             placeholder="Full Name"
-                          />
-                        </div>
+                    />
+                  </div>
                         
                         <div>
                           <label htmlFor="education" className="block text-sm font-medium text-gray-700 mb-1">
@@ -1534,7 +1534,7 @@ export default function ProfilePage() {
                             className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                             placeholder="Your education background"
                           />
-                        </div>
+                    </div>
                         
                         <div>
                           <label htmlFor="graduation_year" className="block text-sm font-medium text-gray-700 mb-1">
@@ -1549,13 +1549,13 @@ export default function ProfilePage() {
                             className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                             placeholder="Year of graduation"
                           />
-                        </div>
+                  </div>
 
                         <div>
                           <label htmlFor="preferred_job_type" className="block text-sm font-medium text-gray-700 mb-1">
                             Preferred Job Type
                           </label>
-                          <input
+                <input 
                             type="text"
                             id="preferred_job_type"
                             name="preferred_job_type"
@@ -1563,8 +1563,8 @@ export default function ProfilePage() {
                             onChange={handlePersonalDetailsChange}
                             className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                             placeholder="e.g. Full-time, Part-time, Remote"
-                          />
-                        </div>
+                />
+              </div>
 
                         <div className="md:col-span-2">
                           <label htmlFor="preferred_location" className="block text-sm font-medium text-gray-700 mb-1">
@@ -1601,18 +1601,18 @@ export default function ProfilePage() {
 
                   {/* Contact Information Tab */}
                   {activeTab === 'contact' && (
-                    <div className="space-y-4">
+              <div className="space-y-4">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
+                <div>
                           <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
                             Email
                           </label>
-                          <input
-                            type="email"
+                      <input
+                        type="email"
                             id="email"
-                            name="email"
-                            value={personalDetails.email}
-                            onChange={handlePersonalDetailsChange}
+                        name="email"
+                        value={personalDetails.email}
+                        onChange={handlePersonalDetailsChange}
                             className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                             placeholder="Email Address"
                           />
@@ -1631,10 +1631,10 @@ export default function ProfilePage() {
                             className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                             placeholder="Secondary Email Address"
                           />
-                        </div>
-                      </div>
+              </div>
+        </div>
 
-                      <div>
+                <div>
                         <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
                           Phone Number
                         </label>
@@ -1652,12 +1652,12 @@ export default function ProfilePage() {
                             <option value="+91">+91 (IN)</option>
                             {/* Add more country codes as needed */}
                           </select>
-                          <input
-                            type="tel"
+                      <input
+                        type="tel"
                             id="phone"
-                            name="phone"
-                            value={personalDetails.phone}
-                            onChange={handlePersonalDetailsChange}
+                        name="phone"
+                        value={personalDetails.phone}
+                        onChange={handlePersonalDetailsChange}
                             className="flex-1 p-2 border border-gray-300 rounded-r-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                             placeholder="Phone Number"
                           />
@@ -1679,7 +1679,7 @@ export default function ProfilePage() {
                           });
                         }} 
                       />
-                    </div>
+                  </div>
                   )}
                   
                   {/* Experience Tab */}
@@ -1695,7 +1695,7 @@ export default function ProfilePage() {
                           });
                         }} 
                       />
-                    </div>
+                </div>
                   )}
                   
                   {/* Skills Tab */}
@@ -1732,8 +1732,8 @@ export default function ProfilePage() {
                                   <label className="block text-xs font-medium text-gray-700 mb-1">
                                     Skill
                                   </label>
-                                  <input
-                                    type="text"
+                      <input
+                        type="text"
                                     value={skill.subject}
                                     onChange={(e) => {
                                       const updatedSkills = [...studentSkillsData];
@@ -1841,18 +1841,18 @@ export default function ProfilePage() {
                             className="flex-1 p-2 border border-gray-300 rounded-r-md"
                             placeholder="https://yourwebsite.com"
                           />
-                        </div>
-                      </div>
-                    
-                      <div>
+                  </div>
+                </div>
+                
+                <div>
                         <label htmlFor="linkedin" className="block text-sm font-medium text-gray-700 mb-1">
                           LinkedIn URL
                         </label>
-                        <div className="flex items-center">
+                  <div className="flex items-center">
                           <span className="bg-gray-100 p-2 border border-r-0 border-gray-300 rounded-l-md text-gray-500">
                             <Linkedin className="h-5 w-5" />
                           </span>
-                          <input
+                      <input
                             type="url"
                             id="linkedin"
                             name="linkedin"
@@ -1861,18 +1861,18 @@ export default function ProfilePage() {
                             className="flex-1 p-2 border border-gray-300 rounded-r-md"
                             placeholder="https://linkedin.com/in/yourusername"
                           />
-                        </div>
-                      </div>
-                      
-                      <div>
+                  </div>
+                  </div>
+                
+                <div>
                         <label htmlFor="twitter" className="block text-sm font-medium text-gray-700 mb-1">
                           Twitter/X URL
                         </label>
-                        <div className="flex items-center">
+                  <div className="flex items-center">
                           <span className="bg-gray-100 p-2 border border-r-0 border-gray-300 rounded-l-md text-gray-500">
                             <Twitter className="h-5 w-5" />
                           </span>
-                          <input
+                      <input
                             type="url"
                             id="twitter"
                             name="twitter"
@@ -1884,9 +1884,9 @@ export default function ProfilePage() {
                         </div>
                       </div>
                     </div>
-                  )}
-                </div>
-              </div>
+                    )}
+                  </div>
+                  </div>
               
               <div className="flex justify-end mt-2 p-4 border-t sticky bottom-0 bg-white">
                 <button 
@@ -1944,9 +1944,9 @@ export default function ProfilePage() {
                       <span className="text-gray-700">{personalDetails.secondary_email} (Secondary)</span>
                     </div>
                   )}
-                </div>
-              </CardContent>
-            </Card>
+              </div>
+            </CardContent>
+          </Card>
             
             {/* Education Card */}
             <Card>
@@ -2001,11 +2001,11 @@ export default function ProfilePage() {
       
       {/* Qualification Modal */}
       {showQualificationModal && (
-        <QualificationModal 
-          isOpen={showQualificationModal}
-          onClose={() => setShowQualificationModal(false)}
-          onSave={handleSaveQualification}
-        />
+      <QualificationModal 
+        isOpen={showQualificationModal}
+        onClose={() => setShowQualificationModal(false)}
+        onSave={handleSaveQualification}
+      />
       )}
     </div>
   );

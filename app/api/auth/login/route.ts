@@ -2,9 +2,7 @@ import { NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import db, { getDb, findUserByEmail, validateUser } from '@/lib/db';
 import { cookies } from 'next/headers';
-
-// Set a fallback JWT_SECRET if environment variable is not available
-const JWT_SECRET = process.env.JWT_SECRET || 'default_secret_key_for_development_only';
+import { JWT_SECRET, JWT_EXPIRES_IN, JWT_COOKIE_OPTIONS } from '@/lib/jwt-config';
 
 export async function POST(request: Request) {
   try {
@@ -38,7 +36,7 @@ export async function POST(request: Request) {
       const { password: _, ...userWithoutPassword } = user;
       console.log("Login successful, returning user:", userWithoutPassword);
       
-      // Generate a JWT token
+      // Generate a JWT token using centralized JWT config
       const token = jwt.sign(
         {
           id: user.id,
@@ -46,7 +44,7 @@ export async function POST(request: Request) {
           role: user.role
         },
         JWT_SECRET,
-        { expiresIn: '7d' }
+        { expiresIn: JWT_EXPIRES_IN }
       );
       
       console.log("Generated JWT token for user");
@@ -68,15 +66,25 @@ export async function POST(request: Request) {
         name: user.name
       };
       
-      // Set cookie that expires in 7 days
-      const oneWeek = 7 * 24 * 60 * 60 * 1000;
+      // Set cookie with consistent settings from JWT config
       response.cookies.set({
         name: 'userData',
         value: JSON.stringify(cookieData),
-        httpOnly: true, // For server-side only (middleware)
-        secure: process.env.NODE_ENV === 'production', // HTTPS only in production
-        sameSite: 'lax',
-        maxAge: oneWeek,
+        httpOnly: JWT_COOKIE_OPTIONS.httpOnly,
+        secure: JWT_COOKIE_OPTIONS.secure,
+        sameSite: JWT_COOKIE_OPTIONS.sameSite,
+        maxAge: JWT_COOKIE_OPTIONS.maxAge * 1000, // Convert seconds to milliseconds
+        path: '/'
+      });
+      
+      // Also set the token in a cookie for easier auth across the app
+      response.cookies.set({
+        name: 'authToken',
+        value: token,
+        httpOnly: JWT_COOKIE_OPTIONS.httpOnly,
+        secure: JWT_COOKIE_OPTIONS.secure,
+        sameSite: JWT_COOKIE_OPTIONS.sameSite,
+        maxAge: JWT_COOKIE_OPTIONS.maxAge * 1000, // Convert seconds to milliseconds
         path: '/'
       });
       

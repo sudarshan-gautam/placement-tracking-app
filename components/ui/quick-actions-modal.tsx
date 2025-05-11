@@ -25,6 +25,12 @@ export function QuickActionsModal({ isOpen, onClose }: QuickActionsModalProps) {
       bgColor: 'bg-blue-600 hover:bg-blue-700'
     },
     {
+      href: '/admin/qualifications',
+      icon: Award,
+      label: 'Manage Qualifications',
+      bgColor: 'bg-emerald-600 hover:bg-emerald-700'
+    },
+    {
       href: '/admin/verifications',
       icon: ClipboardCheck,
       label: 'Verifications',
@@ -65,6 +71,12 @@ export function QuickActionsModal({ isOpen, onClose }: QuickActionsModalProps) {
       bgColor: 'bg-blue-600 hover:bg-blue-700'
     },
     {
+      href: '/mentor/verifications/qualifications',
+      icon: Award,
+      label: 'Verify Qualifications',
+      bgColor: 'bg-emerald-600 hover:bg-emerald-700'
+    },
+    {
       href: '/mentor/sessions',
       icon: Calendar,
       label: 'Sessions',
@@ -103,6 +115,12 @@ export function QuickActionsModal({ isOpen, onClose }: QuickActionsModalProps) {
       icon: Plus,
       label: 'New Activity',
       bgColor: 'bg-blue-600 hover:bg-blue-700'
+    },
+    {
+      href: '/qualifications',
+      icon: Award,
+      label: 'My Qualifications',
+      bgColor: 'bg-emerald-600 hover:bg-emerald-700'
     },
     {
       href: '/profile',

@@ -1,8 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { getPool } from './db';
-
-// Set a fallback JWT_SECRET if environment variable is not available
-const JWT_SECRET = process.env.JWT_SECRET || 'default_secret_key_for_development_only';
+import { JWT_SECRET } from './jwt-config';
 
 interface JWTPayload {
   id: string;

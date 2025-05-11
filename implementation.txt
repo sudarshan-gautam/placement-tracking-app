@@ -1,0 +1,115 @@
+# Qualifications and Certifications Implementation Plan
+
+## 1. Database Structure
+
+Ensure the qualifications table exists in the database:
+
+```sql
+CREATE TABLE qualifications (
+    id TEXT PRIMARY KEY,
+    student_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    issuing_organization TEXT NOT NULL,
+    description TEXT,
+    date_obtained TEXT NOT NULL,
+    expiry_date TEXT,
+    certificate_url TEXT,
+    type TEXT CHECK(type IN ('degree', 'certificate', 'license', 'course', 'other')) NOT NULL,
+    verification_status TEXT CHECK(verification_status IN ('pending', 'verified', 'rejected')) DEFAULT 'pending',
+    verified_by TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (verified_by) REFERENCES users(id) ON DELETE SET NULL
+)
+```
+
+## 2. API Endpoints
+
+Create the following API endpoints:
+
+1. GET /api/qualifications - List all qualifications (admin only)
+2. GET /api/student/[id]/qualifications - Get qualifications for a specific student
+3. POST /api/student/[id]/qualifications - Add a new qualification
+4. PATCH /api/student/[id]/qualifications/[qualificationId] - Update a qualification
+5. DELETE /api/student/[id]/qualifications/[qualificationId] - Delete a qualification
+6. POST /api/mentor/[id]/verifications/qualifications/[qualificationId] - Verify a qualification
+7. POST /api/admin/verifications/qualifications/[qualificationId] - Admin verification endpoint
+
+## 3. Component Structure
+
+### UI Components:
+
+1. QualificationForm.tsx (updating the existing component):
+   - Form component for adding/editing qualifications
+   - File upload for certificates
+   - Fields for all qualification details
+   - Submission handling
+
+2. QualificationList.tsx (new component):
+   - List of qualifications with status indicators
+   - Filter and sort options
+   - Actions for edit/delete/verify
+
+3. QualificationCard.tsx (new component):
+   - Display a single qualification with all details
+   - Status badge
+   - Actions based on user role
+
+4. VerificationModal.tsx (extending existing component):
+   - Support for qualification verification
+   - Approval/rejection interface
+   - Feedback and verification notes
+
+### Pages:
+
+1. app/qualifications/page.tsx (student view):
+   - Display student's qualifications
+   - Add new qualification button
+   - View verification status
+
+2. app/mentor/verifications/qualifications/page.tsx:
+   - List of pending qualification verifications
+   - Review interface
+   - Verification history
+
+3. app/admin/verifications/qualifications/page.tsx:
+   - Admin verification dashboard
+   - Override verification decisions
+   - Verification statistics
+
+## 4. Navigation Updates:
+
+1. Update dropdown menu:
+   - For students: Add "Qualifications" option
+   - For mentors: Add "Verifications" option
+   - For admins: Add "Verification Center" option
+
+## 5. Implementation Order:
+
+1. Database Updates:
+   - Check if qualifications table exists, create if needed
+   - Add sample data for testing
+
+2. API Development:
+   - Create basic endpoints for CRUD operations
+   - Implement verification endpoints
+   - Add authentication/authorization checks
+
+3. Component Development:
+   - Develop/update form components
+   - Create list and card components
+   - Integrate with API endpoints
+
+4. Page Integration:
+   - Implement student qualification page
+   - Create mentor verification interface
+   - Build admin verification dashboard
+
+5. Navigation Updates:
+   - Add qualification options to dropdown menu
+
+6. Testing:
+   - Test all user flows
+   - Verify role-based access controls
+   - Ensure proper notifications 
