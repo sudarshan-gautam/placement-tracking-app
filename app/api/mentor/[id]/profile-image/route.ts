@@ -1,46 +1,103 @@
 import { NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth-utils';
-import { db } from '@/lib/db';
-import { writeFile } from 'fs/promises';
+import { getPool, runQuery } from '@/lib/db';
+import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
+import { existsSync } from 'fs';
+import path from 'path';
 
 export async function POST(
   request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
-    const token = request.headers.get('Authorization')?.split(' ')[1];
+    console.log('Processing mentor profile image upload for id:', params.id);
+    
+    // Get the Authorization header
+    const authHeader = request.headers.get('Authorization');
+    console.log('Auth header present:', !!authHeader);
+    
+    // Extract token safely
+    let token = null;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7);
+    }
+    
     if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      console.log('No valid token found in Authorization header');
+      return NextResponse.json({ error: 'Unauthorized - No valid token provided' }, { status: 401 });
     }
 
+    // Verify authentication
+    console.log('Verifying authentication token');
     const decoded = await verifyAuth(token);
+    console.log('Token verification result:', decoded ? { id: decoded.id, role: decoded.role } : 'Failed');
+    
     if (!decoded || decoded.id !== params.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      console.log('Authorization failed, decoded ID does not match params ID');
+      return NextResponse.json({ error: 'Unauthorized - Invalid credentials' }, { status: 401 });
     }
 
+    console.log('Processing file upload');
     const formData = await request.formData();
     const file = formData.get('image') as File;
     
     if (!file) {
+      console.log('No file found in request');
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
     }
 
+    console.log('File received:', file.name, 'type:', file.type, 'size:', file.size);
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Save the file to the public directory
-    const filename = `${params.id}-${Date.now()}.${file.name.split('.').pop()}`;
-    const path = join(process.cwd(), 'public', 'uploads', filename);
-    await writeFile(path, buffer);
+    // Ensure the uploads directory exists
+    const uploadsDir = join(process.cwd(), 'public', 'uploads');
+    if (!existsSync(uploadsDir)) {
+      console.log('Creating uploads directory:', uploadsDir);
+      await mkdir(uploadsDir, { recursive: true });
+    }
 
-    // Update the user's profile image in the database
+    // Create a unique filename to avoid collisions
+    const fileExt = path.extname(file.name) || '.jpg';
+    const baseName = path.basename(file.name, fileExt).replace(/[^a-zA-Z0-9]/g, '_');
+    const uniqueId = Date.now();
+    const userId = params.id;
+    
+    // Save the file with a structured name: userId_baseName_timestamp.ext
+    const filename = `${userId}_${baseName}_${uniqueId}${fileExt}`;
+    const filePath = join(uploadsDir, filename);
+    
+    console.log('Saving file to:', filePath);
+    await writeFile(filePath, buffer);
+
+    // Update the user's profile image in the database (now in user_profiles table)
     const imageUrl = `/uploads/${filename}`;
-    await db.user.update({
-      where: { id: params.id },
-      data: { profileImage: imageUrl }
-    });
+    console.log('Updating database with image URL:', imageUrl);
+    
+    // Check if user profile exists
+    const pool = await getPool();
+    const [profileResult] = await pool.query(
+      'SELECT * FROM user_profiles WHERE user_id = ?',
+      [params.id]
+    );
+    
+    // If profile exists, update it; otherwise, create a new profile record
+    if (profileResult && (profileResult as any[]).length > 0) {
+      console.log('Updating existing profile with new image URL');
+      await runQuery(
+        'UPDATE user_profiles SET profileImage = ? WHERE user_id = ?',
+        [imageUrl, params.id]
+      );
+    } else {
+      console.log('Creating new profile record with image URL');
+      await runQuery(
+        'INSERT INTO user_profiles (user_id, profileImage) VALUES (?, ?)',
+        [params.id, imageUrl]
+      );
+    }
 
+    console.log('Profile image updated successfully');
     return NextResponse.json({ imageUrl });
   } catch (error) {
     console.error('Error uploading profile image:', error);

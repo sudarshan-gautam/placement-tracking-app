@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import Link from 'next/link';
 import { Search, User, ArrowUpRight, User2, UserX, UserCheck } from 'lucide-react';
 import userProfiles from '@/lib/user-profiles';
-import { getStudentsForMentor } from '@/lib/mentor-student-service';
+import { getStudentsForMentor } from '@/lib/db-mentor-student-service';
 
 // Sample student data
 const studentsData = [
@@ -129,28 +129,48 @@ export default function StudentsPage() {
     }
   }, [user, router]);
   
-  const loadAssignedStudents = () => {
+  const loadAssignedStudents = async () => {
     if (!user) return;
     
     setLoading(true);
     
-    // Get student IDs assigned to this mentor
-    const mentorId = typeof user.id === 'string' ? parseInt(user.id, 10) : user.id;
-    const assignedStudentIds = getStudentsForMentor(mentorId);
-    
-    if (assignedStudentIds.length === 0) {
+    try {
+      // Get students assigned to this mentor
+      const mentorId = user.id ? user.id.toString() : '';
+      const assignedStudents = await getStudentsForMentor(mentorId);
+      
+      if (assignedStudents.length === 0) {
+        setAssignedStudents([]);
+        setLoading(false);
+        return;
+      }
+      
+      // For now, we'll merge the sample data with real data
+      // In a production app, you would just use the real data from the API
+      const enrichedStudents = assignedStudents.map(student => {
+        // Find matching sample data to enrich the student data
+        const sampleData = studentsData.find(sample => 
+          sample.email.toLowerCase() === student.email.toLowerCase()
+        );
+        
+        return {
+          ...sampleData || studentsData[0], // Use first sample as fallback
+          id: parseInt(student.student_id), // Use real student_id
+          name: student.name,
+          email: student.email,
+          status: student.status,
+          progress: student.progress
+        };
+      });
+      
+      setAssignedStudents(enrichedStudents);
+    } catch (error) {
+      console.error('Error loading assigned students:', error);
+      // Fallback to empty array on error
       setAssignedStudents([]);
+    } finally {
       setLoading(false);
-      return;
     }
-    
-    // Filter student data to only show assigned students
-    const filteredStudents = studentsData.filter(student => 
-      assignedStudentIds.includes(student.id)
-    );
-    
-    setAssignedStudents(filteredStudents);
-    setLoading(false);
   };
   
   // Filter students based on search term

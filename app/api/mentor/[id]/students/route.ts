@@ -1,40 +1,48 @@
 import { NextResponse } from 'next/server';
-import { verifyAuth } from '@/lib/auth-utils';
-import { db } from '@/lib/db';
+import { authenticateAndAuthorize } from '@/lib/auth-service';
+import { getStudentsForMentor } from '@/lib/mentor-student-service';
 
+// GET /api/mentor/[id]/students
 export async function GET(
   request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
-    const token = request.headers.get('Authorization')?.split(' ')[1];
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // Authentication check
+    const authResult = await authenticateAndAuthorize(request);
+    if (!authResult.success) {
+      return NextResponse.json(
+        { error: authResult.error },
+        { status: authResult.status }
+      );
     }
-
-    const decoded = await verifyAuth(token);
-    if (!decoded || decoded.id !== params.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    
+    // Get mentor ID from params
+    const { id: mentorId } = params;
+    if (!mentorId) {
+      return NextResponse.json(
+        { error: 'Mentor ID is required' },
+        { status: 400 }
+      );
     }
-
-    const students = await db.student.findMany({
-      where: {
-        mentorId: params.id
-      },
-      include: {
-        activities: {
-          select: {
-            verified: true,
-            pending: true,
-            total: true
-          }
-        }
-      }
-    });
-
-    return NextResponse.json({ students });
+    
+    // Only the mentor themselves or an admin can view their students
+    if (authResult.userId !== mentorId && authResult.role !== 'admin') {
+      return NextResponse.json(
+        { error: 'Unauthorized to view this mentor\'s students' },
+        { status: 403 }
+      );
+    }
+    
+    // Get students for this mentor from the database
+    const students = await getStudentsForMentor(mentorId);
+    
+    return NextResponse.json(students);
   } catch (error) {
-    console.error('Error fetching students:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    console.error('Error fetching mentor students:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 } 

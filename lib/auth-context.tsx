@@ -220,6 +220,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
   };
 
+  // Add a function to validate and normalize an auth token
+  const normalizeToken = (token: string | null): string | null => {
+    if (!token || token === 'undefined' || token === 'null') {
+      return null;
+    }
+    
+    // Trim whitespace
+    token = token.trim();
+    
+    // Check if it has basic JWT format
+    if (!token.includes('.') || token.split('.').length !== 3) {
+      console.warn('Invalid token format detected in storage');
+      return null;
+    }
+    
+    return token;
+  };
+
   const login = async (email: string, password: string): Promise<{success: boolean, userRole?: string}> => {
     try {
       setLoading(true);
@@ -237,33 +255,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const data = await response.json();
       
-      // Restore profile data if available
-      const persistentProfileData = localStorage.getItem(`persistentProfileData-${email}`);
-      if (persistentProfileData) {
-        localStorage.setItem(`profileData-${email}`, persistentProfileData);
-        
-        // Update user object with profile image
-        try {
-          const profileData = JSON.parse(persistentProfileData);
-          if (profileData && profileData.profileImage) {
-            data.user.profileImage = profileData.profileImage;
-          }
-        } catch (error) {
-          console.error('Error parsing persistent profile data:', error);
+      // Validate token before storing
+      if (data.token) {
+        const validToken = normalizeToken(data.token);
+        if (validToken) {
+          localStorage.setItem('token', validToken);
+          console.log('Valid token stored in localStorage');
+        } else {
+          console.error('Received invalid token from server');
+          return {success: false};
         }
+      } else {
+        console.error('No token received from server');
       }
-
-      // If still no profile image, check profileData directly
+      
+      // The API response now includes profileImage from the user_profiles table
+      // We should use that value if available
+      
+      // If the API didn't provide a profileImage, check localStorage as fallback
       if (!data.user.profileImage) {
-        const profileData = localStorage.getItem(`profileData-${email}`);
-        if (profileData) {
+        // Restore profile data if available from persistent storage
+        const persistentProfileData = localStorage.getItem(`persistentProfileData-${email}`);
+        if (persistentProfileData) {
+          localStorage.setItem(`profileData-${email}`, persistentProfileData);
+          
           try {
-            const parsedData = JSON.parse(profileData);
-            if (parsedData && parsedData.profileImage) {
-              data.user.profileImage = parsedData.profileImage;
+            const profileData = JSON.parse(persistentProfileData);
+            if (profileData && profileData.profileImage) {
+              data.user.profileImage = profileData.profileImage;
             }
           } catch (error) {
-            console.error('Error parsing profile data:', error);
+            console.error('Error parsing persistent profile data:', error);
+          }
+        }
+
+        // If still no profile image, check profileData directly
+        if (!data.user.profileImage) {
+          const profileData = localStorage.getItem(`profileData-${email}`);
+          if (profileData) {
+            try {
+              const parsedData = JSON.parse(profileData);
+              if (parsedData && parsedData.profileImage) {
+                data.user.profileImage = parsedData.profileImage;
+              }
+            } catch (error) {
+              console.error('Error parsing profile data:', error);
+            }
           }
         }
       }
@@ -478,8 +515,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     console.log('Updating user with:', userData);
     
-    // Update user in state
-    const updatedUser = { ...user, ...userData };
+    // Omit profileImage from direct user object updates
+    // since it's now stored in user_profiles table
+    const { profileImage, ...restUserData } = userData;
+    
+    // Update user in state (keep existing profileImage if present)
+    const updatedUser = { 
+      ...user, 
+      ...restUserData
+    };
+    
+    // Only update profileImage if it's explicitly provided
+    if (profileImage) {
+      updatedUser.profileImage = profileImage;
+    }
+    
     setUser(updatedUser);
     
     // Update user in localStorage

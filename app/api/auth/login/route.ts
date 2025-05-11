@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
+import jwt from 'jsonwebtoken';
 import db, { getDb, findUserByEmail, validateUser } from '@/lib/db';
 import { cookies } from 'next/headers';
+
+// Set a fallback JWT_SECRET if environment variable is not available
+const JWT_SECRET = process.env.JWT_SECRET || 'default_secret_key_for_development_only';
 
 export async function POST(request: Request) {
   try {
@@ -34,8 +38,27 @@ export async function POST(request: Request) {
       const { password: _, ...userWithoutPassword } = user;
       console.log("Login successful, returning user:", userWithoutPassword);
       
-      // Create a response
-      const response = NextResponse.json({ user: userWithoutPassword }, { status: 200 });
+      // Generate a JWT token
+      const token = jwt.sign(
+        {
+          id: user.id,
+          email: user.email,
+          role: user.role
+        },
+        JWT_SECRET,
+        { expiresIn: '7d' }
+      );
+      
+      console.log("Generated JWT token for user");
+      
+      // Create a response with user data and token
+      const response = NextResponse.json(
+        { 
+          user: userWithoutPassword,
+          token: token
+        }, 
+        { status: 200 }
+      );
       
       // Set a secure HTTP-only cookie with the essential user data for auth
       const cookieData = {

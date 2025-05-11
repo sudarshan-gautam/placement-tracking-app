@@ -162,6 +162,22 @@ export async function validateUser(email: string, password: string): Promise<Use
       return null;
     }
     
+    // Get profile data including profileImage from user_profiles table
+    try {
+      const userProfile = await getOne<{user_id: string, profileImage?: string}>(
+        'SELECT * FROM user_profiles WHERE user_id = ?', 
+        [user.id]
+      );
+      
+      if (userProfile && userProfile.profileImage) {
+        // Add profileImage to user object
+        user.profileImage = userProfile.profileImage;
+      }
+    } catch (profileError) {
+      console.error('Error fetching user profile data:', profileError);
+      // Continue with login even if profile fetch fails
+    }
+    
     return user;
   } catch (error) {
     console.error('Error validating user:', error);

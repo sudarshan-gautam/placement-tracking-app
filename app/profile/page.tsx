@@ -3,13 +3,13 @@
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { User, Camera, Upload, Edit, Award, BookOpen, FileText, Briefcase, ChevronDown, ChevronUp, Mail, Phone, MapPin, Calendar, Building, Save, Shield, CheckCircle2, AlertCircle, X, Users, GraduationCap, School, Settings } from 'lucide-react';
+import { User, Camera, Upload, Edit, Award, BookOpen, FileText, Briefcase, ChevronDown, ChevronUp, Mail, Phone, MapPin, Calendar, Building, Save, Shield, CheckCircle2, AlertCircle, X, Users, GraduationCap, School, Settings, BarChart, Globe, Linkedin, Twitter } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 import { toast } from '@/components/ui/use-toast';
 import { QualificationModal } from '@/components/qualification-modal';
-import { studentSkillsData, jobInterestsData, qualificationsData, mentorStudentData } from '@/lib/sample-data';
+import { getStudentsForMentor } from '@/lib/db-mentor-student-service';
 
 // Verification status type
 type VerificationStatus = 'unverified' | 'pending' | 'rejected' | 'verified';
@@ -20,10 +20,41 @@ interface VerificationRejection {
   date: string;
 }
 
-// Use sample data from imports
-const jobInterests = jobInterestsData;
-const qualifications = qualificationsData;
-const mentorStudents = mentorStudentData;
+// Define types for data structures
+interface JobInterest {
+  id: number;
+  title: string;
+  match: number;
+}
+
+interface Qualification {
+  id: number;
+  title: string;
+  institution: string;
+  date: string;
+  verified: boolean;
+}
+
+interface MentorStudent {
+  id: number;
+  name: string;
+  email: string;
+  status: string;
+  progress: number;
+}
+
+interface SkillData {
+  subject: string;
+  self: number;
+  mentor: number;
+  fullMark: number;
+}
+
+// Initialize empty arrays for state instead of using constants
+const jobInterests: JobInterest[] = [];
+const qualifications: Qualification[] = [];
+const mentorStudents: MentorStudent[] = [];
+const studentSkillsData: SkillData[] = [];
 
 // Consistent date formatter to prevent hydration errors
 const formatDate = (dateString: string) => {
@@ -38,7 +69,27 @@ const formatDate = (dateString: string) => {
 export default function ProfilePage() {
   const { user, updateUser } = useAuth();
   const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [editingSections, setEditingSections] = useState({
+    basicInfo: false,
+    contactInfo: false,
+    biography: false,
+    education: false,
+    socialMedia: false
+  });
+  
+  // Added social media state
+  const [socialMedia, setSocialMedia] = useState({
+    website: '',
+    linkedin: '',
+    twitter: ''
+  });
+  
+  const [studentSkillsData, setStudentSkillsData] = useState<SkillData[]>([]);
+  const [jobInterests, setJobInterests] = useState<JobInterest[]>([]);
+  const [qualifications, setQualifications] = useState<Qualification[]>([]);
+  const [mentorStudents, setMentorStudents] = useState<MentorStudent[]>([]);
   const [profileImage, setProfileImage] = useState('/placeholder-profile.jpg');
+  const [coverImage, setCoverImage] = useState('/placeholder-cover.jpg');
   const [videoUrl, setVideoUrl] = useState('');
   const [isVerified, setIsVerified] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState<VerificationStatus>('unverified');
@@ -54,18 +105,20 @@ export default function ProfilePage() {
   const [personalDetails, setPersonalDetails] = useState({
     name: '',
     email: '',
-    phone: '07123456789',
-    address: 'London, UK',
-    dateOfBirth: '1990-01-01',
-    institution: 'University of London',
-    role: 'student',
-    bio: 'Passionate educator with 3 years of experience in primary education. Specializing in creative teaching methods and inclusive classroom environments.'
+    phone: '',
+    countryCode: '+44', // Default to UK
+    secondary_email: '',
+    address: '',
+    dateOfBirth: '',
+    institution: '',
+    role: '',
+    bio: '',
+    education: '',  // From user_profiles table
+    graduation_year: null, // From user_profiles table 
   });
   
   const [expandedSections, setExpandedSections] = useState({
     qualifications: true,
-    skills: true,
-    jobInterests: true,
     students: true
   });
   
@@ -96,45 +149,397 @@ export default function ProfilePage() {
         }
       }
       
-      // Load profile data from localStorage - now user-specific
-      const savedProfileData = localStorage.getItem(`profileData-${user.email}`);
+      // Set initial user data
+      setPersonalDetails(prev => ({
+        ...prev,
+        name: user.name || prev.name,
+        email: user.email || prev.email,
+        role: user.role || prev.role
+      }));
       
-      if (savedProfileData) {
-        try {
-          const parsedData = JSON.parse(savedProfileData);
-          setPersonalDetails(parsedData);
-          
-          // If profile image is saved, use that
-          if (parsedData.profileImage) {
-            setProfileImage(parsedData.profileImage);
-          }
-        } catch (error) {
-          console.error('Error parsing saved profile data:', error);
-          
-          // Fallback to user data from auth context
-          setPersonalDetails(prev => ({
-            ...prev,
-            name: user.name || prev.name,
-            email: user.email || prev.email,
-            role: user.role || prev.role
-          }));
-        }
-      } else {
-        // No saved profile data, use user data from auth context
-        setPersonalDetails(prev => ({
-          ...prev,
-          name: user.name || prev.name,
-          email: user.email || prev.email,
-          role: user.role || prev.role
-        }));
-      }
-      
-      // Load profile image from user data if available and not already set from localStorage
-      if (user.profileImage && !localStorage.getItem(`profileData-${user.email}`)) {
+      // Load profile image from user data only as a fallback
+      if (user.profileImage) {
         setProfileImage(user.profileImage);
       }
+      
+      // Fetch user profile data from the database
+      const fetchUserProfile = async () => {
+        try {
+          // Get token and ensure it's valid
+          const token = localStorage.getItem('token');
+          if (!token) {
+            console.error('No authentication token found in localStorage');
+            toast({
+              title: "Authentication Error",
+              description: "Please log in again to view your profile",
+              variant: "destructive"
+            });
+            return;
+          }
+          
+          // Check basic token format
+          if (!token.includes('.') || token.split('.').length !== 3) {
+            console.error('Invalid token format in localStorage');
+            localStorage.removeItem('token'); // Clear invalid token
+            toast({
+              title: "Authentication Error",
+              description: "Your session is invalid. Please log in again.",
+              variant: "destructive"
+            });
+            return;
+          }
+          
+          console.log(`Fetching profile data from /api/${user.role}/${user.id}/profile`);
+          const response = await fetch(`/api/${user.role}/${user.id}/profile`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          
+          if (response.ok) {
+            const profileData = await response.json();
+            console.log('Profile data received:', profileData);
+            
+            // Update personal details with database data
+            setPersonalDetails(prev => ({
+              ...prev,
+              name: profileData.name || prev.name,
+              email: profileData.email || prev.email,
+              role: profileData.role || prev.role,
+              bio: profileData.bio || prev.bio,
+              education: profileData.education || prev.education,
+              graduation_year: profileData.graduation_year || prev.graduation_year,
+              // Parse phone to separate country code and number if it exists
+              ...(profileData.phone && profileData.phone.startsWith('+') 
+                ? {
+                    countryCode: profileData.phone.substring(0, profileData.phone.indexOf(' ') > 0 ? 
+                      profileData.phone.indexOf(' ') : 3),
+                    phone: profileData.phone.substring(profileData.phone.indexOf(' ') > 0 ? 
+                      profileData.phone.indexOf(' ') + 1 : 3)
+                  }
+                : {
+                    phone: profileData.phone || prev.phone,
+                    countryCode: prev.countryCode
+                  }
+              ),
+              secondary_email: profileData.secondary_email || prev.secondary_email
+            }));
+            
+            // Update social media data if available
+            if (profileData.social_media) {
+              try {
+                // If social_media is stored as a JSON string, parse it
+                const socialMediaData = typeof profileData.social_media === 'string' 
+                  ? JSON.parse(profileData.social_media) 
+                  : profileData.social_media;
+                
+                setSocialMedia({
+                  website: socialMediaData.website || '',
+                  linkedin: socialMediaData.linkedin || '',
+                  twitter: socialMediaData.twitter || ''
+                });
+                
+                console.log('Loaded social media data:', socialMediaData);
+              } catch (error) {
+                console.error('Error parsing social media data:', error);
+              }
+            }
+            
+            // Load profile image if available
+            if (profileData.profileImage) {
+              setProfileImage(profileData.profileImage);
+            } else if (profileData.profile_image) {
+              setProfileImage(profileData.profile_image);
+            }
+            
+            // Load cover image if available
+            if (profileData.cover_image) {
+              setCoverImage(profileData.cover_image);
+            }
+          } else {
+            console.error('Failed to fetch profile data:', response.status);
+            toast({
+              title: "Error",
+              description: "Failed to load profile data",
+              variant: "destructive"
+            });
+          }
+        } catch (error) {
+          console.error('Error fetching profile data:', error);
+          toast({
+            title: "Error",
+            description: "An unexpected error occurred while loading your profile",
+            variant: "destructive"
+          });
+        }
+      };
+      
+      fetchUserProfile();
+      
+      // Fetch user skills data
+      const fetchUserSkills = async () => {
+        try {
+          const token = localStorage.getItem('token');
+          if (!token) {
+            console.error('No authentication token found in localStorage');
+            return;
+          }
+          
+          const response = await fetch(`/api/skills/${user.id}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          
+          if (response.ok) {
+            const skillsData = await response.json();
+            console.log('Skills data received:', skillsData);
+            
+            // Transform skills data for radar chart
+            const formattedSkills = skillsData.map((skill: any) => ({
+              subject: skill.skill,
+              self: convertLevelToScore(skill.level),
+              mentor: Math.max(20, convertLevelToScore(skill.level) - 10), // Simulated mentor score
+              fullMark: 100
+            }));
+            
+            setStudentSkillsData(formattedSkills);
+          } else {
+            console.error('Failed to fetch skills data:', response.status);
+          }
+        } catch (error) {
+          console.error('Error fetching skills data:', error);
+        }
+      };
+      
+      // Helper function to convert skill level to numeric score for chart
+      const convertLevelToScore = (level: string): number => {
+        switch (level) {
+          case 'beginner': return 25;
+          case 'intermediate': return 50;
+          case 'advanced': return 75;
+          case 'expert': return 100;
+          default: return 0;
+        }
+      };
+      
+      // Fetch other data based on user role
+      if (user.role === 'student') {
+        fetchUserSkills();
+        
+        // Fetch job interests
+        // TODO: Replace with actual API call
+        const sampleJobs = [
+          { id: 1, title: 'Software Developer', match: 85 },
+          { id: 2, title: 'UX Designer', match: 75 }
+        ];
+        setJobInterests(sampleJobs);
+      } else if (user.role === 'mentor') {
+        fetchUserSkills();
+        
+        // Fetch assigned students for mentors
+        const fetchMentorStudents = async () => {
+          try {
+            if (!user || !user.id) {
+              console.error('User or user ID is not available');
+              return;
+            }
+            
+            console.log('Fetching students for mentor ID:', user.id);
+            
+            // Use the service function instead of direct API call
+            const studentsData = await getStudentsForMentor(user.id);
+            
+            console.log('Raw mentor students data received:', JSON.stringify(studentsData, null, 2));
+            
+            if (Array.isArray(studentsData) && studentsData.length > 0) {
+              // Transform the data to match our expected format
+              const formattedStudents = studentsData.map(student => {
+                // Make sure we're extracting the right fields based on the API response
+                const formattedStudent = {
+                  id: student.assignment_id || 0,
+                  name: student.student_name || '',
+                  email: student.student_email || '',
+                  status: 'Active',  // Default status
+                  progress: Math.floor(Math.random() * 100) // Simulated progress for now
+                };
+                
+                console.log('Formatted student:', formattedStudent);
+                return formattedStudent;
+              });
+              
+              console.log('All formatted students:', formattedStudents);
+              setMentorStudents(formattedStudents);
+            } else {
+              // If no data or empty array, reset the state
+              console.log('No students found or empty array received');
+              setMentorStudents([]);
+            }
+          } catch (error) {
+            console.error('Error fetching mentor students:', error);
+            // Don't use fallback data so we can see the actual issue
+            setMentorStudents([]);
+          }
+        };
+        
+        fetchMentorStudents();
+      } else if (user.role === 'admin') {
+        fetchUserSkills();
+      }
+      
+      // Fetch qualifications for all users
+      // TODO: Replace with actual API call
+      const sampleQualifications = [
+        { id: 1, title: 'Teaching Certificate', institution: 'Education Board', date: '2021-05-15', verified: true },
+        { id: 2, title: 'First Aid Training', institution: 'Red Cross', date: '2022-01-20', verified: false }
+      ];
+      setQualifications(sampleQualifications);
     }
-  }, [user]);
+  }, [user, updateUser]);
+
+  const handlePersonalDetailsChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setPersonalDetails({
+      ...personalDetails,
+      [name]: value
+    });
+  };
+
+  // Validate email format
+  const isValidEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  // Validate phone number format
+  const isValidPhone = (phone: string, countryCode: string): boolean => {
+    // Remove any non-digit characters except the plus sign
+    const cleanedPhone = phone.replace(/[^\d]/g, '');
+    const cleanedCountryCode = countryCode.trim();
+    
+    // Basic validation - at least 6 digits
+    if (cleanedPhone.length < 6) {
+      return false;
+    }
+    
+    // Must have a valid country code starting with +
+    if (!cleanedCountryCode || !cleanedCountryCode.startsWith('+')) {
+      return false;
+    }
+    
+    return true;
+  };
+
+  const handleSaveProfile = async () => {
+    try {
+      // Validate email format
+      if (!isValidEmail(personalDetails.email)) {
+        toast({
+          title: "Invalid Email",
+          description: "Please enter a valid email address",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Validate phone number format
+      if (personalDetails.phone && !isValidPhone(personalDetails.phone, personalDetails.countryCode)) {
+        toast({
+          title: "Invalid Phone Number",
+          description: "Please enter a valid phone number",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Validate secondary email if provided
+      if (personalDetails.secondary_email && !isValidEmail(personalDetails.secondary_email)) {
+        toast({
+          title: "Invalid Secondary Email",
+          description: "Please enter a valid secondary email address",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Format full phone number
+      const formattedPhone = personalDetails.phone 
+        ? `${personalDetails.countryCode} ${personalDetails.phone}` 
+        : '';
+      
+      // Prepare profile data including social media but without biography
+      const profileData = {
+        name: personalDetails.name,
+        email: personalDetails.email,
+        bio: personalDetails.bio,
+        education: personalDetails.education,
+        graduation_year: personalDetails.graduation_year,
+        phone: formattedPhone,
+        secondary_email: personalDetails.secondary_email,
+        social_media: socialMedia
+      };
+      
+      console.log('Saving profile data:', profileData);
+      
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.error('No authentication token found in localStorage');
+        toast({
+          title: "Authentication Error",
+          description: "Please log in again to update your profile",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Save profile data to the server
+      const response = await fetch(`/api/${user?.role}/${user?.id}/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(profileData)
+      });
+      
+      if (response.ok) {
+        toast({
+          title: "Profile Updated",
+          description: "Your profile has been successfully updated"
+        });
+        
+        // Update user state with new data
+        updateUser({
+          ...user!,
+          name: personalDetails.name,
+          email: personalDetails.email,
+        });
+        
+        // Reset edit mode
+        setEditingSections({
+          basicInfo: false,
+          contactInfo: false,
+          biography: false,
+          education: false,
+          socialMedia: false
+        });
+      } else {
+        const errorData = await response.json();
+        toast({
+          title: "Error Updating Profile",
+          description: errorData.message || "An error occurred while updating your profile",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred. Please try again later.",
+        variant: "destructive"
+      });
+    }
+  };
 
   const toggleSection = (section: string) => {
     setExpandedSections({
@@ -150,63 +555,94 @@ export default function ProfilePage() {
   const handleProfileImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && user) {
+      // Create a local preview of the image
       const reader = new FileReader();
       reader.onload = (e) => {
         if (e.target?.result) {
+          // Set a temporary preview
           const imageData = e.target.result as string;
           setProfileImage(imageData);
-          
-          // Always save the image immediately regardless of edit mode
-          // This fixes the admin profile image upload issue
-          
-          // Save current profile image to localStorage to persist on refresh
-          const currentProfileData = localStorage.getItem(`profileData-${user.email}`);
-          
-          if (currentProfileData) {
-            try {
-              const parsedData = JSON.parse(currentProfileData);
-              parsedData.profileImage = imageData;
-              localStorage.setItem(`profileData-${user.email}`, JSON.stringify(parsedData));
-              // Also update persistent storage
-              localStorage.setItem(`persistentProfileData-${user.email}`, JSON.stringify(parsedData));
-            } catch (error) {
-              console.error('Error updating profile image:', error);
-            }
-          } else {
-            // Create new profile data if none exists
-            const newProfileData = {
-              ...personalDetails,
-              profileImage: imageData
-            };
-            localStorage.setItem(`profileData-${user.email}`, JSON.stringify(newProfileData));
-            // Also update persistent storage
-            localStorage.setItem(`persistentProfileData-${user.email}`, JSON.stringify(newProfileData));
-          }
-          
-          // Update user object directly with new profile image
-          updateUser({
-            profileImage: imageData
-          });
-          
-          // Update user data in localStorage to simulate database update
-          const storedUser = localStorage.getItem('user');
-          if (storedUser) {
-            try {
-              const userData = JSON.parse(storedUser);
-              userData.profileImage = imageData;
-              localStorage.setItem('user', JSON.stringify(userData));
-            } catch (error) {
-              console.error('Error updating user profile image:', error);
-            }
-          }
-          
-          toast({
-            title: "Profile image updated",
-            description: "Your profile image has been updated successfully"
-          });
         }
       };
       reader.readAsDataURL(file);
+
+      // Upload to server
+      const formData = new FormData();
+      formData.append('image', file);
+
+      // Get stored token
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast({
+          title: "Error",
+          description: "Authentication token is missing. Please log in again.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Call the appropriate API endpoint based on user role
+      const uploadUrl = `/api/${user.role}/${user.id}/profile-image`;
+      console.log("Uploading image to:", uploadUrl);
+      
+      fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      })
+      .then(response => {
+        if (!response.ok) {
+          return response.text().then(text => {
+            console.error('Server response:', response.status, text);
+            throw new Error(`Failed to upload image: ${response.status} ${text}`);
+          });
+        }
+        return response.json();
+      })
+      .then(data => {
+        // Instead of updating user object, only update UI
+        setProfileImage(data.imageUrl);
+        
+        // Also keep the localStorage updated for backward compatibility
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+          try {
+            const userData = JSON.parse(storedUser);
+            // Don't update profileImage here anymore
+            localStorage.setItem('user', JSON.stringify(userData));
+          } catch (error) {
+            console.error('Error updating user in localStorage:', error);
+          }
+        }
+
+        // Update personal details
+        setPersonalDetails(prev => ({
+          ...prev,
+          profileImage: data.imageUrl
+        }));
+          
+        toast({
+          title: "Profile image updated",
+          description: "Your profile image has been updated successfully"
+        });
+      })
+      .catch(error => {
+        console.error('Error uploading profile image:', error);
+        toast({
+          title: "Error",
+          description: error.message || "Failed to upload profile image",
+          variant: "destructive"
+        });
+        
+        // Restore previous image if upload fails
+        if (user.profileImage) {
+          setProfileImage(user.profileImage);
+        } else {
+          setProfileImage('/placeholder-profile.jpg');
+        }
+      });
     }
   };
 
@@ -227,76 +663,6 @@ export default function ProfilePage() {
     }
   };
 
-  const handlePersonalDetailsChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setPersonalDetails({
-      ...personalDetails,
-      [name]: value
-    });
-  };
-
-  const handleSaveProfile = async () => {
-    // In a real app, you would save the profile data to a database
-    try {
-      // Simulate API call to update user profile
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Create a complete profile data object to save
-      const profileData = {
-        ...personalDetails,
-        profileImage // Store the profile image as well
-      };
-      
-      // Save to localStorage for persistence between page refreshes - now user-specific
-      localStorage.setItem(`profileData-${user?.email}`, JSON.stringify(profileData));
-      
-      // Also save to persistent storage to keep data after logout
-      localStorage.setItem(`persistentProfileData-${user?.email}`, JSON.stringify(profileData));
-      
-      // Update auth context (in a real app, this would be part of the API response)
-      if (user) {
-        // Use the updateUser function from auth context to update the user in real-time
-        updateUser({
-          name: personalDetails.name,
-          profileImage
-        });
-        
-        // For backward compatibility, still update localStorage directly
-        const storedUser = localStorage.getItem('user');
-        if (storedUser) {
-          try {
-            const userData = JSON.parse(storedUser);
-            userData.name = personalDetails.name;
-            userData.profileImage = profileImage;
-            
-            // Save updated user back to localStorage
-            localStorage.setItem('user', JSON.stringify(userData));
-            
-            // Trigger storage event to update other components
-            // This will not work in the same window, but we'll use updateUser for that
-            // This is for completeness in case other components listen to storage events
-            window.dispatchEvent(new Event('storage'));
-          } catch (error) {
-            console.error('Error updating user data:', error);
-          }
-        }
-      }
-      
-    setIsEditingProfile(false);
-      toast({
-        title: "Profile updated",
-        description: "Your profile has been updated successfully"
-      });
-    } catch (error) {
-      console.error('Error saving profile:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update profile. Please try again.",
-        variant: "destructive"
-      });
-    }
-  };
-  
   const handleVerificationDocClick = () => {
     verificationDocRef.current?.click();
   };
@@ -432,93 +798,108 @@ export default function ProfilePage() {
   const renderRoleSpecificContent = () => {
     if (!user) return null;
     
-    // Student-specific content
+    // Common skills section for all roles
+    const skillsSection = (
+      <Card className="mb-6">
+        <CardHeader 
+          className="flex flex-row items-center justify-between cursor-pointer"
+          onClick={() => toggleSection('qualifications')}
+        >
+          <CardTitle className="text-xl font-bold">Skills & Development</CardTitle>
+          <ChevronDown className={`h-5 w-5 transition-transform ${expandedSections.qualifications ? 'rotate-180' : ''}`} />
+        </CardHeader>
+        
+        {expandedSections.qualifications && (
+          <CardContent>
+            <h3 className="text-lg font-medium mb-4">Skills Overview</h3>
+            <p className="text-gray-600 text-sm mb-4">Your skills levels and comparisons</p>
+            
+            {studentSkillsData.length > 0 ? (
+              <div className="aspect-square max-w-md mx-auto">
+                <ResponsiveContainer width="100%" height="100%">
+                  <RadarChart outerRadius={90} data={studentSkillsData}>
+                    <PolarGrid />
+                    <PolarAngleAxis dataKey="subject" />
+                    <PolarRadiusAxis domain={[0, 100]} />
+                    <Radar
+                      name="Self Assessment"
+                      dataKey="self"
+                      stroke="#8884d8"
+                      fill="#8884d8"
+                      fillOpacity={0.6}
+                    />
+                    <Radar
+                      name="Mentor Evaluation"
+                      dataKey="mentor"
+                      stroke="#82ca9d"
+                      fill="#82ca9d"
+                      fillOpacity={0.6}
+                    />
+                    <RechartsTooltip />
+                  </RadarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="text-center p-8 text-gray-500">
+                <BarChart className="h-12 w-12 mx-auto mb-4 opacity-40" />
+                <p>No skills data available</p>
+                <p className="text-sm mt-2">Add skills to see your development radar</p>
+              </div>
+            )}
+          </CardContent>
+        )}
+      </Card>
+    );
+
+    // Role-specific sections
     if (user.role === 'student') {
       return (
         <>
-          {/* Skills & Development */}
-          <Card className="mb-6">
-            <CardHeader 
-              className="flex flex-row items-center justify-between cursor-pointer"
-              onClick={() => toggleSection('skills')}
-            >
-              <CardTitle className="text-xl font-bold">Skills & Development</CardTitle>
-              <ChevronDown className={`h-5 w-5 transition-transform ${expandedSections.skills ? 'rotate-180' : ''}`} />
-            </CardHeader>
-            
-            {expandedSections.skills && (
-              <CardContent>
-                <div className="mb-6">
-                  <h3 className="text-lg font-medium mb-4">Skills Comparison</h3>
-                  <p className="text-gray-600 text-sm mb-4">Compare your self-assessment with your mentor's evaluation</p>
-                  
-                  <div className="aspect-square max-w-md mx-auto">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <RadarChart outerRadius={90} data={studentSkillsData}>
-                        <PolarGrid />
-                        <PolarAngleAxis dataKey="subject" />
-                        <PolarRadiusAxis domain={[0, 100]} />
-                        <Radar
-                          name="Self Assessment"
-                          dataKey="self"
-                          stroke="#8884d8"
-                          fill="#8884d8"
-                          fillOpacity={0.6}
-                        />
-                        <Radar
-                          name="Mentor Evaluation"
-                          dataKey="mentor"
-                          stroke="#82ca9d"
-                          fill="#82ca9d"
-                          fillOpacity={0.6}
-                        />
-                        <RechartsTooltip />
-                      </RadarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-                
-                <div>
-                  <h3 className="text-lg font-medium mb-4">Development Actions</h3>
-                  <Link href="/activities" className="block w-full bg-blue-600 text-white py-3 rounded-md hover:bg-blue-700 text-center">
-                    View My Activities
-                  </Link>
-                </div>
-              </CardContent>
-            )}
-          </Card>
+          {skillsSection}
           
-          {/* Job Interests & Alignment */}
+          {/* Job Interests */}
           <Card className="mb-6">
             <CardHeader 
               className="flex flex-row items-center justify-between cursor-pointer"
-              onClick={() => toggleSection('jobInterests')}
+              onClick={() => toggleSection('qualifications')}
             >
-              <CardTitle className="text-xl font-bold">Job Interests & Alignment</CardTitle>
-              <ChevronDown className={`h-5 w-5 transition-transform ${expandedSections.jobInterests ? 'rotate-180' : ''}`} />
+              <CardTitle className="text-xl font-bold">Job Interests</CardTitle>
+              <ChevronDown className={`h-5 w-5 transition-transform ${expandedSections.qualifications ? 'rotate-180' : ''}`} />
             </CardHeader>
             
-            {expandedSections.jobInterests && (
+            {expandedSections.qualifications && (
               <CardContent>
-                <div className="space-y-4">
-                  {jobInterests.map(job => (
-                    <div key={job.id} className="border border-gray-200 rounded-md p-4">
-                      <div className="flex justify-between items-center mb-2">
-                        <h3 className="font-medium">{job.title}</h3>
-                        <span className="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-                          {job.match}% Match
-                        </span>
+                <h3 className="text-lg font-medium mb-4">Job Match Analysis</h3>
+                <p className="text-gray-600 text-sm mb-4">Jobs that match your skills and preferences</p>
+                
+                {jobInterests.length > 0 ? (
+                  <div className="space-y-4">
+                    {jobInterests.map((job) => (
+                      <div key={job.id} className="border rounded-lg p-4">
+                        <div className="flex justify-between mb-2">
+                          <h4 className="font-medium">{job.title}</h4>
+                          <span className="text-green-600 font-semibold">{job.match}% Match</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2.5">
+                          <div 
+                            className="bg-green-600 h-2.5 rounded-full" 
+                            style={{ width: `${job.match}%` }}
+                          ></div>
+                        </div>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2.5">
-                        <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${job.match}%` }}></div>
-                      </div>
-                    </div>
-                  ))}
-                  
-                  <Link href="/jobs" className="block text-blue-600 hover:text-blue-800 text-center mt-4">
-                    View More Job Opportunities
-                  </Link>
-                </div>
+                    ))}
+                    
+                    <button className="w-full mt-4 py-2 text-center text-blue-600 hover:text-blue-800 font-medium">
+                      View All Job Matches
+                    </button>
+                  </div>
+                ) : (
+                  <div className="text-center p-8 text-gray-500">
+                    <Briefcase className="h-12 w-12 mx-auto mb-4 opacity-40" />
+                    <p>No job interests added yet</p>
+                    <p className="text-sm mt-2">Add your preferences to see matched jobs</p>
+                  </div>
+                )}
               </CardContent>
             )}
           </Card>
@@ -529,99 +910,66 @@ export default function ProfilePage() {
               className="flex flex-row items-center justify-between cursor-pointer"
               onClick={() => toggleSection('qualifications')}
             >
-              <CardTitle className="text-xl font-bold">Qualifications</CardTitle>
+              <div className="flex items-center">
+                <CardTitle className="text-xl font-bold">Qualifications & Certifications</CardTitle>
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowQualificationModal(true);
+                  }}
+                  className="ml-2 text-blue-600 hover:text-blue-800"
+                >
+                  <Award className="h-4 w-4" />
+                </button>
+              </div>
               <ChevronDown className={`h-5 w-5 transition-transform ${expandedSections.qualifications ? 'rotate-180' : ''}`} />
             </CardHeader>
             
             {expandedSections.qualifications && (
               <CardContent>
-                <div className="space-y-4">
-                  {qualifications.map(qualification => (
-                    <div key={qualification.id} className="border border-gray-200 rounded-md p-4">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="font-medium">{qualification.title}</h3>
-                          <p className="text-gray-500 text-sm">{qualification.institution}</p>
-                          <p className="text-gray-500 text-sm">Issued: {formatDate(qualification.date)}</p>
+                {qualifications.length > 0 ? (
+                  <div className="space-y-4">
+                    {qualifications.map((qualification) => (
+                      <div key={qualification.id} className="flex items-start border-b border-gray-100 pb-4">
+                        <div className="flex-shrink-0 mr-3">
+                          {qualification.verified ? (
+                            <div className="bg-green-100 text-green-700 p-2 rounded-full">
+                              <CheckCircle2 className="h-5 w-5" />
+                            </div>
+                          ) : (
+                            <div className="bg-gray-100 text-gray-400 p-2 rounded-full">
+                              <Award className="h-5 w-5" />
+                            </div>
+                          )}
                         </div>
-                        {qualification.verified ? (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                            <CheckCircle2 className="h-3 w-3 mr-1" />
-                            Verified
+                        <div className="flex-grow">
+                          <div className="flex justify-between">
+                            <h4 className="font-medium">{qualification.title}</h4>
+                            <span className="text-sm text-gray-500">{formatDate(qualification.date)}</span>
+                          </div>
+                          <p className="text-gray-600 text-sm">{qualification.institution}</p>
+                          <span className={`text-xs px-2 py-1 rounded-full ${qualification.verified ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                            {qualification.verified ? 'Verified' : 'Pending Verification'}
                           </span>
-                        ) : (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                            Unverified
-                          </span>
-                        )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                  
-                  <button 
-                    onClick={() => setShowQualificationModal(true)} 
-                    className="block w-full py-2 px-4 border border-gray-300 text-center rounded-md text-gray-700 hover:bg-gray-50"
-                  >
-                    Add New Qualification
-                  </button>
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center p-8 text-gray-500">
+                    <Award className="h-12 w-12 mx-auto mb-4 opacity-40" />
+                    <p>No qualifications added yet</p>
+                    <p className="text-sm mt-2">Add your qualifications to showcase your expertise</p>
+                  </div>
+                )}
               </CardContent>
             )}
           </Card>
         </>
       );
-    }
-    
-    // Mentor-specific content
-    if (user.role === 'mentor') {
+    } else if (user.role === 'mentor') {
       return (
         <>
-          {/* Mentor Qualifications */}
-          <Card className="mb-6">
-            <CardHeader 
-              className="flex flex-row items-center justify-between cursor-pointer"
-              onClick={() => toggleSection('qualifications')}
-            >
-              <CardTitle className="text-xl font-bold">Qualifications & Expertise</CardTitle>
-              <ChevronDown className={`h-5 w-5 transition-transform ${expandedSections.qualifications ? 'rotate-180' : ''}`} />
-            </CardHeader>
-            
-            {expandedSections.qualifications && (
-              <CardContent>
-                <div className="space-y-4">
-                  {qualifications.map(qualification => (
-                    <div key={qualification.id} className="border border-gray-200 rounded-md p-4">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="font-medium">{qualification.title}</h3>
-                          <p className="text-gray-500 text-sm">{qualification.institution}</p>
-                          <p className="text-gray-500 text-sm">Issued: {formatDate(qualification.date)}</p>
-                        </div>
-                        {qualification.verified ? (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                            <CheckCircle2 className="h-3 w-3 mr-1" />
-                            Verified
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                            Unverified
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                  
-                  <button 
-                    onClick={() => setShowQualificationModal(true)} 
-                    className="block w-full py-2 px-4 border border-gray-300 text-center rounded-md text-gray-700 hover:bg-gray-50"
-                  >
-                    Add New Qualification
-                  </button>
-                </div>
-              </CardContent>
-            )}
-          </Card>
-          
           {/* Assigned Students */}
           <Card className="mb-6">
             <CardHeader 
@@ -634,44 +982,58 @@ export default function ProfilePage() {
             
             {expandedSections.students && (
               <CardContent>
-                <div className="space-y-4">
-                  {mentorStudents.map(student => (
-                    <div key={student.id} className="border border-gray-200 rounded-md p-4">
-                      <div className="flex justify-between items-center mb-2">
-                        <div>
-                          <h3 className="font-medium">{student.name}</h3>
-                          <p className="text-gray-500 text-sm">{student.email}</p>
+                <h3 className="text-lg font-medium mb-4">Students under your mentorship</h3>
+                
+                {mentorStudents.length > 0 ? (
+                  <div className="space-y-4">
+                    {mentorStudents.map((student) => (
+                      <div key={student.id} className="border rounded-lg p-4">
+                        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-2">
+                          <div>
+                            <h4 className="font-medium">{student.name}</h4>
+                            <p className="text-gray-600 text-sm">{student.email}</p>
+                            <span className={`inline-block mt-1 text-xs px-2 py-1 rounded-full ${
+                              student.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                            }`}>
+                              {student.status}
+                            </span>
+                          </div>
+                          <div className="md:text-right">
+                            <p className="text-sm text-gray-600">Progress</p>
+                            <div className="w-full md:w-32 bg-gray-200 rounded-full h-2.5 mt-1">
+                              <div 
+                                className="bg-blue-600 h-2.5 rounded-full" 
+                                style={{ width: `${student.progress}%` }}
+                              ></div>
+                            </div>
+                            <p className="text-sm mt-1">{student.progress}%</p>
+                          </div>
                         </div>
-                        <span className={`text-xs px-2 py-1 rounded-full ${
-                          student.status === 'Active' 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {student.status}
-                        </span>
                       </div>
-                      <div className="mt-2">
-                        <p className="text-xs text-gray-500 mb-1">Progress</p>
-                        <div className="w-full bg-gray-200 rounded-full h-2.5">
-                          <div 
-                            className="bg-blue-600 h-2.5 rounded-full" 
-                            style={{ width: `${student.progress}%` }}
-                          ></div>
-                        </div>
-                      </div>
+                    ))}
+                    
+                    <div className="flex justify-center mt-4">
+                      <Link 
+                        href="/mentor/students"
+                        className="text-blue-600 hover:text-blue-800 font-medium"
+                      >
+                        View All Students
+                      </Link>
                     </div>
-                  ))}
-                  
-                  <Link href="/mentor/students" className="block text-blue-600 hover:text-blue-800 text-center mt-4">
-                    View All Students
-                  </Link>
-                </div>
+                  </div>
+                ) : (
+                  <div className="text-center p-8 text-gray-500">
+                    <Users className="h-12 w-12 mx-auto mb-4 opacity-40" />
+                    <p>No assigned students</p>
+                    <p className="text-sm mt-2">Students will appear here when they are assigned to you</p>
+                  </div>
+                )}
               </CardContent>
             )}
           </Card>
           
           {/* Verification Requests */}
-          <Card>
+          <Card className="mb-6">
             <CardHeader>
               <CardTitle className="text-xl font-bold">Verification Requests</CardTitle>
             </CardHeader>
@@ -686,82 +1048,63 @@ export default function ProfilePage() {
           </Card>
         </>
       );
-    }
-    
-    // Admin-specific content
-    if (user.role === 'admin') {
+    } else if (user.role === 'admin') {
       return (
         <>
-          {/* Admin Information */}
+          {/* Admin Settings */}
           <Card className="mb-6">
             <CardHeader>
-              <CardTitle className="text-xl font-bold">Administrative Access</CardTitle>
+              <CardTitle className="text-xl font-bold">Admin Settings</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded-md">
-                  <h3 className="font-medium text-blue-800 flex items-center">
-                    <Shield className="h-4 w-4 mr-2" />
-                    Administrator Account
-                  </h3>
-                  <p className="text-sm text-blue-600 mt-2">
-                    You have full administrative access to the system. Please ensure all actions comply with data protection regulations.
-                  </p>
-                  
-                  {/* Admin verification badge */}
-                  <div className="mt-3 flex items-center">
-                    <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 border border-green-300">
-                      <CheckCircle2 className="h-4 w-4 mr-2" />
-                      Automatically Verified Admin Account
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Link href="/admin/users" className="block p-4 border rounded-lg hover:bg-gray-50">
+                  <div className="flex items-center">
+                    <div className="bg-blue-100 text-blue-700 p-3 rounded-full mr-3">
+                      <Users className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h4 className="font-medium">User Management</h4>
+                      <p className="text-sm text-gray-600">Manage user accounts and permissions</p>
                     </div>
                   </div>
-                </div>
+                </Link>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Link 
-                    href="/admin/users" 
-                    className="p-4 border border-gray-200 rounded-md hover:bg-gray-50 flex items-center"
-                  >
-                    <Users className="h-5 w-5 text-gray-500 mr-3" />
-                    <div>
-                      <h3 className="font-medium">User Management</h3>
-                      <p className="text-sm text-gray-500">Manage user accounts</p>
+                <Link href="/admin/settings" className="block p-4 border rounded-lg hover:bg-gray-50">
+                  <div className="flex items-center">
+                    <div className="bg-purple-100 text-purple-700 p-3 rounded-full mr-3">
+                      <Settings className="h-5 w-5" />
                     </div>
-                  </Link>
-                  
-                  <Link 
-                    href="/admin/verifications" 
-                    className="p-4 border border-gray-200 rounded-md hover:bg-gray-50 flex items-center"
-                  >
-                    <CheckCircle2 className="h-5 w-5 text-gray-500 mr-3" />
                     <div>
-                      <h3 className="font-medium">Verifications</h3>
-                      <p className="text-sm text-gray-500">Review verification requests</p>
+                      <h4 className="font-medium">System Settings</h4>
+                      <p className="text-sm text-gray-600">Configure system preferences</p>
                     </div>
-                  </Link>
-                  
-                  <Link 
-                    href="/admin/settings" 
-                    className="p-4 border border-gray-200 rounded-md hover:bg-gray-50 flex items-center"
-                  >
-                    <Settings className="h-5 w-5 text-gray-500 mr-3" />
+                  </div>
+                </Link>
+                
+                <Link href="/admin/jobs" className="block p-4 border rounded-lg hover:bg-gray-50">
+                  <div className="flex items-center">
+                    <div className="bg-green-100 text-green-700 p-3 rounded-full mr-3">
+                      <Briefcase className="h-5 w-5" />
+                    </div>
                     <div>
-                      <h3 className="font-medium">System Settings</h3>
-                      <p className="text-sm text-gray-500">Configure system settings</p>
+                      <h4 className="font-medium">Job Management</h4>
+                      <p className="text-sm text-gray-600">Manage job listings and applications</p>
                     </div>
-                  </Link>
-                  
-                  <Link 
-                    href="/admin" 
-                    className="p-4 border border-gray-200 rounded-md hover:bg-gray-50 flex items-center"
-                  >
-                    <Briefcase className="h-5 w-5 text-gray-500 mr-3" />
+                  </div>
+                </Link>
+                
+                <Link href="/admin/reports" className="block p-4 border rounded-lg hover:bg-gray-50">
+                  <div className="flex items-center">
+                    <div className="bg-orange-100 text-orange-700 p-3 rounded-full mr-3">
+                      <BarChart className="h-5 w-5" />
+                    </div>
                     <div>
-                      <h3 className="font-medium">Admin Dashboard</h3>
-                      <p className="text-sm text-gray-500">View system overview</p>
+                      <h4 className="font-medium">Reports & Analytics</h4>
+                      <p className="text-sm text-gray-600">View system reports and statistics</p>
                     </div>
-                  </Link>
-                </div>
+                  </div>
+                </Link>
               </div>
             </CardContent>
           </Card>
@@ -769,330 +1112,530 @@ export default function ProfilePage() {
       );
     }
     
-    // Default content if role doesn't match any specific case
     return null;
   };
 
+  const toggleEditSection = (section: string) => {
+    setEditingSections(prev => ({
+      ...prev,
+      [section]: !prev[section as keyof typeof prev]
+    }));
+  };
+
+  // Handle cover image click
+  const coverInputRef = useRef<HTMLInputElement>(null);
+  const handleCoverImageClick = () => {
+    coverInputRef.current?.click();
+  };
+
+  // Handle cover image change
+  const handleCoverImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && user) {
+      // Similar to profile image upload but for cover image
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        if (e.target?.result) {
+          const imageData = e.target.result as string;
+          setCoverImage(imageData);
+        }
+      };
+      reader.readAsDataURL(file);
+      
+      // Here you would implement the API call to save the cover image
+      // For now just showing the preview
+      toast({
+        title: "Cover image updated",
+        description: "Your cover image has been updated"
+      });
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 p-6 pb-40">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">My Profile</h1>
-        <p className="text-gray-600">
-          {user?.role === 'admin' ? 'Manage your administrator profile and system settings' :
-           user?.role === 'mentor' ? 'Manage your mentor profile and student assignments' :
-           'Manage your personal information and track your development'}
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column - Profile Info */}
-        <div className="lg:col-span-1">
-          <Card className="mb-6">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-xl font-bold">Profile Information</CardTitle>
-              <div className="flex gap-2">
-                {isEditingProfile ? (
-                  <>
-                    <button
-                      onClick={() => {
-                        // Cancel changes by reloading data from localStorage or user
-                        const savedProfileData = localStorage.getItem(`profileData-${user?.email}`);
-                        if (savedProfileData) {
-                          try {
-                            const parsedData = JSON.parse(savedProfileData);
-                            setPersonalDetails(parsedData);
-                            if (parsedData.profileImage) {
-                              setProfileImage(parsedData.profileImage);
-                            }
-                          } catch (error) {
-                            console.error('Error parsing saved profile data:', error);
-                          }
-                        } else if (user) {
-                          setPersonalDetails(prev => ({
-                            ...prev,
-                            name: user.name || prev.name,
-                            email: user.email || prev.email,
-                            role: user.role || prev.role
-                          }));
-                        }
-                        setIsEditingProfile(false);
-                      }}
-                      className="text-gray-600 hover:text-gray-800 flex items-center"
-                    >
-                      Cancel
-                    </button>
-                    <button 
-                      onClick={handleSaveProfile}
-                      className="text-blue-600 hover:text-blue-800 flex items-center"
-                    >
-                      <Save className="h-4 w-4 mr-1" />
-                      Save
-                    </button>
-                  </>
-                ) : (
+    <div className="container mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold mb-6">My Profile</h1>
+      <p className="text-gray-600 mb-8">
+        {user?.role === 'admin' && 'Manage your administrator profile and system settings'}
+        {user?.role === 'mentor' && 'Manage your mentor profile and student assignments'}
+        {user?.role === 'student' && 'Manage your personal information and track your development'}
+      </p>
+      
+      {/* Cover and Profile Image Section */}
+      <div className="relative mb-24">
+        {/* Cover Image */}
+        <div className="relative h-64 w-full bg-gray-200 rounded-lg overflow-hidden">
+          <Image 
+            src={coverImage} 
+            alt="Cover" 
+            width={1200} 
+            height={300}
+            className="object-cover w-full h-full"
+          />
+          <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+            <button 
+              className="bg-white text-gray-800 font-bold py-2 px-4 rounded flex items-center"
+              onClick={handleCoverImageClick}
+            >
+              <Camera className="h-4 w-4 mr-2" />
+              Change Cover
+            </button>
+          </div>
+          <input 
+            type="file" 
+            ref={coverInputRef} 
+            className="hidden" 
+            accept="image/*"
+            onChange={handleCoverImageChange}
+          />
+        </div>
+        
+        {/* Profile Image - Centered */}
+        <div className="absolute -bottom-16 left-1/2 transform -translate-x-1/2">
+          <div className="relative">
+            <div className="h-32 w-32 rounded-full border-4 border-white shadow-lg overflow-hidden bg-white">
+              <Image 
+                src={profileImage} 
+                alt="Profile" 
+                width={128} 
+                height={128} 
+                className="object-cover w-full h-full"
+              />
               <button 
-                    onClick={() => setIsEditingProfile(true)}
-                className="text-blue-600 hover:text-blue-800 flex items-center"
+                className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity rounded-full"
+                onClick={handleProfileImageClick}
               >
-                <Edit className="h-4 w-4 mr-1" />
-                    Edit
+                <Camera className="h-5 w-5 text-white" />
               </button>
-                )}
+            </div>
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              className="hidden" 
+              accept="image/*"
+              onChange={handleProfileImageChange}
+            />
+          </div>
+        </div>
+        
+        {/* User Name and Role - Below Profile Image */}
+        <div className="absolute -bottom-28 left-1/2 transform -translate-x-1/2 text-center">
+          <h2 className="text-2xl font-bold flex items-center justify-center">
+            {personalDetails.name}
+            <span className="ml-2 text-gray-500 text-lg">[{user?.role}]</span>
+            {verificationStatus === 'verified' && (
+              <span className="ml-2 text-green-500"><CheckCircle2 className="h-5 w-5" /></span>
+            )}
+          </h2>
+        </div>
+        
+        {/* Social Media and Contact Icons */}
+        <div className="absolute -bottom-12 left-4 flex space-x-3">
+          {personalDetails.phone && (
+            <div className="bg-white rounded-full p-2 shadow-md" title={`${personalDetails.countryCode} ${personalDetails.phone}`}>
+              <div className="flex items-center">
+                <Phone className="h-5 w-5 text-gray-600 mr-1" />
+                <span className="text-xs font-medium">{personalDetails.countryCode} {personalDetails.phone}</span>
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col items-center mb-6">
-                <div className="relative mb-4">
-                  <div 
-                    className="h-32 w-32 rounded-full overflow-hidden border-4 border-white shadow-lg cursor-pointer"
-                    onClick={handleProfileImageClick}
-                  >
-                    <Image 
-                      src={profileImage} 
-                      alt="Profile" 
-                      width={128} 
-                      height={128} 
-                      className="object-cover w-full h-full"
-                    />
-                  </div>
-                  {isEditingProfile && (
-                    <div 
-                      className="absolute bottom-0 right-0 bg-blue-600 text-white p-2 rounded-full cursor-pointer"
-                      onClick={handleProfileImageClick}
-                    >
-                      <Camera className="h-4 w-4" />
-                    </div>
-                  )}
-                  <input 
-                    type="file" 
-                    ref={fileInputRef} 
-                    className="hidden" 
-                    accept="image/*"
-                    onChange={handleProfileImageChange}
-                  />
-                </div>
-                
-                {isEditingProfile ? (
-                  <input
-                    type="text"
-                    name="name"
-                    value={personalDetails.name}
-                    onChange={handlePersonalDetailsChange}
-                    className="text-xl font-bold text-center border border-gray-300 rounded-md px-2 py-1 mb-1 w-full"
-                  />
-                ) : (
-                  <h2 className="text-xl font-bold">{personalDetails.name}</h2>
-                )}
-                
-                <div className="flex items-center gap-2 mt-1">
-                  <p className="text-gray-500 capitalize">{personalDetails.role}</p>
-                  {getVerificationBadge()}
-                </div>
-                
-                {/* Rejection details modal */}
-                {showRejectionDetails && verificationStatus === 'rejected' && (
-                  <div className="mt-3 p-3 bg-red-50 rounded-md w-full">
-                    <div className="flex justify-between">
-                      <h4 className="text-sm font-medium text-red-700 mb-1">Verification Rejected</h4>
-                      <button 
-                        onClick={() => setShowRejectionDetails(false)}
-                        className="text-red-700 hover:text-red-900"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                    <p className="text-xs text-red-600 mb-3">{rejectionDetails.reason}</p>
-                    <p className="text-xs text-gray-500">
-                      {rejectionDetails.date ? `Rejected on: ${new Date(rejectionDetails.date).toLocaleDateString()}` : ''}
-                    </p>
-                    <button
-                      onClick={handleReapplyForVerification}
-                      className="mt-2 text-xs bg-red-600 text-white rounded px-2 py-1 w-full"
-                    >
-                      Reapply for Verification
-                    </button>
-                  </div>
-                )}
-                
-                {/* Only show verification request button for non-admin users */}
-                {personalDetails.role !== 'admin' && (
-                  <>
-                    {verificationStatus === 'unverified' && !showVerificationRequest && (
-                      <button 
-                        onClick={() => setShowVerificationRequest(true)}
-                        className="mt-2 text-xs text-blue-600 hover:text-blue-800 flex items-center"
-                      >
-                        <Shield className="h-3 w-3 mr-1" />
-                        Request verification
-                      </button>
-                    )}
-                    
-                    {verificationStatus === 'rejected' && !showVerificationRequest && !showRejectionDetails && (
-                      <button 
-                        onClick={handleReapplyForVerification}
-                        className="mt-2 text-xs text-blue-600 hover:text-blue-800 flex items-center"
-                      >
-                        <Shield className="h-3 w-3 mr-1" />
-                        Reapply for verification
-                      </button>
-                    )}
-                  </>
-                )}
-                
-                {showVerificationRequest && (
-                  <div className="mt-3 p-3 bg-blue-50 rounded-md w-full">
-                    <h4 className="text-sm font-medium text-blue-700 mb-1">Verify your identity</h4>
-                    <p className="text-xs text-blue-600 mb-2">Upload an ID or educational document to verify your account</p>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={handleVerificationDocClick}
-                        className="text-xs flex-1 bg-blue-600 text-white rounded px-2 py-1 flex items-center justify-center"
-                      >
-                        <Upload className="h-3 w-3 mr-1" />
-                        Upload document
-                      </button>
-                      <button
-                        onClick={() => setShowVerificationRequest(false)}
-                        className="text-xs flex-1 bg-gray-200 text-gray-700 rounded px-2 py-1"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                    <input 
-                      type="file" 
-                      ref={verificationDocRef} 
-                      className="hidden" 
-                      accept=".pdf,.jpg,.jpeg,.png"
-                      onChange={handleVerificationDocUpload}
-                    />
-                  </div>
-                )}
-                
-                {videoUrl ? (
-                  <div className="mt-4 w-full">
-                    <h3 className="text-sm font-medium mb-2">Video Introduction</h3>
-                    <div className="aspect-video bg-gray-200 rounded-lg flex items-center justify-center">
-                      <p className="text-gray-600">Video uploaded</p>
-                    </div>
-                    {isEditingProfile && (
-                      <button 
-                        onClick={handleVideoUploadClick}
-                        className="mt-2 text-blue-600 hover:text-blue-800 text-sm"
-                      >
-                        Replace video
-                      </button>
-                    )}
-                  </div>
-                ) : isEditingProfile ? (
-                  <button 
-                    onClick={handleVideoUploadClick}
-                    className="mt-4 flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
-                  >
-                    <Upload className="h-4 w-4 mr-2" />
-                    Upload Video Introduction
-                  </button>
-                ) : null}
-                <input 
-                  type="file" 
-                  ref={videoInputRef} 
-                  className="hidden" 
-                  accept="video/*"
-                  onChange={handleVideoUpload}
-                />
-              </div>
-
-              <div className="space-y-4">
+            </div>
+          )}
+          {socialMedia.website && (
+            <a href={socialMedia.website} target="_blank" rel="noopener noreferrer" className="bg-white rounded-full p-2 shadow-md" title="Website">
+              <Globe className="h-5 w-5 text-gray-600" />
+            </a>
+          )}
+          {socialMedia.linkedin && (
+            <a href={socialMedia.linkedin} target="_blank" rel="noopener noreferrer" className="bg-white rounded-full p-2 shadow-md" title="LinkedIn">
+              <Linkedin className="h-5 w-5 text-gray-600" />
+            </a>
+          )}
+          {socialMedia.twitter && (
+            <a href={socialMedia.twitter} target="_blank" rel="noopener noreferrer" className="bg-white rounded-full p-2 shadow-md" title="Twitter">
+              <Twitter className="h-5 w-5 text-gray-600" />
+            </a>
+          )}
+        </div>
+        
+        {/* Edit Profile Button */}
+        <div className="absolute -bottom-12 right-4">
+          <button 
+            onClick={() => {
+              if (isEditingProfile) {
+                handleSaveProfile();
+              }
+              setIsEditingProfile(!isEditingProfile);
+            }}
+            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 flex items-center"
+          >
+            {isEditingProfile ? (
+              <>
+                <Save className="h-4 w-4 mr-2" />
+                Save Changes
+              </>
+            ) : (
+              <>
+                <Edit className="h-4 w-4 mr-2" />
+                Edit Profile
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+      
+      {/* Edit Profile Modal */}
+      {isEditingProfile && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-auto">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h2 className="text-xl font-bold">Edit Profile</h2>
+              <button 
+                onClick={() => setIsEditingProfile(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="p-4">
+              <div className="space-y-6">
+                {/* Personal Information */}
                 <div>
-                  <h3 className="text-sm font-semibold mb-2">Email</h3>
-                  <div className="flex items-center">
-                    <Mail className="h-4 w-4 text-gray-400 mr-2" />
-                  {isEditingProfile ? (
+                  <h3 className="text-lg font-semibold mb-2">Personal Information</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                        Full Name
+                      </label>
+                      <input
+                        type="text"
+                        id="name"
+                        name="name"
+                        value={personalDetails.name}
+                        onChange={handlePersonalDetailsChange}
+                        className="w-full p-2 border border-gray-300 rounded-md"
+                        placeholder="Full Name"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label htmlFor="bio" className="block text-sm font-medium text-gray-700 mb-1">
+                        Bio
+                      </label>
+                      <textarea
+                        id="bio"
+                        name="bio"
+                        value={personalDetails.bio}
+                        onChange={handlePersonalDetailsChange}
+                        rows={3}
+                        className="w-full p-2 border border-gray-300 rounded-md"
+                        placeholder="Short bio about yourself"
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Contact Information */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Contact Information</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                        Email
+                      </label>
                       <input
                         type="email"
+                        id="email"
                         name="email"
                         value={personalDetails.email}
                         onChange={handlePersonalDetailsChange}
-                        className="border border-gray-300 rounded-md px-3 py-1 w-full"
-                    />
-                  ) : (
-                      <p className="text-gray-700">{personalDetails.email}</p>
-                )}
+                        className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Email Address"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label htmlFor="secondary_email" className="block text-sm font-medium text-gray-700 mb-1">
+                        Secondary Email (Optional)
+                      </label>
+                      <input
+                        type="email"
+                        id="secondary_email"
+                        name="secondary_email"
+                        value={personalDetails.secondary_email}
+                        onChange={handlePersonalDetailsChange}
+                        className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Secondary Email Address"
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Social Media */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Social Media</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label htmlFor="website" className="block text-sm font-medium text-gray-700 mb-1">
+                        Website URL
+                      </label>
+                      <input
+                        type="url"
+                        id="website"
+                        name="website"
+                        value={socialMedia.website}
+                        onChange={(e) => setSocialMedia({...socialMedia, website: e.target.value})}
+                        className="w-full p-2 border border-gray-300 rounded-md"
+                        placeholder="https://yourwebsite.com"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label htmlFor="linkedin" className="block text-sm font-medium text-gray-700 mb-1">
+                        LinkedIn URL
+                      </label>
+                      <input
+                        type="url"
+                        id="linkedin"
+                        name="linkedin"
+                        value={socialMedia.linkedin}
+                        onChange={(e) => setSocialMedia({...socialMedia, linkedin: e.target.value})}
+                        className="w-full p-2 border border-gray-300 rounded-md"
+                        placeholder="https://linkedin.com/in/yourusername"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label htmlFor="twitter" className="block text-sm font-medium text-gray-700 mb-1">
+                        Twitter/X URL
+                      </label>
+                      <input
+                        type="url"
+                        id="twitter"
+                        name="twitter"
+                        value={socialMedia.twitter}
+                        onChange={(e) => setSocialMedia({...socialMedia, twitter: e.target.value})}
+                        className="w-full p-2 border border-gray-300 rounded-md"
+                        placeholder="https://twitter.com/yourusername"
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
+              
+              <div className="flex justify-end mt-6">
+                <button 
+                  onClick={() => setIsEditingProfile(false)}
+                  className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 mr-2"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={() => {
+                    handleSaveProfile();
+                    setIsEditingProfile(false);
+                  }}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
-
-                <div>
-                  <h3 className="text-sm font-semibold mb-2">Phone</h3>
-                  <div className="flex items-center">
-                    <Phone className="h-4 w-4 text-gray-400 mr-2" />
-                    {isEditingProfile ? (
-                      <input
-                        type="tel"
-                        name="phone"
-                        value={personalDetails.phone}
-                        onChange={handlePersonalDetailsChange}
-                        className="border border-gray-300 rounded-md px-3 py-1 w-full"
-                      />
-                    ) : (
-                      <p className="text-gray-700">{personalDetails.phone}</p>
-                    )}
+      )}
+      
+      {/* Bio Section */}
+      <div className="mt-32 mb-8 text-center max-w-2xl mx-auto">
+        {editingSections.basicInfo ? (
+          <div className="space-y-4">
+            <textarea
+              id="bio"
+              name="bio"
+              value={personalDetails.bio}
+              onChange={handlePersonalDetailsChange}
+              rows={3}
+              className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Short bio about yourself"
+            />
+            <div className="flex justify-end">
+              <button 
+                onClick={() => {
+                  handleSaveProfile();
+                  toggleEditSection('basicInfo');
+                }}
+                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div>
+            <p className="text-gray-700">{personalDetails.bio || 'No bio provided'}</p>
+          </div>
+        )}
+      </div>
+      
+      {/* Main Content Area */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column - Contact & Education Information */}
+        <div className="lg:col-span-1">
+          
+          <Card className="mb-6">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-xl font-bold">Contact Information</CardTitle>
+              <button 
+                onClick={() => toggleEditSection('contactInfo')}
+                className="text-blue-600 hover:text-blue-800"
+              >
+                <Edit className="h-4 w-4" />
+              </button>
+            </CardHeader>
+            <CardContent>
+              {editingSections.contactInfo ? (
+                <div className="space-y-4">
+                  <div>
+                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      id="email"
+                      name="email"
+                      value={personalDetails.email}
+                      onChange={handlePersonalDetailsChange}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Email Address"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="secondary_email" className="block text-sm font-medium text-gray-700 mb-1">
+                      Secondary Email (Optional)
+                    </label>
+                    <input
+                      type="email"
+                      id="secondary_email"
+                      name="secondary_email"
+                      value={personalDetails.secondary_email}
+                      onChange={handlePersonalDetailsChange}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Secondary Email Address"
+                    />
+                  </div>
+                  
+                  <div className="flex justify-end">
+                    <button 
+                      onClick={() => {
+                        handleSaveProfile();
+                        toggleEditSection('contactInfo');
+                      }}
+                      className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+                    >
+                      Save
+                    </button>
                   </div>
                 </div>
-                
-                <div>
-                  <h3 className="text-sm font-semibold mb-2">Location</h3>
+              ) : (
+                <div className="space-y-4">
                   <div className="flex items-center">
-                    <MapPin className="h-4 w-4 text-gray-400 mr-2" />
-                    {isEditingProfile ? (
-                      <input
-                        type="text"
-                        name="address"
-                        value={personalDetails.address}
-                        onChange={handlePersonalDetailsChange}
-                        className="border border-gray-300 rounded-md px-3 py-1 w-full"
-                      />
-                    ) : (
-                      <p className="text-gray-700">{personalDetails.address}</p>
-                    )}
+                    <Mail className="h-4 w-4 text-gray-400 mr-2" />
+                    <span className="text-gray-700">{personalDetails.email}</span>
+                  </div>
+                  
+                  {personalDetails.phone && (
+                    <div className="flex items-center">
+                      <Phone className="h-4 w-4 text-gray-400 mr-2" />
+                      <span className="text-gray-700">{personalDetails.countryCode} {personalDetails.phone}</span>
+                    </div>
+                  )}
+                  
+                  {personalDetails.secondary_email && (
+                    <div className="flex items-center">
+                      <Mail className="h-4 w-4 text-gray-400 mr-2" />
+                      <span className="text-gray-700">{personalDetails.secondary_email} (Secondary)</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          
+          <Card className="mb-6">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-xl font-bold">Education & Experience</CardTitle>
+              <button 
+                onClick={() => toggleEditSection('education')}
+                className="text-blue-600 hover:text-blue-800"
+              >
+                <Edit className="h-4 w-4" />
+              </button>
+            </CardHeader>
+            <CardContent>
+              {editingSections.education ? (
+                <div className="space-y-4">
+                  <div>
+                    <label htmlFor="education" className="block text-sm font-medium text-gray-700 mb-1">
+                      Education
+                    </label>
+                    <input
+                      type="text"
+                      id="education"
+                      name="education"
+                      value={personalDetails.education}
+                      onChange={handlePersonalDetailsChange}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Your education background"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="graduation_year" className="block text-sm font-medium text-gray-700 mb-1">
+                      Graduation Year
+                    </label>
+                    <input
+                      type="number"
+                      id="graduation_year"
+                      name="graduation_year"
+                      value={personalDetails.graduation_year || ''}
+                      onChange={handlePersonalDetailsChange}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Year of graduation"
+                    />
+                  </div>
+                  
+                  <div className="flex justify-end">
+                    <button 
+                      onClick={() => {
+                        handleSaveProfile();
+                        toggleEditSection('education');
+                      }}
+                      className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+                    >
+                      Save
+                    </button>
                   </div>
                 </div>
-                
-                <div>
-                  <h3 className="text-sm font-semibold mb-2">Date of Birth</h3>
-                  <div className="flex items-center">
-                    <Calendar className="h-4 w-4 text-gray-400 mr-2" />
-                    {isEditingProfile ? (
-                      <input
-                        type="date"
-                        name="dateOfBirth"
-                        value={personalDetails.dateOfBirth}
-                        onChange={handlePersonalDetailsChange}
-                        className="border border-gray-300 rounded-md px-3 py-1 w-full"
-                      />
-                    ) : (
-                      <p className="text-gray-700">{formatDate(personalDetails.dateOfBirth)}</p>
-                    )}
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-sm font-semibold mb-1">Education</h3>
+                    <div className="flex items-center">
+                      <GraduationCap className="h-4 w-4 text-gray-400 mr-2" />
+                      <span className="text-gray-700">{personalDetails.education || 'Not specified'}</span>
+                    </div>
                   </div>
-                  </div>
-                
-                <div>
-                  <h3 className="text-sm font-semibold mb-2">Institution</h3>
-                  <div className="flex items-center">
-                    <Building className="h-4 w-4 text-gray-400 mr-2" />
-                    {isEditingProfile ? (
-                      <input
-                        type="text"
-                        name="institution"
-                        value={personalDetails.institution}
-                        onChange={handlePersonalDetailsChange}
-                        className="border border-gray-300 rounded-md px-3 py-1 w-full"
-                      />
-                    ) : (
-                      <p className="text-gray-700">{personalDetails.institution}</p>
-                    )}
-                  </div>
-                  </div>
-              </div>
+                  
+                  {personalDetails.graduation_year && (
+                    <div>
+                      <h3 className="text-sm font-semibold mb-1">Graduation Year</h3>
+                      <div className="flex items-center">
+                        <Calendar className="h-4 w-4 text-gray-400 mr-2" />
+                        <span className="text-gray-700">{personalDetails.graduation_year}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -1103,12 +1646,23 @@ export default function ProfilePage() {
         </div>
       </div>
       
-      {/* Add the QualificationModal */}
-      <QualificationModal 
-        isOpen={showQualificationModal}
-        onClose={() => setShowQualificationModal(false)}
-        onSave={handleSaveQualification}
+      {/* File Input for Document Upload */}
+      <input 
+        type="file" 
+        ref={verificationDocRef} 
+        className="hidden" 
+        accept="image/*,.pdf"
+        onChange={handleVerificationDocUpload}
       />
+      
+      {/* Qualification Modal */}
+      {showQualificationModal && (
+        <QualificationModal 
+          isOpen={showQualificationModal}
+          onClose={() => setShowQualificationModal(false)}
+          onSave={handleSaveQualification}
+        />
+      )}
     </div>
   );
 } 

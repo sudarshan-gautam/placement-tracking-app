@@ -14,7 +14,23 @@ export async function verifyAuth(token: string) {
   try {
     console.log('Verifying auth token...');
     
+    // Basic validation of token format to avoid "jwt malformed" errors
+    if (!token || token === 'undefined' || token === 'null') {
+      console.log('Token is empty, undefined, or null');
+      return null;
+    }
+    
+    // Trim any whitespace
+    token = token.trim();
+    
+    // Check if token has basic JWT format (three parts separated by dots)
+    if (!token.includes('.') || token.split('.').length !== 3) {
+      console.log('Token does not have valid JWT format (header.payload.signature)');
+      return null;
+    }
+    
     // Verify the JWT token
+    console.log('Token format looks valid, attempting verification...');
     const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
     console.log('Token decoded successfully:', { id: decoded.id, role: decoded.role });
 
