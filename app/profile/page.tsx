@@ -69,6 +69,7 @@ const formatDate = (dateString: string) => {
 export default function ProfilePage() {
   const { user, updateUser } = useAuth();
   const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [activeTab, setActiveTab] = useState('personal');
   const [editingSections, setEditingSections] = useState({
     basicInfo: false,
     contactInfo: false,
@@ -1295,11 +1296,47 @@ export default function ProfilePage() {
               </button>
             </div>
             
+            {/* Tabbed Interface */}
             <div className="p-4">
+              <div className="mb-6 border-b">
+                <div className="flex space-x-4">
+                  <button 
+                    className={`py-2 px-4 font-medium border-b-2 ${
+                      activeTab === 'personal' 
+                        ? 'border-blue-600 text-blue-600' 
+                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+                    onClick={() => setActiveTab('personal')}
+                  >
+                    Personal Info
+                  </button>
+                  <button 
+                    className={`py-2 px-4 font-medium border-b-2 ${
+                      activeTab === 'contact' 
+                        ? 'border-blue-600 text-blue-600' 
+                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+                    onClick={() => setActiveTab('contact')}
+                  >
+                    Contact Info
+                  </button>
+                  <button 
+                    className={`py-2 px-4 font-medium border-b-2 ${
+                      activeTab === 'social' 
+                        ? 'border-blue-600 text-blue-600' 
+                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+                    onClick={() => setActiveTab('social')}
+                  >
+                    Social Media
+                  </button>
+                </div>
+              </div>
+              
+              {/* Tab Content */}
               <div className="space-y-6">
-                {/* Personal Information */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">Personal Information</h3>
+                {/* Personal Information Tab */}
+                {activeTab === 'personal' && (
                   <div className="space-y-4">
                     <div>
                       <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
@@ -1330,12 +1367,41 @@ export default function ProfilePage() {
                         placeholder="Short bio about yourself"
                       />
                     </div>
+                    
+                    <div>
+                      <label htmlFor="education" className="block text-sm font-medium text-gray-700 mb-1">
+                        Education
+                      </label>
+                      <input
+                        type="text"
+                        id="education"
+                        name="education"
+                        value={personalDetails.education}
+                        onChange={handlePersonalDetailsChange}
+                        className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Your education background"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label htmlFor="graduation_year" className="block text-sm font-medium text-gray-700 mb-1">
+                        Graduation Year
+                      </label>
+                      <input
+                        type="number"
+                        id="graduation_year"
+                        name="graduation_year"
+                        value={personalDetails.graduation_year || ''}
+                        onChange={handlePersonalDetailsChange}
+                        className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Year of graduation"
+                      />
+                    </div>
                   </div>
-                </div>
+                )}
                 
-                {/* Contact Information */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">Contact Information</h3>
+                {/* Contact Information Tab */}
+                {activeTab === 'contact' && (
                   <div className="space-y-4">
                     <div>
                       <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
@@ -1366,62 +1432,106 @@ export default function ProfilePage() {
                         placeholder="Secondary Email Address"
                       />
                     </div>
+                    
+                    <div>
+                      <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+                        Phone Number
+                      </label>
+                      <div className="flex">
+                        <select
+                          id="countryCode"
+                          name="countryCode"
+                          value={personalDetails.countryCode}
+                          onChange={handlePersonalDetailsChange}
+                          className="w-24 p-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="+1">+1 (US)</option>
+                          <option value="+44">+44 (UK)</option>
+                          <option value="+61">+61 (AU)</option>
+                          <option value="+91">+91 (IN)</option>
+                          {/* Add more country codes as needed */}
+                        </select>
+                        <input
+                          type="tel"
+                          id="phone"
+                          name="phone"
+                          value={personalDetails.phone}
+                          onChange={handlePersonalDetailsChange}
+                          className="flex-1 p-2 border border-gray-300 rounded-r-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="Phone Number"
+                        />
+                      </div>
+                    </div>
                   </div>
-                </div>
+                )}
                 
-                {/* Social Media */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">Social Media</h3>
+                {/* Social Media Tab */}
+                {activeTab === 'social' && (
                   <div className="space-y-4">
                     <div>
                       <label htmlFor="website" className="block text-sm font-medium text-gray-700 mb-1">
                         Website URL
                       </label>
-                      <input
-                        type="url"
-                        id="website"
-                        name="website"
-                        value={socialMedia.website}
-                        onChange={(e) => setSocialMedia({...socialMedia, website: e.target.value})}
-                        className="w-full p-2 border border-gray-300 rounded-md"
-                        placeholder="https://yourwebsite.com"
-                      />
+                      <div className="flex items-center">
+                        <span className="bg-gray-100 p-2 border border-r-0 border-gray-300 rounded-l-md text-gray-500">
+                          <Globe className="h-5 w-5" />
+                        </span>
+                        <input
+                          type="url"
+                          id="website"
+                          name="website"
+                          value={socialMedia.website}
+                          onChange={(e) => setSocialMedia({...socialMedia, website: e.target.value})}
+                          className="flex-1 p-2 border border-gray-300 rounded-r-md"
+                          placeholder="https://yourwebsite.com"
+                        />
+                      </div>
                     </div>
                     
                     <div>
                       <label htmlFor="linkedin" className="block text-sm font-medium text-gray-700 mb-1">
                         LinkedIn URL
                       </label>
-                      <input
-                        type="url"
-                        id="linkedin"
-                        name="linkedin"
-                        value={socialMedia.linkedin}
-                        onChange={(e) => setSocialMedia({...socialMedia, linkedin: e.target.value})}
-                        className="w-full p-2 border border-gray-300 rounded-md"
-                        placeholder="https://linkedin.com/in/yourusername"
-                      />
+                      <div className="flex items-center">
+                        <span className="bg-gray-100 p-2 border border-r-0 border-gray-300 rounded-l-md text-gray-500">
+                          <Linkedin className="h-5 w-5" />
+                        </span>
+                        <input
+                          type="url"
+                          id="linkedin"
+                          name="linkedin"
+                          value={socialMedia.linkedin}
+                          onChange={(e) => setSocialMedia({...socialMedia, linkedin: e.target.value})}
+                          className="flex-1 p-2 border border-gray-300 rounded-r-md"
+                          placeholder="https://linkedin.com/in/yourusername"
+                        />
+                      </div>
                     </div>
                     
                     <div>
                       <label htmlFor="twitter" className="block text-sm font-medium text-gray-700 mb-1">
                         Twitter/X URL
                       </label>
-                      <input
-                        type="url"
-                        id="twitter"
-                        name="twitter"
-                        value={socialMedia.twitter}
-                        onChange={(e) => setSocialMedia({...socialMedia, twitter: e.target.value})}
-                        className="w-full p-2 border border-gray-300 rounded-md"
-                        placeholder="https://twitter.com/yourusername"
-                      />
+                      <div className="flex items-center">
+                        <span className="bg-gray-100 p-2 border border-r-0 border-gray-300 rounded-l-md text-gray-500">
+                          <Twitter className="h-5 w-5" />
+                        </span>
+                        <input
+                          type="url"
+                          id="twitter"
+                          name="twitter"
+                          value={socialMedia.twitter}
+                          onChange={(e) => setSocialMedia({...socialMedia, twitter: e.target.value})}
+                          className="flex-1 p-2 border border-gray-300 rounded-r-md"
+                          placeholder="https://twitter.com/yourusername"
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
               
-              <div className="flex justify-end mt-6">
+              <div className="flex justify-end mt-6 pt-4 border-t">
                 <button 
                   onClick={() => setIsEditingProfile(false)}
                   className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 mr-2"
