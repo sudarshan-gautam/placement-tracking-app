@@ -1310,11 +1310,12 @@ export default function ProfilePage() {
         {/* Social Media and Contact Icons */}
         <div className="absolute -bottom-12 left-4 flex space-x-3">
           {personalDetails.phone && (
-            <div className="bg-white rounded-full p-2 shadow-md" title={`${personalDetails.countryCode} ${personalDetails.phone}`}>
-              <div className="flex items-center">
-                <Phone className="h-5 w-5 text-gray-600 mr-1" />
-                <span className="text-xs font-medium">{personalDetails.countryCode} {personalDetails.phone}</span>
-              </div>
+            <div 
+              className="bg-white rounded-full p-2 shadow-md cursor-pointer hover:bg-blue-50" 
+              title={`Call ${personalDetails.countryCode} ${personalDetails.phone}`}
+              onClick={() => window.location.href = `tel:${personalDetails.countryCode}${personalDetails.phone}`}
+            >
+              <Phone className="h-5 w-5 text-gray-600" />
             </div>
           )}
           {socialMedia.website && (
@@ -1363,8 +1364,8 @@ export default function ProfilePage() {
       {/* Edit Profile Modal */}
       {isEditingProfile && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-auto">
-            <div className="flex items-center justify-between p-4 border-b">
+          <div className="bg-white rounded-lg w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white z-10">
               <h2 className="text-xl font-bold">Edit Profile</h2>
               <button 
                 onClick={() => setIsEditingProfile(false)}
@@ -1373,296 +1374,226 @@ export default function ProfilePage() {
                 <X size={24} />
               </button>
             </div>
-            
+                    
             {/* Tabbed Interface */}
-            <div className="p-4">
-              <div className="mb-6 border-b">
-                <div className="flex space-x-4">
-                  <button 
-                    className={`py-2 px-4 font-medium border-b-2 ${
-                      activeTab === 'personal' 
-                        ? 'border-blue-600 text-blue-600' 
-                        : 'border-transparent text-gray-500 hover:text-gray-700'
-                    }`}
-                    onClick={() => setActiveTab('personal')}
-                  >
-                    Personal Info
-                  </button>
-                  <button
-                    className={`py-2 px-4 font-medium border-b-2 ${
-                      activeTab === 'contact' 
-                        ? 'border-blue-600 text-blue-600' 
-                        : 'border-transparent text-gray-500 hover:text-gray-700'
-                    }`}
-                    onClick={() => setActiveTab('contact')}
-                  >
-                    Contact Info
-                  </button>
-                  <button
-                    className={`py-2 px-4 font-medium border-b-2 ${
-                      activeTab === 'skills' 
-                        ? 'border-blue-600 text-blue-600' 
-                        : 'border-transparent text-gray-500 hover:text-gray-700'
-                    }`}
-                    onClick={() => setActiveTab('skills')}
-                  >
-                    Skills
-                  </button>
-                  <button
-                    className={`py-2 px-4 font-medium border-b-2 ${
-                      activeTab === 'social' 
-                        ? 'border-blue-600 text-blue-600' 
-                        : 'border-transparent text-gray-500 hover:text-gray-700'
-                    }`}
-                    onClick={() => setActiveTab('social')}
-                  >
-                    Social Media
-                  </button>
-                </div>
-              </div>
-              
-              {/* Tab Content */}
-              <div className="space-y-6">
-                {/* Personal Information Tab */}
-                {activeTab === 'personal' && (
-                  <div className="space-y-4">
-                    <div>
-                      <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-                        Full Name
-                      </label>
-                      <input 
-                        type="text"
-                        id="name"
-                        name="name"
-                        value={personalDetails.name}
-                        onChange={handlePersonalDetailsChange}
-                        className="w-full p-2 border border-gray-300 rounded-md"
-                        placeholder="Full Name"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label htmlFor="bio" className="block text-sm font-medium text-gray-700 mb-1">
-                        Bio
-                      </label>
-                      <textarea
-                        id="bio"
-                        name="bio"
-                        value={personalDetails.bio}
-                        onChange={handlePersonalDetailsChange}
-                        rows={3}
-                        className="w-full p-2 border border-gray-300 rounded-md"
-                        placeholder="Short bio about yourself"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label htmlFor="education" className="block text-sm font-medium text-gray-700 mb-1">
-                        Education
-                      </label>
-                      <input
-                        type="text"
-                        id="education"
-                        name="education"
-                        value={personalDetails.education}
-                        onChange={handlePersonalDetailsChange}
-                        className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Your education background"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label htmlFor="graduation_year" className="block text-sm font-medium text-gray-700 mb-1">
-                        Graduation Year
-                      </label>
-                      <input 
-                        type="number"
-                        id="graduation_year"
-                        name="graduation_year"
-                        value={personalDetails.graduation_year || ''}
-                        onChange={handlePersonalDetailsChange}
-                        className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Year of graduation"
-                      />
-                    </div>
-
-                    <div>
-                      <label htmlFor="preferred_job_type" className="block text-sm font-medium text-gray-700 mb-1">
-                        Preferred Job Type
-                      </label>
-                      <input
-                        type="text"
-                        id="preferred_job_type"
-                        name="preferred_job_type"
-                        value={personalDetails.preferred_job_type || ''}
-                        onChange={handlePersonalDetailsChange}
-                        className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="e.g. Full-time, Part-time, Remote"
-                      />
-                    </div>
-
-                    <div>
-                      <label htmlFor="preferred_location" className="block text-sm font-medium text-gray-700 mb-1">
-                        Preferred Location
-                      </label>
-                      <input
-                        type="text"
-                        id="preferred_location"
-                        name="preferred_location"
-                        value={personalDetails.preferred_location || ''}
-                        onChange={handlePersonalDetailsChange}
-                        className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Your preferred work location"
-                      />
-                    </div>
+            <div className="flex-1 overflow-auto">
+              <div className="px-4 pt-4">
+                <div className="mb-6 border-b overflow-x-auto">
+                  <div className="flex space-x-1 min-w-max pb-1">
+                    <button 
+                      className={`py-2 px-4 font-medium border-b-2 whitespace-nowrap ${
+                        activeTab === 'personal' 
+                          ? 'border-blue-600 text-blue-600' 
+                          : 'border-transparent text-gray-500 hover:text-gray-700'
+                      }`}
+                      onClick={() => setActiveTab('personal')}
+                    >
+                      Personal Info
+                    </button>
+                    <button
+                      className={`py-2 px-4 font-medium border-b-2 whitespace-nowrap ${
+                        activeTab === 'contact' 
+                          ? 'border-blue-600 text-blue-600' 
+                          : 'border-transparent text-gray-500 hover:text-gray-700'
+                      }`}
+                      onClick={() => setActiveTab('contact')}
+                    >
+                      Contact Info
+                    </button>
+                    <button
+                      className={`py-2 px-4 font-medium border-b-2 whitespace-nowrap ${
+                        activeTab === 'skills' 
+                          ? 'border-blue-600 text-blue-600' 
+                          : 'border-transparent text-gray-500 hover:text-gray-700'
+                      }`}
+                      onClick={() => setActiveTab('skills')}
+                    >
+                      Skills
+                    </button>
+                    <button
+                      className={`py-2 px-4 font-medium border-b-2 whitespace-nowrap ${
+                        activeTab === 'social' 
+                          ? 'border-blue-600 text-blue-600' 
+                          : 'border-transparent text-gray-500 hover:text-gray-700'
+                      }`}
+                      onClick={() => setActiveTab('social')}
+                    >
+                      Social Media
+                    </button>
                   </div>
-                )}
-                
-                {/* Contact Information Tab */}
-                {activeTab === 'contact' && (
-                  <div className="space-y-4">
-                    <div>
-                      <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                        Email
-                      </label>
-                      <input
-                        type="email"
-                        id="email"
-                        name="email"
-                        value={personalDetails.email}
-                        onChange={handlePersonalDetailsChange}
-                        className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Email Address"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label htmlFor="secondary_email" className="block text-sm font-medium text-gray-700 mb-1">
-                        Secondary Email (Optional)
-                      </label>
-                      <input
-                        type="email"
-                        id="secondary_email"
-                        name="secondary_email"
-                        value={personalDetails.secondary_email}
-                        onChange={handlePersonalDetailsChange}
-                        className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Secondary Email Address"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
-                        Phone Number
-                      </label>
-                      <div className="flex">
-                        <select
-                          id="countryCode"
-                          name="countryCode"
-                          value={personalDetails.countryCode}
+                </div>
+              
+                {/* Tab Content */}
+                <div className="px-1 space-y-6 pb-6">
+                  {/* Personal Information Tab */}
+                  {activeTab === 'personal' && (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                            Full Name
+                          </label>
+                          <input 
+                            type="text"
+                            id="name"
+                            name="name"
+                            value={personalDetails.name}
+                            onChange={handlePersonalDetailsChange}
+                            className="w-full p-2 border border-gray-300 rounded-md"
+                            placeholder="Full Name"
+                          />
+                        </div>
+                        
+                        <div>
+                          <label htmlFor="education" className="block text-sm font-medium text-gray-700 mb-1">
+                            Education
+                          </label>
+                          <input
+                            type="text"
+                            id="education"
+                            name="education"
+                            value={personalDetails.education}
+                            onChange={handlePersonalDetailsChange}
+                            className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="Your education background"
+                          />
+                        </div>
+                        
+                        <div>
+                          <label htmlFor="graduation_year" className="block text-sm font-medium text-gray-700 mb-1">
+                            Graduation Year
+                          </label>
+                          <input 
+                            type="number"
+                            id="graduation_year"
+                            name="graduation_year"
+                            value={personalDetails.graduation_year || ''}
+                            onChange={handlePersonalDetailsChange}
+                            className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="Year of graduation"
+                          />
+                        </div>
+
+                        <div>
+                          <label htmlFor="preferred_job_type" className="block text-sm font-medium text-gray-700 mb-1">
+                            Preferred Job Type
+                          </label>
+                          <input
+                            type="text"
+                            id="preferred_job_type"
+                            name="preferred_job_type"
+                            value={personalDetails.preferred_job_type || ''}
+                            onChange={handlePersonalDetailsChange}
+                            className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="e.g. Full-time, Part-time, Remote"
+                          />
+                        </div>
+
+                        <div className="md:col-span-2">
+                          <label htmlFor="preferred_location" className="block text-sm font-medium text-gray-700 mb-1">
+                            Preferred Location
+                          </label>
+                          <input
+                            type="text"
+                            id="preferred_location"
+                            name="preferred_location"
+                            value={personalDetails.preferred_location || ''}
+                            onChange={handlePersonalDetailsChange}
+                            className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="Your preferred work location"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <label htmlFor="bio" className="block text-sm font-medium text-gray-700 mb-1">
+                          Bio
+                        </label>
+                        <textarea
+                          id="bio"
+                          name="bio"
+                          value={personalDetails.bio}
                           onChange={handlePersonalDetailsChange}
-                          className="w-24 p-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="+1">+1 (US)</option>
-                          <option value="+44">+44 (UK)</option>
-                          <option value="+61">+61 (AU)</option>
-                          <option value="+91">+91 (IN)</option>
-                          {/* Add more country codes as needed */}
-                        </select>
-                        <input
-                          type="tel"
-                          id="phone"
-                          name="phone"
-                          value={personalDetails.phone}
-                          onChange={handlePersonalDetailsChange}
-                          className="flex-1 p-2 border border-gray-300 rounded-r-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="Phone Number"
+                          rows={3}
+                          className="w-full p-2 border border-gray-300 rounded-md"
+                          placeholder="Short bio about yourself"
                         />
                       </div>
                     </div>
-                  </div>
-                )}
-                
-                {/* Skills Tab */}
-                {activeTab === 'skills' && (
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-medium mb-2">My Skills</h3>
-                    <p className="text-gray-500 text-sm mb-4">Manage your skills and experience levels</p>
-                    
-                    {studentSkillsData.length > 0 ? (
-                      <div className="space-y-3">
-                        {studentSkillsData.map((skill, index) => (
-                          <div key={index} className="border rounded-lg p-3">
-                            <div className="grid grid-cols-12 gap-2 items-center">
-                              <div className="col-span-4">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                  Skill
-                                </label>
-                                <input
-                                  type="text"
-                                  value={skill.subject}
-                                  onChange={(e) => {
-                                    const updatedSkills = [...studentSkillsData];
-                                    updatedSkills[index].subject = e.target.value;
-                                    setStudentSkillsData(updatedSkills);
-                                  }}
-                                  className="w-full p-2 border border-gray-300 rounded-md text-sm"
-                                />
-                              </div>
-                              
-                              <div className="col-span-4">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                  Level
-                                </label>
-                                <select
-                                  value={skill.self}
-                                  onChange={(e) => {
-                                    const updatedSkills = [...studentSkillsData];
-                                    updatedSkills[index].self = parseInt(e.target.value);
-                                    setStudentSkillsData(updatedSkills);
-                                  }}
-                                  className="w-full p-2 border border-gray-300 rounded-md text-sm"
-                                >
-                                  <option value="25">Beginner</option>
-                                  <option value="50">Intermediate</option>
-                                  <option value="75">Advanced</option>
-                                  <option value="100">Expert</option>
-                                </select>
-                              </div>
-                              
-                              <div className="col-span-3">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                  Years
-                                </label>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  max="50"
-                                  value={skill.years_experience}
-                                  onChange={(e) => {
-                                    const updatedSkills = [...studentSkillsData];
-                                    updatedSkills[index].years_experience = parseInt(e.target.value);
-                                    setStudentSkillsData(updatedSkills);
-                                  }}
-                                  className="w-full p-2 border border-gray-300 rounded-md text-sm"
-                                />
-                              </div>
-                              
-                              <div className="col-span-1 flex items-end justify-center pb-1">
-                                <button
-                                  onClick={() => {
-                                    const updatedSkills = studentSkillsData.filter((_, i) => i !== index);
-                                    setStudentSkillsData(updatedSkills);
-                                  }}
-                                  className="text-red-500 hover:text-red-700"
-                                >
-                                  <X size={18} />
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
+                  )}
+
+                  {/* Contact Information Tab */}
+                  {activeTab === 'contact' && (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                            Email
+                          </label>
+                          <input
+                            type="email"
+                            id="email"
+                            name="email"
+                            value={personalDetails.email}
+                            onChange={handlePersonalDetailsChange}
+                            className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="Email Address"
+                          />
+                        </div>
                         
+                        <div>
+                          <label htmlFor="secondary_email" className="block text-sm font-medium text-gray-700 mb-1">
+                            Secondary Email (Optional)
+                          </label>
+                          <input
+                            type="email"
+                            id="secondary_email"
+                            name="secondary_email"
+                            value={personalDetails.secondary_email}
+                            onChange={handlePersonalDetailsChange}
+                            className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="Secondary Email Address"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+                          Phone Number
+                        </label>
+                        <div className="flex">
+                          <select
+                            id="countryCode"
+                            name="countryCode"
+                            value={personalDetails.countryCode}
+                            onChange={handlePersonalDetailsChange}
+                            className="w-24 p-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          >
+                            <option value="+1">+1 (US)</option>
+                            <option value="+44">+44 (UK)</option>
+                            <option value="+61">+61 (AU)</option>
+                            <option value="+91">+91 (IN)</option>
+                            {/* Add more country codes as needed */}
+                          </select>
+                          <input
+                            type="tel"
+                            id="phone"
+                            name="phone"
+                            value={personalDetails.phone}
+                            onChange={handlePersonalDetailsChange}
+                            className="flex-1 p-2 border border-gray-300 rounded-r-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="Phone Number"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                 
+                  {/* Skills Tab */}
+                  {activeTab === 'skills' && (
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center">
+                        <h3 className="text-lg font-medium">My Skills</h3>
                         <button
                           onClick={() => {
                             setStudentSkillsData([
@@ -1676,100 +1607,179 @@ export default function ProfilePage() {
                               }
                             ]);
                           }}
-                          className="mt-2 flex items-center text-blue-600 hover:text-blue-800"
+                          className="text-sm px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center"
                         >
-                          + Add a skill
+                          <span className="mr-1">+</span> Add Skill
                         </button>
                       </div>
-                    ) : (
-                      <div className="border border-dashed border-gray-300 rounded-lg p-6 text-center">
-                        <p className="text-gray-500 mb-4">You haven't added any skills yet</p>
-                        <button
-                          onClick={() => {
-                            setStudentSkillsData([{
-                              subject: '',
-                              self: 25,
-                              mentor: 0,
-                              fullMark: 100,
-                              years_experience: 0
-                            }]);
-                          }}
-                          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                        >
-                          Add your first skill
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-                
-                {/* Social Media Tab */}
-                {activeTab === 'social' && (
-                  <div className="space-y-4">
-                    <div>
-                      <label htmlFor="website" className="block text-sm font-medium text-gray-700 mb-1">
-                        Website URL
-                      </label>
-                      <div className="flex items-center">
-                        <span className="bg-gray-100 p-2 border border-r-0 border-gray-300 rounded-l-md text-gray-500">
-                          <Globe className="h-5 w-5" />
-                        </span>
-                        <input
-                          type="url"
-                          id="website"
-                          name="website"
-                          value={socialMedia.website}
-                          onChange={(e) => setSocialMedia({...socialMedia, website: e.target.value})}
-                          className="flex-1 p-2 border border-gray-300 rounded-r-md"
-                          placeholder="https://yourwebsite.com"
-                        />
-                      </div>
+                      <p className="text-gray-500 text-sm mb-4">Manage your skills and experience levels</p>
+                      
+                      {studentSkillsData.length > 0 ? (
+                        <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
+                          {studentSkillsData.map((skill, index) => (
+                            <div key={index} className="border rounded-lg p-3 bg-gray-50">
+                              <div className="grid grid-cols-12 gap-2 items-center">
+                                <div className="col-span-12 md:col-span-4 mb-2 md:mb-0">
+                                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                                    Skill
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={skill.subject}
+                                    onChange={(e) => {
+                                      const updatedSkills = [...studentSkillsData];
+                                      updatedSkills[index].subject = e.target.value;
+                                      setStudentSkillsData(updatedSkills);
+                                    }}
+                                    className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                                    placeholder="Skill name"
+                                  />
+                                </div>
+                                
+                                <div className="col-span-6 md:col-span-4">
+                                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                                    Level
+                                  </label>
+                                  <select
+                                    value={skill.self}
+                                    onChange={(e) => {
+                                      const updatedSkills = [...studentSkillsData];
+                                      updatedSkills[index].self = parseInt(e.target.value);
+                                      setStudentSkillsData(updatedSkills);
+                                    }}
+                                    className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                                  >
+                                    <option value="25">Beginner</option>
+                                    <option value="50">Intermediate</option>
+                                    <option value="75">Advanced</option>
+                                    <option value="100">Expert</option>
+                                  </select>
+                                </div>
+                                
+                                <div className="col-span-5 md:col-span-3">
+                                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                                    Years
+                                  </label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max="50"
+                                    value={skill.years_experience}
+                                    onChange={(e) => {
+                                      const updatedSkills = [...studentSkillsData];
+                                      updatedSkills[index].years_experience = parseInt(e.target.value);
+                                      setStudentSkillsData(updatedSkills);
+                                    }}
+                                    className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                                  />
+                                </div>
+                                
+                                <div className="col-span-1 flex items-end justify-center pb-1">
+                                  <button
+                                    onClick={() => {
+                                      const updatedSkills = studentSkillsData.filter((_, i) => i !== index);
+                                      setStudentSkillsData(updatedSkills);
+                                    }}
+                                    className="text-red-500 hover:text-red-700 p-2"
+                                    aria-label="Remove skill"
+                                  >
+                                    <X size={16} />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="border border-dashed border-gray-300 rounded-lg p-6 text-center">
+                          <p className="text-gray-500 mb-4">You haven't added any skills yet</p>
+                          <button
+                            onClick={() => {
+                              setStudentSkillsData([{
+                                subject: '',
+                                self: 25,
+                                mentor: 0,
+                                fullMark: 100,
+                                years_experience: 0
+                              }]);
+                            }}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                          >
+                            Add your first skill
+                          </button>
+                        </div>
+                      )}
                     </div>
+                  )}
+                  
+                  {/* Social Media Tab */}
+                  {activeTab === 'social' && (
+                    <div className="space-y-4">
+                      <div>
+                        <label htmlFor="website" className="block text-sm font-medium text-gray-700 mb-1">
+                          Website URL
+                        </label>
+                        <div className="flex items-center">
+                          <span className="bg-gray-100 p-2 border border-r-0 border-gray-300 rounded-l-md text-gray-500">
+                            <Globe className="h-5 w-5" />
+                          </span>
+                          <input
+                            type="url"
+                            id="website"
+                            name="website"
+                            value={socialMedia.website}
+                            onChange={(e) => setSocialMedia({...socialMedia, website: e.target.value})}
+                            className="flex-1 p-2 border border-gray-300 rounded-r-md"
+                            placeholder="https://yourwebsite.com"
+                          />
+                        </div>
+                      </div>
                     
-                    <div>
-                      <label htmlFor="linkedin" className="block text-sm font-medium text-gray-700 mb-1">
-                        LinkedIn URL
-                      </label>
-                      <div className="flex items-center">
-                        <span className="bg-gray-100 p-2 border border-r-0 border-gray-300 rounded-l-md text-gray-500">
-                          <Linkedin className="h-5 w-5" />
-                        </span>
-                        <input
-                          type="url"
-                          id="linkedin"
-                          name="linkedin"
-                          value={socialMedia.linkedin}
-                          onChange={(e) => setSocialMedia({...socialMedia, linkedin: e.target.value})}
-                          className="flex-1 p-2 border border-gray-300 rounded-r-md"
-                          placeholder="https://linkedin.com/in/yourusername"
-                        />
+                      <div>
+                        <label htmlFor="linkedin" className="block text-sm font-medium text-gray-700 mb-1">
+                          LinkedIn URL
+                        </label>
+                        <div className="flex items-center">
+                          <span className="bg-gray-100 p-2 border border-r-0 border-gray-300 rounded-l-md text-gray-500">
+                            <Linkedin className="h-5 w-5" />
+                          </span>
+                          <input
+                            type="url"
+                            id="linkedin"
+                            name="linkedin"
+                            value={socialMedia.linkedin}
+                            onChange={(e) => setSocialMedia({...socialMedia, linkedin: e.target.value})}
+                            className="flex-1 p-2 border border-gray-300 rounded-r-md"
+                            placeholder="https://linkedin.com/in/yourusername"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <label htmlFor="twitter" className="block text-sm font-medium text-gray-700 mb-1">
+                          Twitter/X URL
+                        </label>
+                        <div className="flex items-center">
+                          <span className="bg-gray-100 p-2 border border-r-0 border-gray-300 rounded-l-md text-gray-500">
+                            <Twitter className="h-5 w-5" />
+                          </span>
+                          <input
+                            type="url"
+                            id="twitter"
+                            name="twitter"
+                            value={socialMedia.twitter}
+                            onChange={(e) => setSocialMedia({...socialMedia, twitter: e.target.value})}
+                            className="flex-1 p-2 border border-gray-300 rounded-r-md"
+                            placeholder="https://twitter.com/yourusername"
+                          />
+                        </div>
                       </div>
                     </div>
-                    
-                    <div>
-                      <label htmlFor="twitter" className="block text-sm font-medium text-gray-700 mb-1">
-                        Twitter/X URL
-                      </label>
-                      <div className="flex items-center">
-                        <span className="bg-gray-100 p-2 border border-r-0 border-gray-300 rounded-l-md text-gray-500">
-                          <Twitter className="h-5 w-5" />
-                        </span>
-                        <input
-                          type="url"
-                          id="twitter"
-                          name="twitter"
-                          value={socialMedia.twitter}
-                          onChange={(e) => setSocialMedia({...socialMedia, twitter: e.target.value})}
-                          className="flex-1 p-2 border border-gray-300 rounded-r-md"
-                          placeholder="https://twitter.com/yourusername"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
               
-              <div className="flex justify-end mt-6 pt-4 border-t">
+              <div className="flex justify-end mt-2 p-4 border-t sticky bottom-0 bg-white">
                 <button 
                   onClick={() => setIsEditingProfile(false)}
                   className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 mr-2"
