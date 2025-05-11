@@ -1555,34 +1555,7 @@ export default function ProfilePage() {
       
       {/* Bio Section */}
       <div className="mt-32 mb-8 text-center max-w-2xl mx-auto">
-        {editingSections.basicInfo ? (
-          <div className="space-y-4">
-            <textarea
-              id="bio"
-              name="bio"
-              value={personalDetails.bio}
-              onChange={handlePersonalDetailsChange}
-              rows={3}
-              className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Short bio about yourself"
-            />
-            <div className="flex justify-end">
-              <button 
-                onClick={() => {
-                  handleSaveProfile();
-                  toggleEditSection('basicInfo');
-                }}
-                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
-              >
-                Save
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div>
-            <p className="text-gray-700">{personalDetails.bio || 'No bio provided'}</p>
-          </div>
-        )}
+        <p className="text-gray-700">{personalDetails.bio || 'No bio provided'}</p>
       </div>
       
       {/* Main Content Area */}
@@ -1593,159 +1566,55 @@ export default function ProfilePage() {
           <Card className="mb-6">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-xl font-bold">Contact Information</CardTitle>
-              <button 
-                onClick={() => toggleEditSection('contactInfo')}
-                className="text-blue-600 hover:text-blue-800"
-              >
-                <Edit className="h-4 w-4" />
-              </button>
             </CardHeader>
             <CardContent>
-              {editingSections.contactInfo ? (
-                <div className="space-y-4">
-                  <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                      Email
-                    </label>
-                    <input
-                      type="email"
-                      id="email"
-                      name="email"
-                      value={personalDetails.email}
-                      onChange={handlePersonalDetailsChange}
-                      className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Email Address"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label htmlFor="secondary_email" className="block text-sm font-medium text-gray-700 mb-1">
-                      Secondary Email (Optional)
-                    </label>
-                    <input
-                      type="email"
-                      id="secondary_email"
-                      name="secondary_email"
-                      value={personalDetails.secondary_email}
-                      onChange={handlePersonalDetailsChange}
-                      className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Secondary Email Address"
-                    />
-                  </div>
-                  
-                  <div className="flex justify-end">
-                    <button 
-                      onClick={() => {
-                        handleSaveProfile();
-                        toggleEditSection('contactInfo');
-                      }}
-                      className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
-                    >
-                      Save
-                    </button>
-                  </div>
+              <div className="space-y-4">
+                <div className="flex items-center">
+                  <Mail className="h-4 w-4 text-gray-400 mr-2" />
+                  <span className="text-gray-700">{personalDetails.email}</span>
                 </div>
-              ) : (
-                <div className="space-y-4">
+                
+                {personalDetails.phone && (
+                  <div className="flex items-center">
+                    <Phone className="h-4 w-4 text-gray-400 mr-2" />
+                    <span className="text-gray-700">{personalDetails.countryCode} {personalDetails.phone}</span>
+                  </div>
+                )}
+                
+                {personalDetails.secondary_email && (
                   <div className="flex items-center">
                     <Mail className="h-4 w-4 text-gray-400 mr-2" />
-                    <span className="text-gray-700">{personalDetails.email}</span>
+                    <span className="text-gray-700">{personalDetails.secondary_email} (Secondary)</span>
                   </div>
-                  
-                  {personalDetails.phone && (
-                    <div className="flex items-center">
-                      <Phone className="h-4 w-4 text-gray-400 mr-2" />
-                      <span className="text-gray-700">{personalDetails.countryCode} {personalDetails.phone}</span>
-                    </div>
-                  )}
-                  
-                  {personalDetails.secondary_email && (
-                    <div className="flex items-center">
-                      <Mail className="h-4 w-4 text-gray-400 mr-2" />
-                      <span className="text-gray-700">{personalDetails.secondary_email} (Secondary)</span>
-                    </div>
-                  )}
-                </div>
-              )}
+                )}
+              </div>
             </CardContent>
           </Card>
           
           <Card className="mb-6">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-xl font-bold">Education & Experience</CardTitle>
-              <button 
-                onClick={() => toggleEditSection('education')}
-                className="text-blue-600 hover:text-blue-800"
-              >
-                <Edit className="h-4 w-4" />
-              </button>
             </CardHeader>
             <CardContent>
-              {editingSections.education ? (
-                <div className="space-y-4">
-                  <div>
-                    <label htmlFor="education" className="block text-sm font-medium text-gray-700 mb-1">
-                      Education
-                    </label>
-                    <input
-                      type="text"
-                      id="education"
-                      name="education"
-                      value={personalDetails.education}
-                      onChange={handlePersonalDetailsChange}
-                      className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Your education background"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label htmlFor="graduation_year" className="block text-sm font-medium text-gray-700 mb-1">
-                      Graduation Year
-                    </label>
-                    <input
-                      type="number"
-                      id="graduation_year"
-                      name="graduation_year"
-                      value={personalDetails.graduation_year || ''}
-                      onChange={handlePersonalDetailsChange}
-                      className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Year of graduation"
-                    />
-                  </div>
-                  
-                  <div className="flex justify-end">
-                    <button 
-                      onClick={() => {
-                        handleSaveProfile();
-                        toggleEditSection('education');
-                      }}
-                      className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
-                    >
-                      Save
-                    </button>
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-sm font-semibold mb-1">Education</h3>
+                  <div className="flex items-center">
+                    <GraduationCap className="h-4 w-4 text-gray-400 mr-2" />
+                    <span className="text-gray-700">{personalDetails.education || 'Not specified'}</span>
                   </div>
                 </div>
-              ) : (
-                <div className="space-y-4">
+                
+                {personalDetails.graduation_year && (
                   <div>
-                    <h3 className="text-sm font-semibold mb-1">Education</h3>
+                    <h3 className="text-sm font-semibold mb-1">Graduation Year</h3>
                     <div className="flex items-center">
-                      <GraduationCap className="h-4 w-4 text-gray-400 mr-2" />
-                      <span className="text-gray-700">{personalDetails.education || 'Not specified'}</span>
+                      <Calendar className="h-4 w-4 text-gray-400 mr-2" />
+                      <span className="text-gray-700">{personalDetails.graduation_year}</span>
                     </div>
                   </div>
-                  
-                  {personalDetails.graduation_year && (
-                    <div>
-                      <h3 className="text-sm font-semibold mb-1">Graduation Year</h3>
-                      <div className="flex items-center">
-                        <Calendar className="h-4 w-4 text-gray-400 mr-2" />
-                        <span className="text-gray-700">{personalDetails.graduation_year}</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
+                )}
+              </div>
             </CardContent>
           </Card>
         </div>
