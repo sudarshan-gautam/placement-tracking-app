@@ -23,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Search, Filter, Clock, FileText, User, Calendar, CheckCircle, XCircle, AlertCircle } from "lucide-react";
+import { Loader2, Search, Filter, ArrowLeft, ArrowRight, FileText } from "lucide-react";
 import Link from "next/link";
 import { formatDate } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
@@ -39,10 +39,6 @@ type Activity = {
   status: string;
   student_id: string;
   student_name: string;
-  verification_id?: string;
-  verification_status?: string;
-  feedback?: string;
-  verified_by_name?: string;
 };
 
 type Student = {
@@ -63,12 +59,11 @@ export default function MentorActivitiesPage() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [studentFilter, setStudentFilter] = useState("all");
   const [error, setError] = useState<string | null>(null);
-  const [stats, setStats] = useState({
-    totalActivities: 0,
-    pendingVerifications: 0,
-    verifiedActivities: 0,
-    rejectedActivities: 0
-  });
+  const [totalActivities, setTotalActivities] = useState(0);
+  
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // Fetch assigned students
   useEffect(() => {
@@ -129,7 +124,7 @@ export default function MentorActivitiesPage() {
         }
         
         // Fetch activities data
-        const response = await fetch(`/api/activities?${queryParams.toString()}`, {
+        const response = await fetch(`/api/mentor/activities?${queryParams.toString()}`, {
           headers
         });
         
@@ -139,18 +134,7 @@ export default function MentorActivitiesPage() {
         
         const data = await response.json();
         setActivities(data);
-        
-        // Calculate stats
-        const pendingCount = data.filter((a: Activity) => a.verification_status === 'pending').length;
-        const verifiedCount = data.filter((a: Activity) => a.verification_status === 'verified').length;
-        const rejectedCount = data.filter((a: Activity) => a.verification_status === 'rejected').length;
-        
-        setStats({
-          totalActivities: data.length,
-          pendingVerifications: pendingCount,
-          verifiedActivities: verifiedCount,
-          rejectedActivities: rejectedCount
-        });
+        setTotalActivities(data.length);
         
       } catch (error) {
         console.error("Error fetching activities:", error);
@@ -167,33 +151,18 @@ export default function MentorActivitiesPage() {
   const filteredActivities = activities.filter((activity) => {
     const matchesSearch = searchTerm === "" || 
       activity.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      activity.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (activity.description && activity.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
       activity.student_name.toLowerCase().includes(searchTerm.toLowerCase());
     
     return matchesSearch;
   });
 
-  // Helper function to render status badge
-  const renderStatusBadge = (status?: string) => {
-    switch (status) {
-      case "verified":
-        return <Badge variant="outline" className="bg-green-50 text-green-700 hover:bg-green-50">
-          <CheckCircle className="h-3 w-3 mr-1" />Verified
-        </Badge>;
-      case "pending":
-        return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 hover:bg-yellow-50">
-          <AlertCircle className="h-3 w-3 mr-1" />Pending
-        </Badge>;
-      case "rejected":
-        return <Badge variant="outline" className="bg-red-50 text-red-700 hover:bg-red-50">
-          <XCircle className="h-3 w-3 mr-1" />Rejected
-        </Badge>;
-      default:
-        return <Badge variant="outline" className="bg-gray-50 text-gray-700 hover:bg-gray-50">
-          Not Submitted
-        </Badge>;
-    }
-  };
+  // Pagination logic
+  const totalPages = Math.ceil(filteredActivities.length / itemsPerPage);
+  const paginatedActivities = filteredActivities.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   // Reset filters to default
   const resetFilters = () => {
@@ -221,49 +190,16 @@ export default function MentorActivitiesPage() {
         </div>
       </div>
 
-      {/* Stats cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      {/* Stats card - Only Total Activities */}
+      <div className="mb-6">
         <Card>
           <CardContent className="p-6">
             <div className="flex justify-between items-center">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total Activities</p>
-                <p className="text-3xl font-bold">{stats.totalActivities}</p>
+                <p className="text-3xl font-bold">{totalActivities}</p>
               </div>
               <FileText className="h-10 w-10 text-blue-500 opacity-20" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Pending Verifications</p>
-                <p className="text-3xl font-bold">{stats.pendingVerifications}</p>
-              </div>
-              <AlertCircle className="h-10 w-10 text-yellow-500 opacity-20" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Verified Activities</p>
-                <p className="text-3xl font-bold">{stats.verifiedActivities}</p>
-              </div>
-              <CheckCircle className="h-10 w-10 text-green-500 opacity-20" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Rejected Activities</p>
-                <p className="text-3xl font-bold">{stats.rejectedActivities}</p>
-              </div>
-              <XCircle className="h-10 w-10 text-red-500 opacity-20" />
             </div>
           </CardContent>
         </Card>
@@ -272,31 +208,42 @@ export default function MentorActivitiesPage() {
       {/* Filters and search */}
       <div className="flex flex-col sm:flex-row gap-4 mb-6">
         <div className="flex-1">
-          <Input
-            placeholder="Search activities..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="max-w-md"
-            prefix={<Search className="h-4 w-4 mr-2 text-gray-400" />}
-          />
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search activities..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1); // Reset to first page on search
+              }}
+              className="w-full pl-9"
+            />
+          </div>
         </div>
         
         <div className="w-full sm:w-48">
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <Select value={statusFilter} onValueChange={(value) => {
+            setStatusFilter(value);
+            setCurrentPage(1);
+          }}>
             <SelectTrigger>
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="verified">Verified</SelectItem>
-              <SelectItem value="rejected">Rejected</SelectItem>
+              <SelectItem value="draft">Draft</SelectItem>
+              <SelectItem value="submitted">Submitted</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
             </SelectContent>
           </Select>
         </div>
         
         <div className="w-full sm:w-48">
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
+          <Select value={typeFilter} onValueChange={(value) => {
+            setTypeFilter(value);
+            setCurrentPage(1);
+          }}>
             <SelectTrigger>
               <SelectValue placeholder="Filter by type" />
             </SelectTrigger>
@@ -311,8 +258,11 @@ export default function MentorActivitiesPage() {
           </Select>
         </div>
         
-        <div className="w-full sm:w-48">
-          <Select value={studentFilter} onValueChange={setStudentFilter}>
+        <div className="w-full sm:w-60">
+          <Select value={studentFilter} onValueChange={(value) => {
+            setStudentFilter(value);
+            setCurrentPage(1);
+          }}>
             <SelectTrigger>
               <SelectValue placeholder="Filter by student" />
             </SelectTrigger>
@@ -327,69 +277,98 @@ export default function MentorActivitiesPage() {
           </Select>
         </div>
         
-        <Button variant="outline" onClick={resetFilters}>Reset Filters</Button>
+        <Button variant="outline" onClick={resetFilters}>
+          Reset
+        </Button>
       </div>
 
-      {/* Error message */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
-          <p>{error}</p>
-        </div>
-      )}
-
-      {/* Activities table */}
+      {/* Main content */}
       {isLoading ? (
         <div className="flex justify-center items-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <span className="ml-2">Loading activities...</span>
         </div>
+      ) : error ? (
+        <div className="bg-red-50 border border-red-200 text-red-800 rounded-md p-4 mb-6">
+          {error}
+        </div>
       ) : (
-        <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Student</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Duration</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredActivities.length > 0 ? (
-                  filteredActivities.map((activity) => (
-                    <TableRow 
-                      key={activity.id}
-                      className="cursor-pointer hover:bg-gray-50"
-                      onClick={() => {
-                        router.push(`/mentor/activities/${activity.id}`);
-                      }}
-                    >
-                      <TableCell className="font-medium">{activity.title}</TableCell>
-                      <TableCell>{activity.student_name}</TableCell>
-                      <TableCell className="capitalize">{activity.activity_type}</TableCell>
-                      <TableCell>{formatDate(activity.date_completed)}</TableCell>
-                      <TableCell>{activity.duration_minutes} min</TableCell>
-                      <TableCell>{renderStatusBadge(activity.verification_status)}</TableCell>
-                    </TableRow>
-                  ))
-                ) : (
+        <>
+          <Card>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8">
-                      <div className="flex flex-col items-center">
-                        <FileText className="h-12 w-12 text-gray-300 mb-2" />
-                        <p className="text-lg font-medium text-gray-500">No activities found</p>
-                        <p className="text-sm text-gray-400">No activities match your current filters</p>
-                      </div>
-                    </TableCell>
+                    <TableHead>Title</TableHead>
+                    <TableHead>Student</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Duration</TableHead>
+                    <TableHead>Status</TableHead>
                   </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                </TableHeader>
+                <TableBody>
+                  {paginatedActivities.length > 0 ? (
+                    paginatedActivities.map((activity) => (
+                      <TableRow 
+                        key={activity.id}
+                        className="cursor-pointer hover:bg-gray-50"
+                        onClick={() => {
+                          router.push(`/mentor/activities/${activity.id}`);
+                        }}
+                      >
+                        <TableCell className="font-medium">{activity.title}</TableCell>
+                        <TableCell>{activity.student_name}</TableCell>
+                        <TableCell className="capitalize">{activity.activity_type}</TableCell>
+                        <TableCell>{formatDate(activity.date_completed)}</TableCell>
+                        <TableCell>{activity.duration_minutes} min</TableCell>
+                        <TableCell>
+                          <Badge variant={activity.status === 'completed' ? 'default' : 'outline'}>
+                            {activity.status === 'completed' ? 'Completed' : 
+                             activity.status === 'submitted' ? 'Submitted' : 'Draft'}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8">
+                        No activities found matching your filters.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          {/* Pagination controls */}
+          {totalPages > 1 && (
+            <div className="flex justify-between items-center mt-6">
+              <div className="text-sm text-muted-foreground">
+                Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredActivities.length)} of {filteredActivities.length} activities
+              </div>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ArrowLeft className="h-4 w-4 mr-1" /> Previous
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                >
+                  Next <ArrowRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

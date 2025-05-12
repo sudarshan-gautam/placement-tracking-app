@@ -66,16 +66,6 @@ export async function GET(req: NextRequest) {
         user.role === 'mentor' ? [user.id] : []
       );
       
-      // Count activities
-      const activitiesCount = await db.get(
-        `SELECT COUNT(*) as count FROM activity_verifications av
-         JOIN activities a ON av.activity_id = a.id
-         WHERE av.verification_status = 'pending'
-         ${user.role === 'mentor' ? 
-           'AND a.student_id IN (SELECT student_id FROM mentor_student_assignments WHERE mentor_id = ?)' : ''}`,
-        user.role === 'mentor' ? [user.id] : []
-      );
-      
       // Count competencies
       const competenciesCount = await db.get(
         `SELECT COUNT(*) as count FROM competency_verifications cv
@@ -98,11 +88,10 @@ export async function GET(req: NextRequest) {
       return {
         qualifications: qualificationsCount.count,
         sessions: sessionsCount.count,
-        activities: activitiesCount.count,
+        activities: 0, // No more activity verifications
         competencies: competenciesCount.count,
         profiles: profilesCount.count,
-        total: qualificationsCount.count + sessionsCount.count + activitiesCount.count + 
-               competenciesCount.count + profilesCount.count
+        total: qualificationsCount.count + sessionsCount.count + competenciesCount.count + profilesCount.count
       };
     };
     
@@ -231,66 +220,8 @@ export async function GET(req: NextRequest) {
       result.sessions = sessions;
     }
     
-    if (type === "all" || type === "activities") {
-      let activitiesQuery = `
-        SELECT 
-          a.id,
-          'activity' as verification_type,
-          a.title,
-          a.description,
-          a.activity_type,
-          a.date_completed,
-          a.duration_minutes,
-          a.evidence_url,
-          a.status as activity_status,
-          a.student_id,
-          u.name as student_name,
-          u.email as student_email,
-          av.id as verification_id,
-          av.verification_status,
-          av.feedback,
-          vm.name as verified_by_name
-        FROM activities a
-        JOIN users u ON a.student_id = u.id
-        LEFT JOIN activity_verifications av ON a.id = av.activity_id
-        LEFT JOIN users vm ON av.verified_by = vm.id
-        WHERE a.status IN ('completed', 'submitted')
-      `;
-      
-      const activityParams: any[] = [];
-      
-      // Filter for mentors
-      if (user.role === 'mentor') {
-        activitiesQuery += ` AND a.student_id IN (
-          SELECT student_id FROM mentor_student_assignments WHERE mentor_id = ?
-        )`;
-        activityParams.push(user.id);
-      }
-      
-      // Filter for students (they can only see their own)
-      if (user.role === 'student') {
-        activitiesQuery += " AND a.student_id = ?";
-        activityParams.push(user.id);
-      }
-      
-      // Apply student filter if provided
-      if (studentId) {
-        activitiesQuery += " AND a.student_id = ?";
-        activityParams.push(studentId);
-      }
-      
-      // Apply status filter if provided
-      if (status) {
-        activitiesQuery += " AND av.verification_status = ?";
-        activityParams.push(status);
-      }
-      
-      // Add order by clause
-      activitiesQuery += " ORDER BY a.date_completed DESC";
-      
-      const activities = await db.all(activitiesQuery, ...activityParams);
-      result.activities = activities;
-    }
+    // No more activities verification section
+    result.activities = [];
     
     if (type === "all" || type === "competencies") {
       let competenciesQuery = `
@@ -299,7 +230,7 @@ export async function GET(req: NextRequest) {
           'competency' as verification_type,
           c.name as competency_name,
           c.category as competency_category,
-          c.description as competency_description,
+          c.description,
           sc.level,
           sc.evidence_url,
           sc.student_id,
@@ -346,7 +277,7 @@ export async function GET(req: NextRequest) {
       }
       
       // Add order by clause
-      competenciesQuery += " ORDER BY c.category, c.name";
+      competenciesQuery += " ORDER BY c.category, c.name, sc.level";
       
       const competencies = await db.all(competenciesQuery, ...competencyParams);
       result.competencies = competencies;
@@ -357,13 +288,13 @@ export async function GET(req: NextRequest) {
         SELECT 
           pv.id,
           'profile' as verification_type,
-          pv.document_url,
-          pv.verification_status,
-          pv.feedback,
           pv.user_id,
           u.name as user_name,
           u.email as user_email,
           u.role as user_role,
+          pv.document_url,
+          pv.verification_status,
+          pv.feedback,
           vm.name as verified_by_name
         FROM profile_verifications pv
         JOIN users u ON pv.user_id = u.id
@@ -405,13 +336,16 @@ export async function GET(req: NextRequest) {
       const profiles = await db.all(profilesQuery, ...profileParams);
       result.profiles = profiles;
     }
-
+    
     // Close database connection
     await db.close();
-
+    
     return NextResponse.json(result);
   } catch (error) {
-    console.error("Error in verifications API:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error("Error fetching verifications:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch verifications" },
+      { status: 500 }
+    );
   }
 } 

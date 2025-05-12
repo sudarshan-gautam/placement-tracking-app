@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "node server.js",
     "lint": "next lint",
-    "init-db": "node scripts/init-database.js"
+    "init-db": "node scripts/init-database.js",
+    "migrate:remove-activity-verifications": "node migrations/remove-activity-verifications.js"
   },
   "dependencies": {
     "@ngrok/ngrok": "^1.4.1",

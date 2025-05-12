@@ -381,12 +381,39 @@ export default function AdminVerificationsPage() {
               </div>
       ) : (
         <Tabs value={currentTab} onValueChange={setCurrentTab}>
-          <TabsList className="mb-6">
-            <TabsTrigger value="qualifications">Qualifications</TabsTrigger>
-            <TabsTrigger value="sessions">Sessions</TabsTrigger>
-            <TabsTrigger value="activities">Activities</TabsTrigger>
-            <TabsTrigger value="competencies">Competencies</TabsTrigger>
-            <TabsTrigger value="profiles">Profiles</TabsTrigger>
+          <TabsList className="w-full max-w-2xl mx-auto mb-6">
+            <TabsTrigger value="qualifications" className="flex-1">
+              Qualifications 
+              {counts.qualifications > 0 && (
+                <Badge variant="destructive" className="ml-2">
+                  {counts.qualifications}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="sessions" className="flex-1">
+              Sessions
+              {counts.sessions > 0 && (
+                <Badge variant="destructive" className="ml-2">
+                  {counts.sessions}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="competencies" className="flex-1">
+              Competencies
+              {counts.competencies > 0 && (
+                <Badge variant="destructive" className="ml-2">
+                  {counts.competencies}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="profiles" className="flex-1">
+              Profiles
+              {counts.profiles > 0 && (
+                <Badge variant="destructive" className="ml-2">
+                  {counts.profiles}
+                </Badge>
+              )}
+            </TabsTrigger>
           </TabsList>
 
           {/* Qualifications Tab */}
@@ -474,58 +501,6 @@ export default function AdminVerificationsPage() {
                       <TableRow>
                         <TableCell colSpan={5} className="text-center py-4">
                           No session verifications found matching your filters.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Activities Tab */}
-          <TabsContent value="activities">
-            <Card>
-              <CardHeader>
-                <CardTitle>Activity Verifications</CardTitle>
-                <CardDescription>
-                  Review student activities such as workshops, research, and coursework.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Title</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Student</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Verified By</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {getFilteredVerifications("activities").length > 0 ? (
-                      getFilteredVerifications("activities").map((a) => (
-                        <TableRow 
-                          key={a.id}
-                          className="cursor-pointer hover:bg-gray-50"
-                          onClick={() => {
-                            window.location.href = `/admin/verifications/activities/${a.id}`;
-                          }}
-                        >
-                          <TableCell className="font-medium">{a.title}</TableCell>
-                          <TableCell>{a.activity_type}</TableCell>
-                          <TableCell>{a.student_name}</TableCell>
-                          <TableCell>{a.date_completed ? formatDate(a.date_completed) : "N/A"}</TableCell>
-                          <TableCell>{renderStatusBadge(a.verification_status || "pending")}</TableCell>
-                          <TableCell>{a.verified_by_name || "—"}</TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center py-4">
-                          No activity verifications found matching your filters.
                         </TableCell>
                       </TableRow>
                     )}

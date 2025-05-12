@@ -33,16 +33,12 @@ export async function GET(req: NextRequest) {
         a.created_at,
         a.updated_at,
         a.student_id,
+        a.assigned_by,
         u.name as student_name,
-        av.id as verification_id,
-        av.verification_status,
-        av.feedback,
-        av.verified_by,
-        vm.name as verified_by_name
+        creator.name as assigned_by_name
       FROM activities a
       JOIN users u ON a.student_id = u.id
-      LEFT JOIN activity_verifications av ON a.id = av.activity_id
-      LEFT JOIN users vm ON av.verified_by = vm.id
+      LEFT JOIN users creator ON a.assigned_by = creator.id
       LEFT JOIN mentor_student_assignments um ON u.id = um.student_id
       WHERE 1=1
     `;
@@ -61,12 +57,8 @@ export async function GET(req: NextRequest) {
     }
 
     if (status && status !== 'all') {
-      if (status === 'pending' || status === 'verified' || status === 'rejected') {
-        sql += ` AND av.verification_status = ?`;
-        params.push(status);
-      } else if (status === 'draft') {
-        sql += ` AND a.status = 'draft'`;
-      }
+      sql += ` AND a.status = ?`;
+      params.push(status);
     }
 
     if (activityType && activityType !== 'all') {
@@ -172,7 +164,7 @@ export async function POST(req: NextRequest) {
       date_completed,
       duration_minutes,
       evidence_url || null,
-      'submitted', // Activities created by admins are automatically submitted
+      'completed', // Activities created by admins are automatically completed
       user.id // Track who assigned this activity
     ]);
 

@@ -42,15 +42,9 @@ export async function GET(req: NextRequest) {
         a.created_at,
         a.updated_at,
         a.student_id,
-        u.name as student_name,
-        av.id as verification_id,
-        av.verification_status,
-        av.feedback,
-        vm.name as verified_by_name
+        u.name as student_name
       FROM activities a
       JOIN users u ON a.student_id = u.id
-      LEFT JOIN activity_verifications av ON a.id = av.activity_id
-      LEFT JOIN users vm ON av.verified_by = vm.id
       WHERE 1=1
     `;
 

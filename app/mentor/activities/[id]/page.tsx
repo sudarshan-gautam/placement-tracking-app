@@ -65,8 +65,8 @@ export default function MentorActivityDetailPage() {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         };
         
-        // Fetch activity details
-        const response = await fetch(`/api/activities/${activityId}`, { headers });
+        // Fetch activity details using the mentor-specific endpoint
+        const response = await fetch(`/api/mentor/activities/${activityId}`, { headers });
         
         if (!response.ok) {
           throw new Error(`Failed to fetch activity: ${response.status} ${response.statusText}`);
@@ -112,63 +112,45 @@ export default function MentorActivityDetailPage() {
     }
   };
 
-  // Handle verification
-  const handleVerification = async (status: 'verified' | 'rejected') => {
+  // Add handlers for updating and deleting activities
+  const handleDelete = async () => {
     if (!user || !activity) return;
     
     try {
       setSubmitting(true);
-      setError(null);
       
-      // Prepare auth header and request body
+      // Prepare auth header
       const headers = {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       };
       
-      const body = JSON.stringify({
-        activity_id: activity.id,
-        verification_status: status,
-        feedback: feedback.trim() || undefined
-      });
-      
-      // Submit verification
-      const response = await fetch('/api/verifications/activities', {
-        method: 'POST',
-        headers,
-        body
+      // Delete the activity
+      const response = await fetch(`/api/mentor/activities/${activityId}`, {
+        method: 'DELETE',
+        headers
       });
       
       if (!response.ok) {
-        throw new Error(`Verification failed: ${response.status} ${response.statusText}`);
+        throw new Error(`Delete failed: ${response.status} ${response.statusText}`);
       }
-      
-      // Update local state
-      const updatedActivity = { 
-        ...activity, 
-        verification_status: status, 
-        feedback: feedback,
-        verified_by_name: user.name
-      };
-      
-      setActivity(updatedActivity);
       
       // Show success message
       toast({
-        title: status === 'verified' ? "Activity Verified" : "Activity Rejected",
-        description: status === 'verified' 
-          ? "The activity has been successfully verified." 
-          : "The activity has been rejected with feedback.",
+        title: "Activity Deleted",
+        description: "The activity has been successfully deleted.",
         variant: "default"
       });
       
+      // Redirect back to activities list
+      router.push('/mentor/activities');
+      
     } catch (error) {
-      console.error("Verification error:", error);
-      setError("Failed to submit verification. Please try again.");
+      console.error("Delete error:", error);
       
       toast({
-        title: "Verification Error",
-        description: "There was a problem submitting your verification.",
+        title: "Delete Error",
+        description: "There was a problem deleting the activity.",
         variant: "destructive"
       });
     } finally {
@@ -207,244 +189,121 @@ export default function MentorActivityDetailPage() {
           </CardContent>
         </Card>
       ) : activity ? (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="md:col-span-2 space-y-6">
-              {/* Activity Main Details */}
-              <Card>
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle className="text-2xl font-bold">{activity.title}</CardTitle>
-                      <p className="text-muted-foreground mt-1">
-                        {renderStatusBadge(activity.verification_status)}
-                      </p>
-                    </div>
-                    <Badge variant="secondary" className="capitalize">
-                      {activity.activity_type}
-                    </Badge>
+        <div className="grid grid-cols-1 gap-6">
+          <Card>
+            <CardHeader className="pb-4 border-b">
+              <div className="flex items-start justify-between">
+                <div>
+                  <CardTitle className="text-2xl font-bold">{activity.title}</CardTitle>
+                  <div className="mt-2 flex items-center">
+                    <User className="h-4 w-4 text-muted-foreground mr-2" />
+                    <span className="text-sm text-muted-foreground">Student: {activity.student_name}</span>
                   </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <h3 className="font-medium">Description</h3>
-                    <p className="text-muted-foreground mt-1">{activity.description || "No description provided."}</p>
+                </div>
+                <Badge variant="secondary" className="capitalize px-3 py-1">
+                  {activity.activity_type}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Description</h3>
+                  <p className="text-muted-foreground">{activity.description || "No description provided."}</p>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+                  <div className="bg-slate-50 rounded-lg p-4">
+                    <div className="flex flex-col">
+                      <span className="text-sm text-muted-foreground mb-1">Completion Date</span>
+                      <div className="flex items-center">
+                        <Calendar className="h-4 w-4 text-primary mr-2" />
+                        <span className="font-medium">{formatDate(activity.date_completed)}</span>
+                      </div>
+                    </div>
                   </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="flex items-center space-x-2">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm">Completed: {formatDate(activity.date_completed)}</span>
-                    </div>
-                    
-                    <div className="flex items-center space-x-2">
-                      <Clock className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm">Duration: {activity.duration_minutes} minutes</span>
-                    </div>
-                    
-                    <div className="flex items-center space-x-2">
-                      <User className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm">Student: {activity.student_name}</span>
-                    </div>
-                    
-                    {activity.evidence_url && (
-                      <div className="flex items-center space-x-2">
-                        <LinkIcon className="h-4 w-4 text-muted-foreground" />
-                        <a 
-                          href={activity.evidence_url} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-sm text-blue-600 hover:underline"
-                        >
-                          View Evidence
-                        </a>
+                  <div className="bg-slate-50 rounded-lg p-4">
+                    <div className="flex flex-col">
+                      <span className="text-sm text-muted-foreground mb-1">Duration</span>
+                      <div className="flex items-center">
+                        <Clock className="h-4 w-4 text-primary mr-2" />
+                        <span className="font-medium">{activity.duration_minutes} minutes</span>
                       </div>
-                    )}
-                    
-                    {activity.assigned_by_name && activity.assigned_by !== activity.student_id && (
-                      <div className="flex items-center space-x-2">
-                        <User className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">Assigned by: {activity.assigned_by_name}</span>
-                      </div>
-                    )}
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
+                  
+                  <div className="bg-slate-50 rounded-lg p-4">
+                    <div className="flex flex-col">
+                      <span className="text-sm text-muted-foreground mb-1">Status</span>
+                      <div className="flex items-center">
+                        <Badge variant={activity.status === 'completed' ? 'default' : 'outline'}>
+                          {activity.status === 'completed' ? 'Completed' : 
+                           activity.status === 'submitted' ? 'Submitted' : 'Draft'}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {activity.evidence_url && (
+                  <div className="mt-6 border-t pt-6">
+                    <h3 className="text-lg font-semibold mb-2">Evidence</h3>
+                    <div className="flex items-center">
+                      <LinkIcon className="h-4 w-4 text-primary mr-2" />
+                      <a 
+                        href={activity.evidence_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline"
+                      >
+                        View Evidence
+                      </a>
+                    </div>
+                  </div>
+                )}
+                
+                {activity.assigned_by_name && activity.assigned_by !== activity.student_id && (
+                  <div className="border-t pt-6">
+                    <div className="flex items-center">
+                      <User className="h-4 w-4 text-muted-foreground mr-2" />
+                      <span className="text-sm text-muted-foreground">Assigned by: {activity.assigned_by_name}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+            <CardFooter className="border-t px-6 py-4 flex justify-between">
+              <Button 
+                variant="outline"
+                onClick={() => router.push(`/mentor/activities/${activity.id}/edit`)}
+                disabled={submitting}
+              >
+                Edit Activity
+              </Button>
               
-              {/* Verification Section */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Verification</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="feedback">Feedback</Label>
-                      <Textarea 
-                        id="feedback"
-                        placeholder="Provide feedback for the student about this activity..."
-                        value={feedback}
-                        onChange={(e) => setFeedback(e.target.value)}
-                        className="mt-1"
-                        rows={4}
-                        disabled={activity.verification_status === 'verified' || activity.verification_status === 'rejected'}
-                      />
-                    </div>
-                    
-                    {activity.verification_status === 'pending' && (
-                      <div className="flex space-x-2 justify-end">
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="outline" disabled={submitting}>
-                              {submitting ? (
-                                <>
-                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                  Processing
-                                </>
-                              ) : (
-                                <>
-                                  <XCircle className="mr-2 h-4 w-4" />
-                                  Reject
-                                </>
-                              )}
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Reject Activity?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to reject this activity? The student will be notified and will need to make changes based on your feedback.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => handleVerification('rejected')}
-                                className="bg-red-600 hover:bg-red-700"
-                              >
-                                Reject
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                        
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="default" disabled={submitting}>
-                              {submitting ? (
-                                <>
-                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                  Processing
-                                </>
-                              ) : (
-                                <>
-                                  <CheckCircle className="mr-2 h-4 w-4" />
-                                  Verify
-                                </>
-                              )}
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Verify Activity?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to verify this activity? This confirms that the student has completed this activity as described.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => handleVerification('verified')}
-                                className="bg-green-600 hover:bg-green-700"
-                              >
-                                Verify
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    )}
-                    
-                    {(activity.verification_status === 'verified' || activity.verification_status === 'rejected') && (
-                      <div className="text-sm text-muted-foreground">
-                        <p>
-                          {activity.verification_status === 'verified' ? 'Verified' : 'Rejected'} by{' '}
-                          {activity.verified_by_name || 'Unknown'} on{' '}
-                          {formatDate(activity.updated_at)}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-            
-            {/* Sidebar */}
-            <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Student Information</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Name:</span>
-                      <span className="font-medium">{activity.student_name}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">ID:</span>
-                      <span className="font-medium">{activity.student_id}</span>
-                    </div>
-                    <div className="flex justify-end mt-4">
-                      <Button variant="outline" size="sm" asChild>
-                        <Link href={`/mentor/students/${activity.student_id}`}>
-                          View Profile
-                        </Link>
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader>
-                  <CardTitle>Activity Timeline</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-start space-x-2">
-                      <div className="h-2 w-2 rounded-full bg-green-500 mt-2"></div>
-                      <div>
-                        <p className="text-sm font-medium">Created</p>
-                        <p className="text-xs text-muted-foreground">{formatDate(activity.created_at)}</p>
-                      </div>
-                    </div>
-                    
-                    {activity.status === 'submitted' && (
-                      <div className="flex items-start space-x-2">
-                        <div className="h-2 w-2 rounded-full bg-blue-500 mt-2"></div>
-                        <div>
-                          <p className="text-sm font-medium">Submitted for Verification</p>
-                          <p className="text-xs text-muted-foreground">{formatDate(activity.updated_at)}</p>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {(activity.verification_status === 'verified' || activity.verification_status === 'rejected') && (
-                      <div className="flex items-start space-x-2">
-                        <div className={`h-2 w-2 rounded-full ${activity.verification_status === 'verified' ? 'bg-green-500' : 'bg-red-500'} mt-2`}></div>
-                        <div>
-                          <p className="text-sm font-medium capitalize">{activity.verification_status}</p>
-                          <p className="text-xs text-muted-foreground">{formatDate(activity.updated_at)}</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" disabled={submitting}>
+                    Delete Activity
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete the activity.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </CardFooter>
+          </Card>
+        </div>
       ) : (
         <Card>
           <CardContent className="pt-6">
