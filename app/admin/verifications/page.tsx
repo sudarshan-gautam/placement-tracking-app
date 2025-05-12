@@ -23,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { formatDate } from "@/lib/utils";
 
@@ -49,11 +49,6 @@ type Verification = {
   end_time?: string;
   reflection?: string;
   session_status?: string;
-  // Activity specific
-  activity_type?: string;
-  date_completed?: string;
-  duration_minutes?: number;
-  activity_status?: string;
   // Competency specific
   level?: string;
   competency_id?: string;
@@ -68,7 +63,6 @@ type Verification = {
 type VerificationCounts = {
   qualifications: number;
   sessions: number;
-  activities: number;
   competencies: number;
   profiles: number;
   total: number;
@@ -79,14 +73,12 @@ export default function AdminVerificationsPage() {
   const [verifications, setVerifications] = useState<Record<string, Verification[]>>({
     qualifications: [],
     sessions: [],
-    activities: [],
     competencies: [],
     profiles: []
   });
   const [counts, setCounts] = useState<VerificationCounts>({
     qualifications: 0,
     sessions: 0,
-    activities: 0,
     competencies: 0,
     profiles: 0,
     total: 0
@@ -97,6 +89,15 @@ export default function AdminVerificationsPage() {
   const [currentTab, setCurrentTab] = useState("qualifications");
   const [studentFilter, setStudentFilter] = useState("all");
   const [students, setStudents] = useState<{id: string, name: string}[]>([]);
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState<Record<string, number>>({
+    qualifications: 1,
+    sessions: 1,
+    competencies: 1,
+    profiles: 1
+  });
+  const itemsPerPage = 5;
 
   // Fetch students for the filter dropdown
   useEffect(() => {
@@ -166,7 +167,6 @@ export default function AdminVerificationsPage() {
         setVerifications({
           qualifications: data.qualifications || [],
           sessions: data.sessions || [],
-          activities: data.activities || [],
           competencies: data.competencies || [],
           profiles: data.profiles || []
         });
@@ -175,7 +175,6 @@ export default function AdminVerificationsPage() {
         setCounts(data.counts || {
           qualifications: 0,
           sessions: 0,
-          activities: 0,
           competencies: 0,
           profiles: 0,
           total: 0
@@ -222,12 +221,6 @@ export default function AdminVerificationsPage() {
             (item.reflection?.toLowerCase().includes(searchLower) || false)
           );
           
-        case "activities":
-        return (
-            (item.title?.toLowerCase().includes(searchLower) || false) ||
-            (item.activity_type?.toLowerCase().includes(searchLower) || false)
-          );
-          
         case "competencies":
         return (
             (item.competency_name?.toLowerCase().includes(searchLower) || false) ||
@@ -266,6 +259,61 @@ export default function AdminVerificationsPage() {
     setSearchTerm("");
     setStatusFilter("pending");
     setStudentFilter("all");
+  };
+  
+  // Get paginated data
+  const getPaginatedData = (type: string) => {
+    const filteredData = getFilteredVerifications(type);
+    const page = currentPage[type];
+    const startIndex = (page - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filteredData.slice(startIndex, endIndex);
+  };
+  
+  // Calculate total pages for pagination
+  const getTotalPages = (type: string) => {
+    const filteredData = getFilteredVerifications(type);
+    return Math.ceil(filteredData.length / itemsPerPage);
+  };
+  
+  // Handle page change
+  const handlePageChange = (type: string, page: number) => {
+    setCurrentPage(prev => ({
+      ...prev,
+      [type]: page
+    }));
+  };
+  
+  // Render pagination controls
+  const renderPagination = (type: string) => {
+    const totalPages = getTotalPages(type);
+    const currentPageNumber = currentPage[type];
+    
+    if (totalPages <= 1) return null;
+    
+    return (
+      <div className="flex items-center justify-center space-x-2 mt-4">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handlePageChange(type, Math.max(1, currentPageNumber - 1))}
+          disabled={currentPageNumber === 1}
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <span className="text-sm">
+          Page {currentPageNumber} of {totalPages}
+        </span>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handlePageChange(type, Math.min(totalPages, currentPageNumber + 1))}
+          disabled={currentPageNumber === totalPages}
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
+    );
   };
   
   return (
@@ -321,7 +369,7 @@ export default function AdminVerificationsPage() {
                 </div>
                 
       {/* Dashboard cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-xl">Qualifications</CardTitle>
@@ -338,16 +386,6 @@ export default function AdminVerificationsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">{counts.sessions}</div>
-            <p className="text-xs text-muted-foreground">pending verifications</p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xl">Activities</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{counts.activities}</div>
             <p className="text-xs text-muted-foreground">pending verifications</p>
           </CardContent>
         </Card>
@@ -383,36 +421,16 @@ export default function AdminVerificationsPage() {
         <Tabs value={currentTab} onValueChange={setCurrentTab}>
           <TabsList className="w-full max-w-2xl mx-auto mb-6">
             <TabsTrigger value="qualifications" className="flex-1">
-              Qualifications 
-              {counts.qualifications > 0 && (
-                <Badge variant="destructive" className="ml-2">
-                  {counts.qualifications}
-                </Badge>
-              )}
+              Qualifications
             </TabsTrigger>
             <TabsTrigger value="sessions" className="flex-1">
               Sessions
-              {counts.sessions > 0 && (
-                <Badge variant="destructive" className="ml-2">
-                  {counts.sessions}
-                </Badge>
-              )}
             </TabsTrigger>
             <TabsTrigger value="competencies" className="flex-1">
               Competencies
-              {counts.competencies > 0 && (
-                <Badge variant="destructive" className="ml-2">
-                  {counts.competencies}
-                </Badge>
-              )}
             </TabsTrigger>
             <TabsTrigger value="profiles" className="flex-1">
               Profiles
-              {counts.profiles > 0 && (
-                <Badge variant="destructive" className="ml-2">
-                  {counts.profiles}
-                </Badge>
-              )}
             </TabsTrigger>
           </TabsList>
 
@@ -431,8 +449,8 @@ export default function AdminVerificationsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {getFilteredVerifications("qualifications").length > 0 ? (
-                      getFilteredVerifications("qualifications").map((qual) => (
+                    {getPaginatedData("qualifications").length > 0 ? (
+                      getPaginatedData("qualifications").map((qual) => (
                         <TableRow 
                           key={qual.id}
                           className="cursor-pointer hover:bg-gray-50"
@@ -456,6 +474,7 @@ export default function AdminVerificationsPage() {
                     )}
                   </TableBody>
                 </Table>
+                {renderPagination("qualifications")}
               </CardContent>
             </Card>
           </TabsContent>
@@ -481,8 +500,8 @@ export default function AdminVerificationsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {getFilteredVerifications("sessions").length > 0 ? (
-                      getFilteredVerifications("sessions").map((s) => (
+                    {getPaginatedData("sessions").length > 0 ? (
+                      getPaginatedData("sessions").map((s) => (
                         <TableRow 
                           key={s.id}
                           className="cursor-pointer hover:bg-gray-50"
@@ -506,6 +525,7 @@ export default function AdminVerificationsPage() {
                     )}
                   </TableBody>
                 </Table>
+                {renderPagination("sessions")}
               </CardContent>
             </Card>
           </TabsContent>
@@ -532,8 +552,8 @@ export default function AdminVerificationsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {getFilteredVerifications("competencies").length > 0 ? (
-                      getFilteredVerifications("competencies").map((c) => (
+                    {getPaginatedData("competencies").length > 0 ? (
+                      getPaginatedData("competencies").map((c) => (
                         <TableRow 
                           key={c.id}
                           className="cursor-pointer hover:bg-gray-50"
@@ -558,6 +578,7 @@ export default function AdminVerificationsPage() {
                     )}
                   </TableBody>
                 </Table>
+                {renderPagination("competencies")}
               </CardContent>
             </Card>
           </TabsContent>
@@ -583,8 +604,8 @@ export default function AdminVerificationsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {getFilteredVerifications("profiles").length > 0 ? (
-                      getFilteredVerifications("profiles").map((p) => (
+                    {getPaginatedData("profiles").length > 0 ? (
+                      getPaginatedData("profiles").map((p) => (
                         <TableRow 
                           key={p.id}
                           className="cursor-pointer hover:bg-gray-50"
@@ -598,8 +619,8 @@ export default function AdminVerificationsPage() {
                           <TableCell>{renderStatusBadge(p.verification_status)}</TableCell>
                           <TableCell>{p.verified_by_name || "—"}</TableCell>
                         </TableRow>
-          ))
-        ) : (
+                      ))
+                    ) : (
                       <TableRow>
                         <TableCell colSpan={5} className="text-center py-4">
                           No profile verifications found matching your filters.
@@ -608,6 +629,7 @@ export default function AdminVerificationsPage() {
                     )}
                   </TableBody>
                 </Table>
+                {renderPagination("profiles")}
               </CardContent>
             </Card>
           </TabsContent>
