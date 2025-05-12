@@ -9,25 +9,42 @@ export interface Feedback {
   content: string;
 }
 
-// Define activity type
+// Define activity type to align with database schema
 export interface Activity {
   id: number | string;
   title: string;
-  date: string;
-  duration: string | number;
-  type: string;
-  status: 'verified' | 'pending' | 'rejected';
-  reflectionCompleted?: boolean;
-  mentor?: { id?: string | number; name?: string };
-  student: { id: string | number; name: string };
   description: string;
+  // Align the field names with DB schema
+  activity_type: string;
+  date_completed: string;
+  duration_minutes: number;
+  evidence_url?: string;
+  // Allow both database status values and UI status values
+  status: 'draft' | 'submitted' | 'completed' | 'verified' | 'pending' | 'rejected';
+  verification_status?: 'pending' | 'verified' | 'rejected';
+  student_id: string | number;
+  student?: { id: string | number; name: string };
+  student_name?: string;
+  reflectionCompleted?: boolean;
+  mentor_id?: string | number;
+  mentor?: { id?: string | number; name?: string };
+  verified_by?: string;
+  verified_by_name?: string;
+  feedback?: string | Feedback[];
+  learning_outcomes?: string;
+  feedback_comments?: string;
+  created_at?: string;
+  updated_at?: string;
+  
+  // Legacy/UI field names for backward compatibility
+  type?: string;
+  date?: string;
+  duration?: string | number;
   location?: string;
   evidence?: string;
   reflection?: string;
   rejectionReason?: string;
-  feedback?: Feedback[];
   learningOutcomes?: string;
-  feedbackComments?: string;
 }
 
 /**
@@ -56,7 +73,21 @@ export async function getAllActivities(token?: string, userId?: string, userRole
     }
     
     const data = await response.json();
-    return data.activities || [];
+    const activities = data.activities || [];
+    
+    // Process activities to ensure compatibility with both DB field names and UI expectations
+    return activities.map((activity: Activity) => {
+      // Map database fields to UI fields if needed
+      return {
+        ...activity,
+        // Ensure backward compatibility by adding UI-expected fields
+        type: activity.activity_type || activity.type,
+        date: activity.date_completed || activity.date,
+        duration: activity.duration_minutes || activity.duration,
+        // Use verification_status for UI status if available
+        status: activity.verification_status || activity.status
+      };
+    });
   } catch (error) {
     console.error('Error fetching activities:', error);
     return [];

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { getToken } from 'next-auth/jwt';
 // Remove the import that indirectly uses SQLite
 // import { verifyAuth } from '@/lib/auth-utils';
 
@@ -22,8 +23,35 @@ const adminRoutes = ['/admin'];
 const mentorRoutes = ['/mentor'];
 const studentRoutes = ['/dashboard', '/student'];
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
+  const token = await getToken({ req: request });
+  
+  // Handle redirects for the legacy /activities and /sessions pages
   const { pathname } = request.nextUrl;
+  if (pathname === '/activities' || pathname === '/sessions' || 
+      pathname.startsWith('/activities/') || pathname.startsWith('/sessions/')) {
+    // If user is authenticated, redirect to role-specific page
+    if (token && token.role) {
+      let redirectPath;
+      
+      // Determine the base redirect path
+      if (pathname === '/activities' || pathname.startsWith('/activities/')) {
+        // For activities pages
+        const suffix = pathname.replace('/activities', '');
+        redirectPath = `/${token.role}/activities${suffix}`;
+      } else {
+        // For sessions pages
+        const suffix = pathname.replace('/sessions', '');
+        redirectPath = `/${token.role}/sessions${suffix}`;
+      }
+      
+      return NextResponse.redirect(new URL(redirectPath, request.url));
+    }
+    
+    // If not authenticated, redirect to login page
+    return NextResponse.redirect(new URL('/', request.url));
+  }
+  
   const userDataCookie = request.cookies.get('userData');
   
   // Skip middleware for static assets and API routes to prevent issues
@@ -129,11 +157,16 @@ export const roleMiddleware = async (request: Request, allowedRoles: string[]) =
 export const config = {
   matcher: [
     /*
-     * Match all request paths except:
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      */
     '/((?!_next/static|_next/image|favicon.ico).*)',
+    '/activities',
+    '/sessions',
+    '/activities/:path*',
+    '/sessions/:path*'
   ],
 }; 

@@ -4,6 +4,7 @@ import { open } from 'sqlite';
 import path from 'path';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { v4 as uuidv4 } from 'uuid';
 
 export async function GET(req: NextRequest) {
   try {
@@ -42,18 +43,18 @@ export async function GET(req: NextRequest) {
           s.title, 
           s.description, 
           s.date, 
+          s.start_time,
+          s.end_time,
           s.location,
-          s.duration,
-          s.session_type, 
           s.status,
-          s.feedback,
           s.reflection,
-          s.learner_age_group,
-          s.subject,
+          s.assigned_by,
           u.id as student_id, 
-          u.name as student_name
+          u.name as student_name,
+          a.name as assigned_by_name
         FROM sessions s
         JOIN users u ON s.student_id = u.id
+        LEFT JOIN users a ON s.assigned_by = a.id
         ORDER BY s.rowid DESC
       `);
 
@@ -64,17 +65,19 @@ export async function GET(req: NextRequest) {
         title: session.title,
         description: session.description || '',
         date: session.date,
+        startTime: session.start_time,
+        endTime: session.end_time,
         location: session.location || '',
-        duration: session.duration,
-        sessionType: session.session_type,
         status: session.status || 'planned',
-        feedback: session.feedback,
-        learnerAgeGroup: session.learner_age_group,
-        subject: session.subject,
+        reflection: session.reflection,
         student: {
           id: session.student_id,
           name: session.student_name
-        }
+        },
+        assignedBy: session.assigned_by ? {
+          id: session.assigned_by,
+          name: session.assigned_by_name
+        } : null
       }));
 
       console.log(`API: Fetched ${formattedSessions.length} sessions from database`);
@@ -88,5 +91,128 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error('API: Error fetching sessions:', error);
     return NextResponse.json({ error: 'Failed to fetch sessions' }, { status: 500 });
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    // Check authentication
+    const session = await getServerSession(authOptions);
+    if (!session || session.user.role !== 'admin') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Parse request body
+    const body = await req.json();
+    const { title, description, studentId, date, location, status, startTime, endTime } = body;
+
+    // Validate required fields
+    if (!title || !studentId || !date) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
+    // Open database connection
+    const db = await open({
+      filename: path.join(process.cwd(), 'database.sqlite'),
+      driver: sqlite3.Database
+    });
+
+    try {
+      // Check if student exists
+      const studentExists = await db.get('SELECT id FROM users WHERE id = ? AND role = "student"', studentId);
+      if (!studentExists) {
+        return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+      }
+
+      // Generate a UUID for the session
+      const sessionId = uuidv4();
+      
+      // Insert session with assigned_by field
+      await db.run(`
+        INSERT INTO sessions (
+          id,
+          title, 
+          description, 
+          student_id,
+          date,
+          start_time,
+          end_time,
+          location,
+          status,
+          assigned_by,
+          created_at,
+          updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+      `, [
+        sessionId,
+        title,
+        description || null,
+        studentId,
+        date,
+        startTime || null,
+        endTime || null,
+        location || null,
+        status || 'planned',
+        session.user.id // Admin who created the session
+      ]);
+
+      // Get the inserted session details
+      const newSession = await db.get(`
+        SELECT 
+          s.id, 
+          s.title, 
+          s.description, 
+          s.date, 
+          s.start_time,
+          s.end_time,
+          s.location, 
+          s.status,
+          s.assigned_by,
+          u.id as student_id, 
+          u.name as student_name,
+          a.name as assigned_by_name
+        FROM sessions s
+        JOIN users u ON s.student_id = u.id
+        LEFT JOIN users a ON s.assigned_by = a.id
+        WHERE s.id = ?
+      `, sessionId);
+
+      if (!newSession) {
+        return NextResponse.json({ error: 'Failed to retrieve created session' }, { status: 500 });
+      }
+
+      // Format the response
+      const formattedSession = {
+        id: newSession.id,
+        title: newSession.title,
+        description: newSession.description || '',
+        date: newSession.date,
+        startTime: newSession.start_time,
+        endTime: newSession.end_time,
+        location: newSession.location || '',
+        status: newSession.status,
+        student: {
+          id: newSession.student_id,
+          name: newSession.student_name
+        },
+        assignedBy: {
+          id: newSession.assigned_by,
+          name: newSession.assigned_by_name
+        }
+      };
+
+      return NextResponse.json({ 
+        message: 'Session created successfully', 
+        session: formattedSession 
+      }, { status: 201 });
+    } catch (dbError: any) {
+      console.error('Database error:', dbError);
+      return NextResponse.json({ error: 'Database error', details: dbError.message }, { status: 500 });
+    } finally {
+      await db.close();
+    }
+  } catch (error) {
+    console.error('Error creating session:', error);
+    return NextResponse.json({ error: 'Failed to create session' }, { status: 500 });
   }
 } 

@@ -55,7 +55,7 @@ export function QuickActionsModal({ isOpen, onClose }: QuickActionsModalProps) {
       bgColor: 'bg-orange-600 hover:bg-orange-700'
     },
     {
-      href: '/activities',
+      href: '/admin/activities',
       icon: Folder,
       label: 'Activities',
       bgColor: 'bg-teal-600 hover:bg-teal-700'
@@ -71,7 +71,7 @@ export function QuickActionsModal({ isOpen, onClose }: QuickActionsModalProps) {
       bgColor: 'bg-purple-600 hover:bg-purple-700'
     },
     {
-      href: '/activities',
+      href: '/mentor/activities',
       icon: FileText,
       label: 'Activities',
       bgColor: 'bg-blue-600 hover:bg-blue-700'
@@ -105,7 +105,7 @@ export function QuickActionsModal({ isOpen, onClose }: QuickActionsModalProps) {
   // Student actions
   const studentActions = [
     {
-      href: '/activities/new',
+      href: '/student/activities/new',
       icon: Plus,
       label: 'New Activity',
       bgColor: 'bg-blue-600 hover:bg-blue-700'
@@ -135,13 +135,13 @@ export function QuickActionsModal({ isOpen, onClose }: QuickActionsModalProps) {
       bgColor: 'bg-purple-600 hover:bg-purple-700'
     },
     {
-      href: '/activities',
+      href: '/student/activities',
       icon: FileText,
       label: 'My Activities',
       bgColor: 'bg-orange-600 hover:bg-orange-700'
     },
     {
-      href: '/sessions',
+      href: '/student/sessions',
       icon: Calendar,
       label: 'Teaching Sessions',
       bgColor: 'bg-yellow-600 hover:bg-yellow-700'

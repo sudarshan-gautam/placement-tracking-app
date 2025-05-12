@@ -45,7 +45,13 @@ export default function StudentSessionsPage() {
   useEffect(() => {
     // Redirect if not a student
     if (user && user.role !== 'student') {
-      router.push('/sessions');
+      if (user.role === 'mentor') {
+        router.push('/mentor/sessions');
+      } else if (user.role === 'admin') {
+        router.push('/admin/sessions');
+      } else {
+        router.push('/');
+      }
       return;
     }
 

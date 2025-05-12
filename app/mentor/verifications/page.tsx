@@ -277,7 +277,7 @@ export default function MentorVerificationsPage() {
     setStatusFilter("pending");
     setStudentFilter("all");
   };
-
+  
   return (
     <div className="container mx-auto py-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
@@ -288,7 +288,7 @@ export default function MentorVerificationsPage() {
           </p>
         </div>
       </div>
-
+      
       {/* Status filter tabs */}
       <div className="mb-6">
         <Tabs value={statusFilter} onValueChange={setStatusFilter} className="mb-6">
@@ -299,18 +299,18 @@ export default function MentorVerificationsPage() {
             <TabsTrigger value="rejected">Rejected</TabsTrigger>
           </TabsList>
         </Tabs>
-      </div>
+            </div>
 
       {/* Filters and search */}
       <div className="flex flex-col sm:flex-row gap-4 mb-6">
         <div className="flex-1">
           <Input
             placeholder="Search verifications..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          
         <div className="w-full sm:w-60">
           <Select value={studentFilter} onValueChange={setStudentFilter}>
             <SelectTrigger>
@@ -331,7 +331,7 @@ export default function MentorVerificationsPage() {
         
         <Button variant="outline" onClick={resetFilters}>Reset Filters</Button>
       </div>
-
+      
       {/* Dashboard cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
         <Card>
@@ -383,16 +383,16 @@ export default function MentorVerificationsPage() {
             <p className="text-xs text-muted-foreground">pending verifications</p>
           </CardContent>
         </Card>
-      </div>
-
+                    </div>
+                    
       {/* Display error message if there's an error */}
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
           <p className="font-medium">Error:</p>
           <p>{error}</p>
-        </div>
-      )}
-
+                      </div>
+                    )}
+                    
       {/* Main content */}
       {isLoading ? (
         <div className="flex justify-center items-center py-12">
@@ -439,8 +439,8 @@ export default function MentorVerificationsPage() {
                           <TableCell>{qual.date_obtained ? formatDate(qual.date_obtained) : "N/A"}</TableCell>
                           <TableCell>{renderStatusBadge(qual.verification_status)}</TableCell>
                         </TableRow>
-                      ))
-                    ) : (
+                            ))
+                          ) : (
                       <TableRow>
                         <TableCell colSpan={5} className="text-center py-4">
                           No qualifications found matching the current filters.
@@ -577,7 +577,7 @@ export default function MentorVerificationsPage() {
                         <TableRow 
                           key={c.id} 
                           className="cursor-pointer hover:bg-gray-50"
-                          onClick={() => {
+                        onClick={() => {
                             window.location.href = `/mentor/verifications/competencies/${c.id}`;
                           }}
                         >
@@ -635,8 +635,8 @@ export default function MentorVerificationsPage() {
                           <TableCell className="capitalize">{p.user_role}</TableCell>
                           <TableCell>{renderStatusBadge(p.verification_status)}</TableCell>
                         </TableRow>
-                      ))
-                    ) : (
+          ))
+        ) : (
                       <TableRow>
                         <TableCell colSpan={4} className="text-center py-4">
                           No profile verifications found matching your filters.

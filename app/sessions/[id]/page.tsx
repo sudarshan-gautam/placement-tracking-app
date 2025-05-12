@@ -54,10 +54,14 @@ export default function SessionDetailPage() {
         });
       } else {
         // Session not found, redirect back to sessions list
-        router.push('/sessions');
+        if (user?.role) {
+          router.push(`/${user.role}/sessions`);
+        } else {
+          router.push('/');
+        }
       }
     }
-  }, [sessionId, router]);
+  }, [sessionId, router, user?.role]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -173,10 +177,10 @@ export default function SessionDetailPage() {
             </h1>
             <p className="text-gray-600">{session.topic}</p>
             <div className="mt-2 flex space-x-2">
-              <Link href="/activities" className="inline-flex items-center px-3 py-1 border border-transparent rounded-md text-sm font-medium text-gray-600 hover:bg-gray-100">
+              <Link href={user?.role ? `/${user.role}/activities` : '/'} className="inline-flex items-center px-3 py-1 border border-transparent rounded-md text-sm font-medium text-gray-600 hover:bg-gray-100">
                 Activities
               </Link>
-              <Link href="/sessions" className="inline-flex items-center px-3 py-1 border border-transparent rounded-md text-sm font-medium bg-blue-100 text-blue-800">
+              <Link href={user?.role ? `/${user.role}/sessions` : '/'} className="inline-flex items-center px-3 py-1 border border-transparent rounded-md text-sm font-medium bg-blue-100 text-blue-800">
                 Teaching Sessions
               </Link>
             </div>

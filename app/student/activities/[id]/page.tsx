@@ -217,6 +217,16 @@ export default function StudentActivityDetailPage({ params }: { params: { id: st
                 <p>{activity.mentor || 'Not assigned'}</p>
               </div>
             </div>
+
+            {activity.assigned_by_name && activity.assigned_by !== activity.student_id && (
+              <div>
+                <h3 className="text-sm font-medium text-gray-500 mb-1">Assigned By</h3>
+                <div className="flex items-center">
+                  <User className="h-5 w-5 text-gray-400 mr-2" />
+                  <p>{activity.assigned_by_name}</p>
+                </div>
+              </div>
+            )}
           </div>
 
           <Separator className="my-6" />

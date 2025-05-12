@@ -164,14 +164,15 @@ export async function validateUser(email: string, password: string): Promise<Use
     
     // Get profile data including profileImage from user_profiles table
     try {
-      const userProfile = await getOne<{user_id: string, profileImage?: string}>(
-        'SELECT * FROM user_profiles WHERE user_id = ?', 
+      const userProfile = await getOne(
+        'SELECT profileImage FROM user_profiles WHERE user_id = ?', 
         [user.id]
       );
       
-      if (userProfile && userProfile.profileImage) {
+      // Use type assertion to access the profileImage property
+      if (userProfile && 'profileImage' in userProfile) {
         // Add profileImage to user object
-        user.profileImage = userProfile.profileImage;
+        user.profileImage = (userProfile as {profileImage: string}).profileImage;
       }
     } catch (profileError) {
       console.error('Error fetching user profile data:', profileError);

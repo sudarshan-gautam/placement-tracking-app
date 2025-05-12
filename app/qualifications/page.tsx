@@ -202,7 +202,7 @@ export default function QualificationsPage() {
 
   // Render pagination controls
   const renderPagination = () => {
-    return (
+  return (
       <div className="flex justify-between items-center mt-4">
         <div className="text-sm text-gray-500">
           Showing {indexOfFirstQualification + 1} to {Math.min(indexOfLastQualification, qualifications.length)} of {qualifications.length} qualifications
@@ -224,7 +224,7 @@ export default function QualificationsPage() {
           >
             Next
           </Button>
-        </div>
+            </div>
       </div>
     );
   };
@@ -253,7 +253,7 @@ export default function QualificationsPage() {
       {isLoading ? (
         <div className="flex justify-center py-12">
           <div className="animate-spin h-8 w-8 border-t-2 border-blue-500 rounded-full"></div>
-        </div>
+            </div>
       ) : qualifications.length === 0 ? (
         <div className="text-center py-12">
           <Award className="h-12 w-12 mx-auto text-gray-400 mb-4" />
@@ -265,8 +265,8 @@ export default function QualificationsPage() {
             <Plus className="h-4 w-4 mr-2" />
             Add Your First Qualification
           </Button>
-        </div>
-      ) : (
+            </div>
+          ) : (
         <>
           <CollapseCard 
             title="My Qualifications" 
@@ -317,9 +317,9 @@ export default function QualificationsPage() {
                             Delete
                           </Button>
                         </>
-                      )}
-                    </div>
-                  </div>
+                          )}
+                        </div>
+                      </div>
                   
                   <div className="mt-2 grid grid-cols-3 gap-4 text-sm">
                     <div>
@@ -338,7 +338,7 @@ export default function QualificationsPage() {
                   {qualification.description && (
                     <div className="mt-2 text-sm">
                       <span className="text-gray-500">Description:</span> {qualification.description}
-                    </div>
+                </div>
                   )}
                 </li>
               ))}
@@ -417,8 +417,8 @@ export default function QualificationsPage() {
             <Button
               variant="outline"
               onClick={() => setDeletingQualification(null)}
-            >
-              Cancel
+                >
+                  Cancel
             </Button>
             <Button
               variant="destructive"

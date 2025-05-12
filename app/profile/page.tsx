@@ -1083,7 +1083,7 @@ export default function ProfilePage() {
                           <span className={`text-xs px-2 py-1 rounded-full ${qualification.verified ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
                             {qualification.verified ? 'Verified' : 'Pending Verification'}
                           </span>
-                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>

@@ -210,38 +210,38 @@ export default function AdminVerificationsPage() {
       // Type-specific fields
       switch (type) {
         case "qualifications":
-          return (
+        return (
             (item.title?.toLowerCase().includes(searchLower) || false) ||
             (item.issuing_organization?.toLowerCase().includes(searchLower) || false) ||
             (item.type?.toLowerCase().includes(searchLower) || false)
           );
         
         case "sessions":
-          return (
+        return (
             (item.title?.toLowerCase().includes(searchLower) || false) ||
             (item.reflection?.toLowerCase().includes(searchLower) || false)
           );
           
         case "activities":
-          return (
+        return (
             (item.title?.toLowerCase().includes(searchLower) || false) ||
             (item.activity_type?.toLowerCase().includes(searchLower) || false)
           );
           
         case "competencies":
-          return (
+        return (
             (item.competency_name?.toLowerCase().includes(searchLower) || false) ||
             (item.competency_category?.toLowerCase().includes(searchLower) || false) ||
             (item.level?.toLowerCase().includes(searchLower) || false)
           );
           
         case "profiles":
-          return (
+        return (
             (item.user_email?.toLowerCase().includes(searchLower) || false) ||
             (item.user_role?.toLowerCase().includes(searchLower) || false)
-          );
+        );
           
-        default:
+      default:
           return false;
       }
     });
@@ -267,7 +267,7 @@ export default function AdminVerificationsPage() {
     setStatusFilter("pending");
     setStudentFilter("all");
   };
-
+  
   return (
     <div className="container mx-auto py-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
@@ -276,9 +276,9 @@ export default function AdminVerificationsPage() {
           <p className="text-muted-foreground">
             Review and process verification requests across the platform
           </p>
-        </div>
       </div>
-
+      </div>
+      
       {/* Status filter tabs */}
       <div className="mb-6">
         <Tabs value={statusFilter} onValueChange={setStatusFilter} className="mb-6">
@@ -289,7 +289,7 @@ export default function AdminVerificationsPage() {
             <TabsTrigger value="rejected">Rejected</TabsTrigger>
           </TabsList>
         </Tabs>
-      </div>
+                  </div>
 
       {/* Filters and search */}
       <div className="flex flex-col sm:flex-row gap-4 mb-6">
@@ -298,9 +298,9 @@ export default function AdminVerificationsPage() {
             placeholder="Search verifications..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        
+                  />
+                </div>
+                
         <div className="w-full sm:w-60">
           <Select value={studentFilter} onValueChange={setStudentFilter}>
             <SelectTrigger>
@@ -315,11 +315,11 @@ export default function AdminVerificationsPage() {
               ))}
             </SelectContent>
           </Select>
-        </div>
-        
+          </div>
+          
         <Button variant="outline" onClick={resetFilters}>Reset Filters</Button>
-      </div>
-
+                </div>
+                
       {/* Dashboard cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
         <Card>
@@ -371,14 +371,14 @@ export default function AdminVerificationsPage() {
             <p className="text-xs text-muted-foreground">pending verifications</p>
           </CardContent>
         </Card>
-      </div>
-
+                </div>
+                
       {/* Main content */}
       {isLoading ? (
         <div className="flex justify-center items-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <span className="ml-2">Loading verifications...</span>
-        </div>
+              </div>
       ) : (
         <Tabs value={currentTab} onValueChange={setCurrentTab}>
           <TabsList className="mb-6">
@@ -623,8 +623,8 @@ export default function AdminVerificationsPage() {
                           <TableCell>{renderStatusBadge(p.verification_status)}</TableCell>
                           <TableCell>{p.verified_by_name || "—"}</TableCell>
                         </TableRow>
-                      ))
-                    ) : (
+          ))
+        ) : (
                       <TableRow>
                         <TableCell colSpan={5} className="text-center py-4">
                           No profile verifications found matching your filters.
@@ -637,7 +637,7 @@ export default function AdminVerificationsPage() {
             </Card>
           </TabsContent>
         </Tabs>
-      )}
-    </div>
+        )}
+      </div>
   );
 } 

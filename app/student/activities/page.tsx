@@ -70,7 +70,13 @@ export default function StudentActivitiesPage() {
   useEffect(() => {
     // Redirect if not a student
     if (user && user.role !== 'student') {
-      router.push('/activities');
+      if (user.role === 'mentor') {
+        router.push('/mentor/activities');
+      } else if (user.role === 'admin') {
+        router.push('/admin/activities');
+      } else {
+        router.push('/');
+      }
       return;
     }
 
@@ -123,17 +129,22 @@ export default function StudentActivitiesPage() {
   const filteredActivities = activities.filter((activity) => {
     const matchesSearch = 
       activity.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      activity.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (activity.type || activity.activity_type || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       activity.description?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesStatus = statusFilter === 'all' || activity.status === statusFilter;
-    const matchesType = typeFilter === 'all' || activity.type === typeFilter;
+    const activityStatus = activity.verification_status || activity.status;
+    const activityType = activity.type || activity.activity_type;
+    
+    const matchesStatus = statusFilter === 'all' || activityStatus === statusFilter;
+    const matchesType = typeFilter === 'all' || activityType === typeFilter;
     
     return matchesSearch && matchesStatus && matchesType;
   });
 
   // Function to handle status badge color and text
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (activity: Activity) => {
+    const status = activity.verification_status || activity.status;
+    
     switch (status) {
       case 'verified':
         return (
@@ -196,12 +207,6 @@ export default function StudentActivitiesPage() {
             Track and manage your professional development activities
           </p>
         </div>
-        <Link href="/student/activities/new">
-          <Button className="w-full sm:w-auto">
-            <Plus className="h-4 w-4 mr-2" />
-            Log New Activity
-          </Button>
-        </Link>
       </div>
 
       {/* Dashboard Cards */}
@@ -361,14 +366,14 @@ export default function StudentActivitiesPage() {
                     <div className="flex justify-between items-start mb-3">
                       <h3 className="text-lg font-medium text-gray-900">{activity.title}</h3>
                       <div className="flex items-center">
-                        {getStatusBadge(activity.status)}
+                        {getStatusBadge(activity)}
                       </div>
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-3 text-sm">
                       <div className="flex items-center text-gray-500">
                         <Calendar className="h-4 w-4 mr-2 text-gray-400" />
-                        {new Date(activity.date).toLocaleDateString('en-US', { 
+                        {new Date(activity.date || activity.date_completed).toLocaleDateString('en-US', { 
                           year: 'numeric', 
                           month: 'short', 
                           day: 'numeric' 
@@ -376,19 +381,23 @@ export default function StudentActivitiesPage() {
                       </div>
                       <div className="flex items-center text-gray-500">
                         <Clock className="h-4 w-4 mr-2 text-gray-400" />
-                        Duration: {activity.duration}
+                        Duration: {typeof activity.duration_minutes !== 'undefined'
+                          ? `${activity.duration_minutes} mins`
+                          : activity.duration
+                        }
                       </div>
                       <div className="flex items-center text-gray-500">
                         <Book className="h-4 w-4 mr-2 text-gray-400" />
-                        Type: {activity.type}
+                        Type: {activity.type || activity.activity_type}
                       </div>
-                      {activity.status === 'verified' && (
+                      {(activity.status === 'verified' || activity.verification_status === 'verified') && (
                         <div className="flex items-center text-gray-500">
                           <User className="h-4 w-4 mr-2 text-gray-400" />
                           Mentor: {
-                            typeof activity.mentor === 'string' 
+                            activity.verified_by_name || 
+                            (typeof activity.mentor === 'string' 
                               ? activity.mentor 
-                              : activity.mentor?.name || 'Unassigned'
+                              : activity.mentor?.name || 'Unassigned')
                           }
                         </div>
                       )}
@@ -414,16 +423,8 @@ export default function StudentActivitiesPage() {
               <p className="mt-1 text-sm text-gray-500">
                 {searchTerm || typeFilter !== 'all' || statusFilter !== 'all'
                   ? "Try adjusting your search filters."
-                  : "Get started by logging your first professional activity."}
+                  : "Your activities will appear here when your mentors or admins assign them to you."}
               </p>
-              {!searchTerm && typeFilter === 'all' && statusFilter === 'all' && (
-                <Link href="/student/activities/new">
-                  <Button className="mt-4">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Log New Activity
-                  </Button>
-                </Link>
-              )}
             </div>
           )}
         </CardContent>

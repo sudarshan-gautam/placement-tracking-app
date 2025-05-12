@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Bell, User, Settings, LogOut, ChevronDown, 
-  LayoutDashboard, HelpCircle, Mail, Shield, BookOpen, AlertCircle, FileText, Briefcase, UserCog, ArrowLeft, File, Award, ClipboardCheck } from 'lucide-react';
+  LayoutDashboard, HelpCircle, Mail, Shield, BookOpen, AlertCircle, FileText, Briefcase, UserCog, ArrowLeft, File, Award, ClipboardCheck, Calendar } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
@@ -172,19 +172,19 @@ export function Header() {
           id: 1,
           type: 'page' as const,
           title: 'Role Activity',
-          link: '/activities'
+          link: user?.role ? `/${user.role}/activities` : '/activities'
         },
         {
           id: 2,
           type: 'session' as const,
-          title: 'Recent Teaching Activity',
-          link: '/activities/session'
+          title: 'Recent Teaching Session',
+          link: user?.role ? `/${user.role}/sessions` : '/sessions'
         },
         {
           id: 3,
           type: 'activity' as const,
           title: 'Classroom Management',
-          link: '/activities#classroom-management'
+          link: user?.role ? `/${user.role}/activities#classroom-management` : '/activities#classroom-management'
         }
       ].filter(result => 
         result.title.toLowerCase().includes(searchQuery.toLowerCase())
@@ -193,13 +193,13 @@ export function Header() {
     } else {
       setSearchResults([]);
     }
-  }, [searchQuery]);
+  }, [searchQuery, user?.role]);
 
   // Debug: Log the user object to see if profile image is loaded
   useEffect(() => {
     if (user) {
       console.log('User in header:', user);
-      console.log('Profile image:', user.profileImage);
+      console.log('Profile image:', user?.profileImage || 'No profile image');
     }
   }, [user]);
 
@@ -543,9 +543,9 @@ export function Header() {
                 className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-200 disabled:pointer-events-none disabled:opacity-50 hover:bg-gray-100 h-9 px-2 py-2"
               >
                 <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
-                  {user?.profileImage ? (
+                  {user && 'profileImage' in user && user.profileImage ? (
                     <Image
-                      src={user.profileImage}
+                      src={(user as any).profileImage}
                       alt="Profile"
                       width={32}
                       height={32}
@@ -637,13 +637,60 @@ export function Header() {
                       <User className="mr-2 h-4 w-4" />
                       Profile
                     </Link>
-                    <Link
-                      href="/activities"
-                      className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
-                    >
-                      <FileText className="mr-2 h-4 w-4" />
-                      Activities
-                    </Link>
+                    
+                    {/* Activities links - role specific */}
+                    {user?.role === 'admin' ? (
+                      <Link
+                        href="/admin/activities"
+                        className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
+                      >
+                        <FileText className="mr-2 h-4 w-4" />
+                        Activities
+                      </Link>
+                    ) : user?.role === 'mentor' ? (
+                      <Link
+                        href="/mentor/activities"
+                        className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
+                      >
+                        <FileText className="mr-2 h-4 w-4" />
+                        Activities
+                      </Link>
+                    ) : (
+                      <Link
+                        href="/student/activities"
+                        className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
+                      >
+                        <FileText className="mr-2 h-4 w-4" />
+                        Activities
+                      </Link>
+                    )}
+                    
+                    {/* Sessions links - role specific */}
+                    {user?.role === 'admin' ? (
+                      <Link
+                        href="/admin/sessions"
+                        className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
+                      >
+                        <Calendar className="mr-2 h-4 w-4" />
+                        Sessions
+                      </Link>
+                    ) : user?.role === 'mentor' ? (
+                      <Link
+                        href="/mentor/sessions"
+                        className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
+                      >
+                        <Calendar className="mr-2 h-4 w-4" />
+                        Sessions
+                      </Link>
+                    ) : (
+                      <Link
+                        href="/student/sessions"
+                        className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
+                      >
+                        <Calendar className="mr-2 h-4 w-4" />
+                        Sessions
+                      </Link>
+                    )}
                     
                     {/* Qualifications links - role specific */}
                     {user?.role === 'admin' ? (

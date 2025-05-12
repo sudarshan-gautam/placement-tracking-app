@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/auth-context';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { 
   Calendar, 
@@ -10,35 +11,79 @@ import {
   MapPin, 
   FileText, 
   Check, 
-  ArrowLeft
+  ArrowLeft,
+  User,
+  Book,
+  GraduationCap
 } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/components/ui/use-toast';
 
+// Import types for mentor-student assignments
+import { MentorStudent } from '@/lib/mentor-student-service';
+
 export default function NewSessionPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [students, setStudents] = useState<{id: number, name: string}[]>([]);
+  const [assignedStudents, setAssignedStudents] = useState<MentorStudent[]>([]);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     studentId: '',
-    date: '',
+    date: new Date().toISOString().split('T')[0],
     location: '',
+    sessionType: 'classroom',
     status: 'planned',
+    duration: '60',
+    learnerAgeGroup: '',
+    subject: '',
+    objectives: ''
   });
 
-  // Load sample student data - for mentors, this would be their assigned students
+  // Load mentor's assigned students
   useEffect(() => {
-    // In a real implementation, this would fetch from API with the mentor's assigned students
-    const sampleStudents = [
-      { id: 1, name: 'John Doe' },
-      { id: 2, name: 'Jane Smith' },
-      { id: 3, name: 'Alice Johnson' },
-    ];
-    setStudents(sampleStudents);
-  }, []);
+    if (!user || user.role !== 'mentor') {
+      router.push('/mentor/sessions');
+      return;
+    }
+
+    const fetchAssignedStudents = async () => {
+      try {
+        const response = await fetch('/api/students', {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch assigned students');
+        }
+        
+        const data = await response.json();
+        setAssignedStudents(data);
+        
+        // If we have students, set the first one as default
+        if (data.length > 0) {
+          setFormData(prev => ({
+            ...prev,
+            studentId: data[0].student_id
+          }));
+        }
+      } catch (error) {
+        console.error('Error fetching assigned students:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load your assigned students. Please try again.",
+          variant: "destructive"
+        });
+      }
+    };
+
+    fetchAssignedStudents();
+  }, [user, router, toast]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -58,21 +103,12 @@ export default function NewSessionPage() {
         throw new Error('Please fill in all required fields');
       }
 
-      // In a real implementation, this would be an API call
-      // For demo purposes, we'll simulate a successful submission
-      setTimeout(() => {
-        toast({
-          title: 'Success',
-          description: 'Session has been created successfully',
-          variant: 'default',
-        });
-        
-        // Redirect back to the sessions list
-        router.push('/mentor/sessions');
-      }, 1000);
-      
-      // In a real implementation:
-      /*
+      // Validate student is assigned to this mentor
+      if (!assignedStudents.some(s => s.student_id === formData.studentId)) {
+        throw new Error('You can only create sessions for your assigned students');
+      }
+
+      // Call the actual API
       const response = await fetch('/api/mentor/sessions', {
         method: 'POST',
         headers: {
@@ -83,8 +119,11 @@ export default function NewSessionPage() {
       });
       
       if (!response.ok) {
-        throw new Error('Failed to create session');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create session');
       }
+      
+      const responseData = await response.json();
       
       toast({
         title: 'Success',
@@ -93,7 +132,6 @@ export default function NewSessionPage() {
       });
       
       router.push('/mentor/sessions');
-      */
     } catch (error) {
       console.error('Error creating session:', error);
       toast({
@@ -105,6 +143,10 @@ export default function NewSessionPage() {
       setIsSubmitting(false);
     }
   };
+
+  if (!user || user.role !== 'mentor') {
+    return null; // Don't render anything if not a mentor
+  }
 
   return (
     <div className="container mx-auto p-6">
@@ -129,6 +171,38 @@ export default function NewSessionPage() {
         <form onSubmit={handleSubmit}>
           <CardContent>
             <div className="space-y-6">
+              {/* Student Assignment */}
+              <div>
+                <label htmlFor="studentId" className="block text-sm font-medium text-gray-700 mb-1">
+                  Assign to Student *
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <User className="h-4 w-4 text-gray-400" />
+                  </div>
+                  <select
+                    id="studentId"
+                    name="studentId"
+                    required
+                    className="w-full rounded-md border-gray-300 shadow-sm pl-10 px-3 py-2 border focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    value={formData.studentId}
+                    onChange={handleChange}
+                  >
+                    <option value="">Select a student</option>
+                    {assignedStudents.map(student => (
+                      <option key={student.student_id} value={student.student_id}>
+                        {student.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {assignedStudents.length === 0 && (
+                  <p className="mt-1 text-sm text-red-500">
+                    You don't have any assigned students. Please contact an administrator.
+                  </p>
+                )}
+              </div>
+              
               {/* Title */}
               <div>
                 <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
@@ -162,28 +236,6 @@ export default function NewSessionPage() {
                 />
               </div>
               
-              {/* Student Assignment */}
-              <div>
-                <label htmlFor="studentId" className="block text-sm font-medium text-gray-700 mb-1">
-                  Assign to Student *
-                </label>
-                <select
-                  id="studentId"
-                  name="studentId"
-                  value={formData.studentId}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                >
-                  <option value="">Select a student</option>
-                  {students.map(student => (
-                    <option key={student.id} value={student.id}>
-                      {student.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Date */}
                 <div>
@@ -206,6 +258,29 @@ export default function NewSessionPage() {
                   </div>
                 </div>
                 
+                {/* Duration */}
+                <div>
+                  <label htmlFor="duration" className="block text-sm font-medium text-gray-700 mb-1">
+                    Duration (minutes)
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Clock className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      type="number"
+                      id="duration"
+                      name="duration"
+                      value={formData.duration}
+                      onChange={handleChange}
+                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="60"
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Location */}
                 <div>
                   <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-1">
@@ -226,6 +301,91 @@ export default function NewSessionPage() {
                     />
                   </div>
                 </div>
+                
+                {/* Session Type */}
+                <div>
+                  <label htmlFor="sessionType" className="block text-sm font-medium text-gray-700 mb-1">
+                    Session Type
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Book className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <select
+                      id="sessionType"
+                      name="sessionType"
+                      value={formData.sessionType}
+                      onChange={handleChange}
+                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="classroom">Classroom</option>
+                      <option value="online">Online</option>
+                      <option value="one-on-one">One-on-One</option>
+                      <option value="group">Group</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Learner Age Group */}
+                <div>
+                  <label htmlFor="learnerAgeGroup" className="block text-sm font-medium text-gray-700 mb-1">
+                    Learner Age Group
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <GraduationCap className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      type="text"
+                      id="learnerAgeGroup"
+                      name="learnerAgeGroup"
+                      value={formData.learnerAgeGroup}
+                      onChange={handleChange}
+                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="e.g., 10-12 years, High School"
+                    />
+                  </div>
+                </div>
+                
+                {/* Subject */}
+                <div>
+                  <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-1">
+                    Subject
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Book className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      type="text"
+                      id="subject"
+                      name="subject"
+                      value={formData.subject}
+                      onChange={handleChange}
+                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="e.g., Mathematics, Science"
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              {/* Objectives */}
+              <div>
+                <label htmlFor="objectives" className="block text-sm font-medium text-gray-700 mb-1">
+                  Learning Objectives
+                </label>
+                <textarea
+                  id="objectives"
+                  name="objectives"
+                  value={formData.objectives}
+                  onChange={handleChange}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="What will students learn from this session?"
+                />
               </div>
               
               {/* Status */}
@@ -256,7 +416,7 @@ export default function NewSessionPage() {
             </Link>
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || assignedStudents.length === 0}
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? (

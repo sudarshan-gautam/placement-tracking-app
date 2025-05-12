@@ -81,10 +81,14 @@ export default function ActivityDetailsPage({ params }: { params: { id: string }
     } else {
       // Activity not found
       alert('Activity not found');
-      router.push('/activities');
+      if (user?.role) {
+        router.push(`/${user.role}/activities`);
+      } else {
+        router.push('/');
+      }
     }
     setLoading(false);
-  }, [params.id, router]);
+  }, [params.id, router, user?.role]);
 
   const handleReflectionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setReflection(e.target.value);
@@ -157,7 +161,11 @@ export default function ActivityDetailsPage({ params }: { params: { id: string }
       
       if (deleted) {
         alert('Activity deleted successfully');
-        router.push('/activities');
+        if (user?.role) {
+          router.push(`/${user.role}/activities`);
+        } else {
+          router.push('/');
+        }
       }
     }
   };
@@ -196,7 +204,7 @@ export default function ActivityDetailsPage({ params }: { params: { id: string }
         <div className="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-sm">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Activity Not Found</h1>
           <p className="text-gray-600 mb-6">The activity you're looking for doesn't exist or has been removed.</p>
-          <Link href="/activities" className="flex items-center text-blue-600 hover:text-blue-800">
+          <Link href={user?.role ? `/${user.role}/activities` : '/'} className="flex items-center text-blue-600 hover:text-blue-800">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Activities
           </Link>

@@ -1,0 +1,98 @@
+# Updated Implementation Plan for Sessions and Activities
+
+## 1. Review Findings
+- We have existing student, mentor, and admin navigation components with links to sessions and activities
+- The quick-actions-modal already includes links to activities and sessions
+- The bottom navigation has links to activities and sessions for each role
+- The sidebar navigation has links for activities and sessions
+- The database already has tables for sessions, activities, and their verifications
+
+## 2. Missing Components/Pages
+- **Missing Mentor Activities Pages**: 
+  - `app/mentor/activities/page.tsx`
+  - `app/mentor/activities/[id]/page.tsx`
+  
+- **Missing Admin Activities Pages**: 
+  - `app/admin/activities/page.tsx`
+  - `app/admin/activities/[id]/page.tsx`
+
+## 3. Implementation Tasks
+
+### 3.1 Backend/Database Tasks
+1. **Add Sample Data**: Add more sample data for activities and sessions for different users
+2. **API Endpoints**: Create or enhance API endpoints for activities and sessions:
+   - Ensure `/api/activities` endpoint supports all roles with proper filtering
+   - Create `/api/mentor/activities` for mentor-specific activities data
+   - Create `/api/admin/activities` for admin-specific activities data
+   
+### 3.2 Frontend Implementation Tasks
+1. **Create Mentor Activities Pages**:
+   - Create main page listing all activities by assigned students
+   - Create detail page for viewing and approving activities
+   - Include filtering by student, activity type, and status
+   
+2. **Create Admin Activities Pages**:
+   - Create main page listing all activities in the system
+   - Create detail page for activity management
+   - Include advanced filtering and search options
+   
+3. **Enhance Existing Pages**:
+   - Update student activities page to show verification status
+   - Add evidence upload functionality
+   - Add reflection sections for completed activities/sessions
+   
+4. **Ensure Navigation Links**:
+   - Verify all navigation components have proper links to activities and sessions pages
+   - Add any missing links to quick actions, bottom nav, or sidebar for the new pages
+   - Ensure all links are role-appropriate and functional
+
+### 3.3 Navigation Integration
+1. **Top Navigation Dropdown**:
+   - Ensure activities and sessions are available in user dropdown menu
+   - Add links to quick access section of the header
+
+2. **Bottom Navigation**:
+   - Verify bottom navigation links for each role direct to correct pages
+   - Update any incorrect or missing links for activities and sessions
+
+3. **Quick Action Modal**:
+   - Update the quick action modal to include links to create or view activities/sessions
+   - Ensure role-based filtering of actions is correct
+   - Add any missing actions for activities/sessions
+
+4. **Sidebar Navigation**:
+   - Ensure sidebar navigation has correct links for activities and sessions
+   - Update the nested navigation items if needed for better organization
+
+## 4. Role-Specific Implementation Details
+
+### 4.1 Student Role
+- View their own activities/sessions
+- Create new activities and submit for verification
+- Schedule sessions
+- View verification status
+- Upload evidence for activities
+- Record reflections for sessions
+
+### 4.2 Mentor Role
+- View assigned students' activities/sessions
+- Approve/reject activities with feedback
+- Schedule sessions with students
+- View verification queue for activities/sessions
+- Suggest activities to students
+
+### 4.3 Admin Role
+- View all activities/sessions in the system
+- Manage activity types and categories
+- Override verification decisions if needed
+- View reports and statistics about activities/sessions
+- Manage session templates
+
+## 5. Specific UI Components to Create/Update
+1. **Activities List Component**: Reusable component for listing activities with filters
+2. **Activity Detail Component**: For viewing activity details and evidence
+3. **Sessions Calendar**: Visual calendar view of scheduled sessions
+4. **Session Detail Component**: For managing session details and reflections
+5. **Evidence Upload Component**: For attaching files/evidence to activities
+6. **Reflection Form Component**: For adding reflections to completed sessions
+7. **Verification Status Widget**: Visual indication of verification status 
