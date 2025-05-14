@@ -16,6 +16,7 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; userRole?: string }>;
   logout: () => void;
+  register: (name: string, email: string, password: string, role: string, dateOfBirth?: string) => Promise<boolean>;
   refreshToken: () => Promise<boolean>;
   isAuthenticated: boolean;
   hasRole: (roles: string | string[]) => boolean;
@@ -27,6 +28,7 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   login: async () => ({ success: false }),
   logout: () => {},
+  register: async () => false,
   refreshToken: async () => false,
   isAuthenticated: false,
   hasRole: () => false
@@ -98,6 +100,54 @@ export function AuthProvider({ children }: AuthProviderProps) {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setUser(null);
+  };
+
+  // Register function
+  const register = async (
+    name: string,
+    email: string,
+    password: string,
+    role: string,
+    dateOfBirth?: string
+  ): Promise<boolean> => {
+    setLoading(true);
+    try {
+      // Call the register API endpoint
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          name, 
+          email, 
+          password, 
+          role,
+          dateOfBirth 
+        }),
+        credentials: 'include', // Important for cookies
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Registration failed:', errorData.error);
+        return false;
+      }
+      
+      const data = await response.json();
+      
+      // Store auth data in localStorage
+      localStorage.setItem('token', data.token || '');
+      localStorage.setItem('user', JSON.stringify(data.user));
+      
+      setUser(data.user);
+      return true;
+    } catch (error) {
+      console.error('Registration failed:', error);
+      return false;
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Login function
@@ -205,6 +255,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     loading,
     login,
     logout,
+    register,
     refreshToken,
     isAuthenticated: !!user,
     hasRole
