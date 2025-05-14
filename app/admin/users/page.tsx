@@ -4,10 +4,10 @@ import { useState, useEffect, Fragment, useRef } from 'react';
 import Link from 'next/link';
 import { 
   Search, UserPlus, Filter, Edit, Trash2, CheckCircle, XCircle, Shield, 
-  GraduationCap, Briefcase, ChevronDown, Download, Upload, Info, HelpCircle, ShieldCheck, User,
+  GraduationCap, Briefcase, ChevronDown, Download, Upload, Info, HelpCircle, ShieldCheck, User as UserIcon,
   Users, UserCheck, X, Plus, ArrowRightLeft, Eye, UploadCloud
 } from 'lucide-react';
-import { useAuth } from '@/lib/auth-context';
+import { useAuth, User as AuthUser } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -76,7 +76,7 @@ const statusStyles = {
 const roleStyles = {
   admin: { bg: 'bg-red-100', icon: <ShieldCheck className="h-4 w-4 text-red-600" /> },
   mentor: { bg: 'bg-blue-100', icon: <GraduationCap className="h-4 w-4 text-blue-600" /> },
-  student: { bg: 'bg-green-100', icon: <User className="h-4 w-4 text-green-600" /> }
+  student: { bg: 'bg-green-100', icon: <UserIcon className="h-4 w-4 text-green-600" /> }
 };
 
 export default function AdminUsersPage() {
@@ -1030,35 +1030,52 @@ export default function AdminUsersPage() {
     if (!userToView) return;
     
     // Store original user in localStorage for returning later
-    localStorage.setItem('original_user', JSON.stringify(user));
+    if (user) {
+      localStorage.setItem('original_user', JSON.stringify(user));
+    }
     
-    // Create a User object from the user data
-    const viewAsUser: UserType = {
-      id: userToView.id,
+    // Create a User object matching the AuthUser type
+    const viewAsUser: AuthUser = {
+      id: String(userToView.id), // Ensure id is a string
       name: userToView.name,
       email: userToView.email,
-      role: userToView.role as UserRole,
-      status: (userToView.status || 'active') as UserStatus
+      role: userToView.role as 'admin' | 'mentor' | 'student'
     };
     
-    // Update user context
-    setUser(viewAsUser);
+    // Add a token for the user (without this, auth middleware may block access)
+    // This is a simple temporary token - in a real application you would generate a proper JWT
+    const tempToken = btoa(JSON.stringify({
+      id: viewAsUser.id,
+      role: viewAsUser.role,
+      exp: Math.floor(Date.now() / 1000) + 3600 // 1 hour expiration
+    }));
     
     // Save to localStorage to persist across page refresh
     localStorage.setItem('user', JSON.stringify(viewAsUser));
+    localStorage.setItem('token', tempToken);
     localStorage.setItem('is_temporary_user', 'true');
+    
+    // Update user context
+    setUser(viewAsUser);
     
     // Redirect to appropriate page based on role
     if (viewAsUser.role === 'admin') {
       router.push('/admin');
     } else if (viewAsUser.role === 'mentor') {
-      router.push('/mentor/students');
+      router.push('/mentor/dashboard');
     } else {
       router.push('/dashboard');
     }
     
     // Close modal
     setViewAsModalOpen(false);
+    
+    // Show toast notification
+    toast({
+      title: "Viewing as user",
+      description: `You are now viewing the application as ${viewAsUser.name}`,
+      variant: "default",
+    });
   };
 
   // Get student count for a mentor from the current state
@@ -2171,7 +2188,7 @@ export default function AdminUsersPage() {
                                 <td className="px-6 py-4 whitespace-nowrap">
                                   <div className="flex items-center">
                                     <div className="flex-shrink-0 h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
-                                      <User className="h-4 w-4 text-gray-500" />
+                                      <UserIcon className="h-4 w-4 text-gray-500" />
                                     </div>
                                     <div className="ml-4">
                                       <div className="text-sm font-medium text-gray-900">

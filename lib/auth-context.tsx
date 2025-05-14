@@ -20,6 +20,7 @@ interface AuthContextType {
   refreshToken: () => Promise<boolean>;
   isAuthenticated: boolean;
   hasRole: (roles: string | string[]) => boolean;
+  setUser: (user: User | null) => void;
 }
 
 // Create context with default values
@@ -31,7 +32,8 @@ const AuthContext = createContext<AuthContextType>({
   register: async () => false,
   refreshToken: async () => false,
   isAuthenticated: false,
-  hasRole: () => false
+  hasRole: () => false,
+  setUser: () => {}
 });
 
 // Auth provider props
@@ -258,7 +260,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     register,
     refreshToken,
     isAuthenticated: !!user,
-    hasRole
+    hasRole,
+    setUser
   };
 
   return (
