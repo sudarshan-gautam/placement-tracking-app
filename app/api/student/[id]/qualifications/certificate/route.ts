@@ -3,6 +3,14 @@ import { roleMiddleware } from '@/lib/auth-middleware';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 
+// Helper function to compress images if needed in the future
+const compressImage = async (buffer: Buffer, fileType: string): Promise<Buffer> => {
+  // In a production app, you would use sharp or another library to compress images
+  // For now, we'll just return the original buffer
+  // This is a placeholder for future implementation
+  return buffer;
+};
+
 // POST endpoint to upload a certificate file
 export async function POST(
   request: NextRequest,
@@ -75,13 +83,20 @@ export async function POST(
     const userDir = path.join(certificatesDir, params.id);
     await mkdir(userDir, { recursive: true });
     
+    // Process the file
+    let fileBuffer = Buffer.from(await file.arrayBuffer());
+    
+    // If it's an image file, potentially compress it (placeholder for future implementation)
+    if (file.type.startsWith('image/')) {
+      fileBuffer = await compressImage(fileBuffer, file.type);
+    }
+    
     // Save the file
     const filePath = path.join(userDir, fileName);
-    const fileBuffer = Buffer.from(await file.arrayBuffer());
     await writeFile(filePath, fileBuffer);
     
-    // Generate the public URL
-    const certificateUrl = `/certificates/${params.id}/${fileName}`;
+    // Generate the public URL - include a cache buster
+    const certificateUrl = `/certificates/${params.id}/${fileName}?v=${Date.now()}`;
     
     // Update the qualification record with the certificate URL
     const sqlite3 = require('sqlite3').verbose();
@@ -125,11 +140,16 @@ export async function POST(
     
     await db.close();
     
-    return NextResponse.json({
+    // Add cache control header to response
+    const response = NextResponse.json({
       success: true,
       certificate_url: certificateUrl,
       qualification: updatedQualification
     });
+    
+    response.headers.set('Cache-Control', 'no-cache');
+    
+    return response;
     
   } catch (error) {
     console.error('Error uploading certificate:', error);

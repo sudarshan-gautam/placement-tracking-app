@@ -42,7 +42,13 @@ export async function GET(
     // Close database connection
     await db.close();
 
-    return NextResponse.json(qualifications);
+    // Create a response with proper caching headers
+    const response = NextResponse.json(qualifications);
+    
+    // Enable caching for 5 minutes (300 seconds)
+    response.headers.set('Cache-Control', 'public, max-age=300, s-maxage=300, stale-while-revalidate=60');
+    
+    return response;
   } catch (error) {
     console.error('Error fetching qualifications:', error);
     return NextResponse.json(

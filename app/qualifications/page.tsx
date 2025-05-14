@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import { 
@@ -45,6 +45,7 @@ export default function QualificationsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [qualificationsPerPage] = useState(5);
   const [totalPages, setTotalPages] = useState(1);
+  const [lastFetchTime, setLastFetchTime] = useState<number>(0);
 
   // Redirect if not logged in
   useEffect(() => {
@@ -58,18 +59,22 @@ export default function QualificationsPage() {
     }
   }, [user, router, loading]);  // Add loading to the dependency array
 
-  // Fetch qualifications once after authentication is confirmed
-  useEffect(() => {
-    if (user && !isLoading) {
-      fetchQualifications();
+  // Memoized fetch function to prevent unnecessary re-renders
+  const fetchQualifications = useCallback(async (force = false) => {
+    // Only fetch if user exists and either force is true or this is the first load
+    if (!user?.id) return;
+    
+    // Don't fetch if we already fetched in the last 30 seconds (unless force=true)
+    const now = Date.now();
+    if (!force && lastFetchTime > 0 && now - lastFetchTime < 30000) {
+      return;
     }
-  }, [user]); // Remove fetchQualifications to avoid dependency loop
-
-  const fetchQualifications = async () => {
+    
     setIsLoading(true);
     try {
-      const data = await api.get<Qualification[]>(`/api/student/${user?.id}/qualifications`);
+      const data = await api.get<Qualification[]>(`/api/student/${user.id}/qualifications`);
       setQualifications(data);
+      setLastFetchTime(now);
     } catch (error) {
       console.error('Error fetching qualifications:', error);
       toast({
@@ -80,7 +85,14 @@ export default function QualificationsPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user?.id, lastFetchTime]);
+
+  // Fetch qualifications once after authentication is confirmed
+  useEffect(() => {
+    if (user && !loading) {
+      fetchQualifications();
+    }
+  }, [user, loading, fetchQualifications]);
 
   const handleAddQualification = () => {
     setIsAddingQualification(true);
@@ -100,7 +112,7 @@ export default function QualificationsPage() {
         title: 'Success',
         description: 'Qualification deleted successfully'
       });
-      fetchQualifications();
+      fetchQualifications(true); // Force refresh
     } catch (error) {
       console.error('Error deleting qualification:', error);
       toast({
@@ -114,7 +126,7 @@ export default function QualificationsPage() {
   };
 
   const handleQualificationSaved = () => {
-    fetchQualifications();
+    fetchQualifications(true); // Force refresh
     setIsAddingQualification(false);
     setEditingQualification(null);
   };
@@ -446,13 +458,24 @@ export default function QualificationsPage() {
                   src={viewingCertificate}
                   className="w-full h-full"
                   title="Certificate PDF"
+                  loading="lazy"
                 ></iframe>
               ) : (
-                <img
-                  src={viewingCertificate}
-                  alt="Certificate"
-                  className="max-w-full h-auto mx-auto"
-                />
+                <div className="relative w-full h-full flex items-center justify-center">
+                  <div className="animate-pulse absolute inset-0 bg-gray-100 flex items-center justify-center" id="img-loading">
+                    <span className="text-gray-500">Loading image...</span>
+                  </div>
+                  <img
+                    src={viewingCertificate}
+                    alt="Certificate"
+                    className="max-w-full h-auto mx-auto"
+                    loading="lazy"
+                    onLoad={() => {
+                      const loadingEl = document.getElementById('img-loading');
+                      if (loadingEl) loadingEl.style.display = 'none';
+                    }}
+                  />
+                </div>
               )
             )}
           </div>

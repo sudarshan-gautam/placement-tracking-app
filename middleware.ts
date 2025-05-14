@@ -98,6 +98,23 @@ export async function middleware(request: NextRequest) {
     // If there's an error parsing the user data, redirect to landing page
     return NextResponse.redirect(new URL('/', request.url));
   }
+
+  // Add caching headers for certificate files
+  if (pathname.startsWith('/certificates/')) {
+    // Set cache headers for certificate files
+    const response = NextResponse.next();
+    
+    // Cache certificate images for 1 day (86400 seconds)
+    if (pathname.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+      response.headers.set('Cache-Control', 'public, max-age=86400, immutable');
+    } 
+    // Cache PDFs for 1 day as well
+    else if (pathname.endsWith('.pdf')) {
+      response.headers.set('Cache-Control', 'public, max-age=86400, immutable');
+    }
+    
+    return response;
+  }
 }
 
 // Helper function to check if the path is public
