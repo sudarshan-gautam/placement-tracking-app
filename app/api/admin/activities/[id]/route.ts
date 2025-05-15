@@ -2,6 +2,24 @@ import { NextRequest, NextResponse } from "next/server";
 import { roleMiddleware } from "@/lib/auth-middleware";
 import db from "@/lib/db";
 
+// Define interface for activity data
+interface Activity {
+  id: string;
+  title: string;
+  description: string | null;
+  activity_type: string;
+  date_completed: string;
+  duration_minutes: number;
+  evidence_url: string | null;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  student_id: string;
+  assigned_by: string | null;
+  student_name: string;
+  assigned_by_name: string | null;
+}
+
 // GET a single activity by ID
 export async function GET(
   req: NextRequest,
@@ -10,8 +28,12 @@ export async function GET(
   try {
     // Authenticate and authorize the user as admin
     const user = await roleMiddleware(req);
-    if (!user || user.role !== "admin") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!user) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    }
+    
+    if (user.role !== "admin") {
+      return NextResponse.json({ error: "Admin privileges required" }, { status: 403 });
     }
 
     // Extract ID from params
@@ -24,7 +46,15 @@ export async function GET(
       );
     }
 
-    // Query to get activity details
+    // Validate activityId format
+    if (!/^[a-zA-Z0-9-_]+$/.test(activityId)) {
+      return NextResponse.json(
+        { error: "Invalid activity ID format" },
+        { status: 400 }
+      );
+    }
+
+    // Updated query to get activity details without using activity_verifications table
     const sql = `
       SELECT 
         a.id, 
@@ -38,35 +68,48 @@ export async function GET(
         a.created_at,
         a.updated_at,
         a.student_id,
+        a.assigned_by,
         u.name as student_name,
-        av.id as verification_id,
-        av.verification_status,
-        av.feedback,
-        av.verified_by,
-        vm.name as verified_by_name
+        creator.name as assigned_by_name
       FROM activities a
       JOIN users u ON a.student_id = u.id
-      LEFT JOIN activity_verifications av ON a.id = av.activity_id
-      LEFT JOIN users vm ON av.verified_by = vm.id
+      LEFT JOIN users creator ON a.assigned_by = creator.id
       WHERE a.id = ?
     `;
 
-    // Execute query
-    const activity = await db.getOne(sql, [activityId]);
+    try {
+      // Execute query
+      const activity = await db.getOne<Activity>(sql, [activityId]);
 
-    // If no activity found, return 404
-    if (!activity) {
+      // If no activity found, return 404
+      if (!activity) {
+        return NextResponse.json(
+          { error: "Activity not found" },
+          { status: 404 }
+        );
+      }
+
+      // Map status to verification_status for compatibility
+      const activityWithVerification = {
+        ...activity,
+        verification_status: activity.status === 'completed' ? 'verified' : 
+                            activity.status === 'submitted' ? 'pending' : 'draft',
+        feedback: null,
+        verified_by_name: null
+      };
+
+      return NextResponse.json(activityWithVerification);
+    } catch (dbError) {
+      console.error("Database error:", dbError);
       return NextResponse.json(
-        { error: "Activity not found" },
-        { status: 404 }
+        { error: "Database error while fetching activity" },
+        { status: 500 }
       );
     }
-
-    return NextResponse.json(activity);
   } catch (error) {
     console.error("Error fetching activity:", error);
     return NextResponse.json(
-      { error: "Failed to fetch activity" },
+      { error: "Failed to fetch activity: " + (error instanceof Error ? error.message : "Unknown error") },
       { status: 500 }
     );
   }

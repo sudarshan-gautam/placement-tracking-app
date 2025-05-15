@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { roleMiddleware } from "@/lib/auth-middleware";
 import db from "@/lib/db";
-import { v4 as uuidv4 } from "uuid";
+
+// Define activity interface
+interface Activity {
+  id: string;
+  status: string;
+}
 
 // POST to reset an activity verification status
 export async function POST(req: NextRequest) {
@@ -26,7 +31,7 @@ export async function POST(req: NextRequest) {
 
     // First, check if the activity exists
     const activitySql = `SELECT * FROM activities WHERE id = ?`;
-    const activity = await db.getOne(activitySql, [activity_id]);
+    const activity = await db.getOne<Activity>(activitySql, [activity_id]);
 
     if (!activity) {
       return NextResponse.json(
@@ -35,20 +40,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check if a verification record exists
-    const checkSql = `SELECT * FROM activity_verifications WHERE activity_id = ?`;
-    const existingVerification = await db.getOne(checkSql, [activity_id]);
-
-    if (!existingVerification) {
+    // Check if the activity is already in submitted status (pending verification)
+    if (activity.status === 'submitted') {
       return NextResponse.json(
-        { error: "No verification record found for this activity" },
-        { status: 404 }
+        { success: true, message: "Activity is already in pending verification status" }
       );
     }
 
-    // Delete the verification
-    const deleteSql = `DELETE FROM activity_verifications WHERE activity_id = ?`;
-    await db.runQuery(deleteSql, [activity_id]);
+    // Reset the activity status back to 'submitted' (pending verification)
+    const updateSql = `
+      UPDATE activities 
+      SET 
+        status = 'submitted',
+        updated_at = datetime('now')
+      WHERE id = ?
+    `;
+    
+    await db.runQuery(updateSql, [activity_id]);
 
     // Return success response
     return NextResponse.json({

@@ -92,10 +92,16 @@ export default function AdminActivityDetailPage() {
         const response = await fetch(`/api/admin/activities/${activityId}`, { headers });
         
         if (!response.ok) {
-          throw new Error(`Failed to fetch activity: ${response.status} ${response.statusText}`);
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+          throw new Error(errorData.error || `Failed to fetch activity: ${response.status} ${response.statusText}`);
         }
         
         const data = await response.json();
+        
+        if (!data || Object.keys(data).length === 0) {
+          throw new Error('Activity not found or no data returned');
+        }
+        
         setActivity(data);
         
         // Pre-fill feedback if it exists
@@ -104,7 +110,7 @@ export default function AdminActivityDetailPage() {
         }
       } catch (error) {
         console.error("Error fetching activity details:", error);
-        setError("Failed to load activity details. Please try again.");
+        setError(error instanceof Error ? error.message : "Failed to load activity details. Please try again.");
       } finally {
         setIsLoading(false);
       }
@@ -359,105 +365,154 @@ export default function AdminActivityDetailPage() {
       ) : activity ? (
         <>
           <Card>
-            <CardHeader>
+            <CardHeader className="pb-4 border-b">
               <div className="flex items-start justify-between">
                 <div>
                   <CardTitle className="text-2xl font-bold">{activity.title}</CardTitle>
-                  <p className="text-muted-foreground mt-1">
-                    {renderStatusBadge(activity.verification_status)}
-                  </p>
+                  <div className="mt-2 flex items-center">
+                    <User className="h-4 w-4 text-muted-foreground mr-2" />
+                    <span className="text-sm text-muted-foreground">Student: {activity.student_name}</span>
+                  </div>
                 </div>
-                <Badge variant="secondary" className="capitalize">
+                <Badge variant="secondary" className="capitalize px-3 py-1">
                   {activity.activity_type}
                 </Badge>
               </div>
             </CardHeader>
+            <CardContent className="pt-6">
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Description</h3>
+                  <p className="text-muted-foreground">{activity.description || "No description provided."}</p>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+                  <div className="bg-slate-50 rounded-lg p-4">
+                    <div className="flex flex-col">
+                      <span className="text-sm text-muted-foreground mb-1">Completion Date</span>
+                      <div className="flex items-center">
+                        <Calendar className="h-4 w-4 text-primary mr-2" />
+                        <span className="font-medium">{formatDate(activity.date_completed)}</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-slate-50 rounded-lg p-4">
+                    <div className="flex flex-col">
+                      <span className="text-sm text-muted-foreground mb-1">Duration</span>
+                      <div className="flex items-center">
+                        <Clock className="h-4 w-4 text-primary mr-2" />
+                        <span className="font-medium">{activity.duration_minutes} minutes</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-slate-50 rounded-lg p-4">
+                    <div className="flex flex-col">
+                      <span className="text-sm text-muted-foreground mb-1">Status</span>
+                      <div className="flex items-center">
+                        {renderStatusBadge(activity.verification_status)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {activity.evidence_url && (
+                  <div className="mt-6 border-t pt-6">
+                    <h3 className="text-lg font-semibold mb-2">Evidence</h3>
+                    <div className="flex items-center">
+                      <LinkIcon className="h-4 w-4 text-primary mr-2" />
+                      <a 
+                        href={activity.evidence_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline"
+                      >
+                        View Evidence
+                      </a>
+                    </div>
+                  </div>
+                )}
+                
+                {activity.assigned_by_name && activity.assigned_by !== activity.student_id && (
+                  <div className="border-t pt-6">
+                    <div className="flex items-center">
+                      <User className="h-4 w-4 text-muted-foreground mr-2" />
+                      <span className="text-sm text-muted-foreground">Assigned by: {activity.assigned_by_name}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+            <CardFooter className="border-t px-6 py-4 flex justify-between">
+              <Button 
+                variant="outline"
+                onClick={() => router.push(`/admin/activities/${activity.id}/edit`)}
+                disabled={submitting}
+              >
+                Edit Activity
+              </Button>
+              
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" disabled={submitting}>
+                    Delete Activity
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete the activity
+                      and remove all associated verification data.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction 
+                      className="bg-red-600 hover:bg-red-700"
+                      onClick={async () => {
+                        try {
+                          const response = await fetch(`/api/admin/activities/${activity.id}`, {
+                            method: 'DELETE',
+                            headers: {
+                              'Authorization': `Bearer ${localStorage.getItem('token')}`
+                            }
+                          });
+                          
+                          if (!response.ok) {
+                            throw new Error('Failed to delete activity');
+                          }
+                          
+                          toast({
+                            title: "Activity Deleted",
+                            description: "The activity has been successfully deleted.",
+                          });
+                          
+                          router.push('/admin/activities');
+                        } catch (error) {
+                          console.error('Error deleting activity:', error);
+                          toast({
+                            title: "Error",
+                            description: "Failed to delete activity. Please try again.",
+                            variant: "destructive"
+                          });
+                        }
+                      }}
+                    >
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </CardFooter>
           </Card>
           
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="details">Activity Details</TabsTrigger>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mt-6">
+            <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="verification">Verification</TabsTrigger>
               <TabsTrigger value="history">Verification History</TabsTrigger>
             </TabsList>
-            
-            <TabsContent value="details" className="space-y-4 pt-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="md:col-span-2">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Activity Information</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div>
-                        <h3 className="font-medium">Description</h3>
-                        <p className="text-muted-foreground mt-1">{activity.description || "No description provided."}</p>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="flex items-center space-x-2">
-                          <Calendar className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm">Completed: {formatDate(activity.date_completed)}</span>
-                        </div>
-                        
-                        <div className="flex items-center space-x-2">
-                          <Clock className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm">Duration: {activity.duration_minutes} minutes</span>
-                        </div>
-                        
-                        {activity.evidence_url && (
-                          <div className="flex items-center space-x-2">
-                            <LinkIcon className="h-4 w-4 text-muted-foreground" />
-                            <a 
-                              href={activity.evidence_url} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-sm text-blue-600 hover:underline"
-                            >
-                              View Evidence
-                            </a>
-                          </div>
-                        )}
-                        
-                        {activity.assigned_by_name && activity.assigned_by !== activity.student_id && (
-                          <div className="flex items-center space-x-2 mt-2">
-                            <User className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm">Assigned by: {activity.assigned_by_name}</span>
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-                
-                <div>
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Student Information</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Name:</span>
-                          <span className="font-medium">{activity.student_name}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">ID:</span>
-                          <span className="font-medium">{activity.student_id}</span>
-                        </div>
-                        <div className="flex justify-end mt-4">
-                          <Button variant="outline" size="sm" asChild>
-                            <Link href={`/admin/students/${activity.student_id}`}>
-                              View Profile
-                            </Link>
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              </div>
-            </TabsContent>
             
             <TabsContent value="verification" className="space-y-4 pt-4">
               <Card>
