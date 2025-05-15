@@ -42,7 +42,10 @@ export async function GET(request: NextRequest) {
       // Get fresh user data from database
       const db = await openDb();
       const user = await db.get(
-        `SELECT id, name, email, role FROM users WHERE id = ?`,
+        `SELECT u.id, u.name, u.email, u.role, p.profileImage 
+         FROM users u 
+         LEFT JOIN user_profiles p ON u.id = p.user_id 
+         WHERE u.id = ?`,
         decoded.id
       );
       await db.close();

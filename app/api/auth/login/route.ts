@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
-import db, { getDb, findUserByEmail, validateUser } from '@/lib/db';
+import db, { getDb, findUserByEmail, validateUser, getOne } from '@/lib/db';
 import { cookies } from 'next/headers';
 import { JWT_SECRET, JWT_EXPIRES_IN, JWT_COOKIE_OPTIONS } from '@/lib/jwt-config';
 
@@ -32,9 +32,25 @@ export async function POST(request: Request) {
 
       console.log("User found:", { id: user.id, email: user.email, role: user.role });
 
+      // Get full user data including profile image
+      const fullUserData = await getOne<{id: string, name: string, email: string, role: string, profileImage?: string}>(
+        `SELECT u.id, u.name, u.email, u.role, p.profileImage 
+         FROM users u 
+         LEFT JOIN user_profiles p ON u.id = p.user_id 
+         WHERE u.id = ?`,
+        [user.id]
+      );
+
       // Create a sanitized user object without the password
       const { password: _, ...userWithoutPassword } = user;
-      console.log("Login successful, returning user:", userWithoutPassword);
+      
+      // Merge profile data if available
+      const userData = {
+        ...userWithoutPassword,
+        profileImage: fullUserData?.profileImage || null
+      };
+      
+      console.log("Login successful, returning user with profile data");
       
       // Generate a JWT token using centralized JWT config
       const token = jwt.sign(
@@ -52,7 +68,7 @@ export async function POST(request: Request) {
       // Create a response with user data and token
       const response = NextResponse.json(
         { 
-          user: userWithoutPassword,
+          user: userData,
           token: token
         }, 
         { status: 200 }
@@ -63,7 +79,8 @@ export async function POST(request: Request) {
         id: user.id,
         email: user.email,
         role: user.role,
-        name: user.name
+        name: user.name,
+        profileImage: userData.profileImage
       };
       
       // Set cookie with consistent settings from JWT config

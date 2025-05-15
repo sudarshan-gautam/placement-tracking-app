@@ -705,38 +705,28 @@ export default function ProfilePage() {
         return response.json();
       })
       .then(data => {
-        // Instead of updating user object, only update UI
+        // Update the profile image in the UI
         setProfileImage(data.imageUrl);
         
-        // Also keep the localStorage updated for backward compatibility
-        const storedUser = localStorage.getItem('user');
-        if (storedUser) {
-          try {
-            const userData = JSON.parse(storedUser);
-            // Don't update profileImage here anymore
-            localStorage.setItem('user', JSON.stringify(userData));
-          } catch (error) {
-            console.error('Error updating user in localStorage:', error);
-          }
+        // Update the user context with the new profile image
+        if (updateUser) {
+          updateUser({
+            ...user,
+            profileImage: data.imageUrl
+          });
         }
 
-        // Update personal details
-        setPersonalDetails(prev => ({
-          ...prev,
-          profileImage: data.imageUrl
-        }));
-          
-      toast({
+        toast({
           title: "Profile image updated",
           description: "Your profile image has been updated successfully"
-      });
+        });
       })
       .catch(error => {
         console.error('Error uploading profile image:', error);
-      toast({
-        title: "Error",
+        toast({
+          title: "Error",
           description: error.message || "Failed to upload profile image",
-        variant: "destructive"
+          variant: "destructive"
         });
         
         // Restore previous image if upload fails

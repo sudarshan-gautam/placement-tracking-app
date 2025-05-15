@@ -8,6 +8,7 @@ export interface User {
   name: string;
   email: string;
   role: 'student' | 'mentor' | 'admin';
+  profileImage?: string;
 }
 
 // Auth context interface
@@ -21,6 +22,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   hasRole: (roles: string | string[]) => boolean;
   setUser: (user: User | null) => void;
+  updateUser: (userData: Partial<User>) => void;
 }
 
 // Create context with default values
@@ -33,7 +35,8 @@ const AuthContext = createContext<AuthContextType>({
   refreshToken: async () => false,
   isAuthenticated: false,
   hasRole: () => false,
-  setUser: () => {}
+  setUser: () => {},
+  updateUser: () => {}
 });
 
 // Auth provider props
@@ -55,38 +58,34 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const checkAuth = async () => {
     setLoading(true);
     try {
-      // First check for token in localStorage
+      // First check for token in localStorage - we still need the token for API calls
       const token = localStorage.getItem('token');
-      const storedUser = localStorage.getItem('user');
       
-      if (token && storedUser) {
-        // If we have both, use them
-        setUser(JSON.parse(storedUser));
-        setLoading(false);
-        return;
-      }
-      
-      // If either is missing, try to use the API to verify authentication
-      try {
-        const response = await fetch('/api/auth/verify', {
-          method: 'GET',
-          credentials: 'include', // Important for cookies
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
+      if (token) {
+        try {
+          // Verify the token with the API
+          const response = await fetch('/api/auth/verify', {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            },
+            credentials: 'include', // Important for cookies
+          });
           
-          // Update localStorage with the refreshed data
-          localStorage.setItem('token', data.token);
-          localStorage.setItem('user', JSON.stringify(data.user));
-          
-          setUser(data.user);
-        } else {
-          // Not authenticated or token invalid
+          if (response.ok) {
+            const data = await response.json();
+            // Ensure we're keeping track of the profileImage
+            console.log('Received user data with profile:', data.user);
+            setUser(data.user);
+          } else {
+            // Token is invalid
+            clearAuthData();
+          }
+        } catch (apiError) {
+          console.error('API auth verification failed:', apiError);
           clearAuthData();
         }
-      } catch (apiError) {
-        console.error('API auth verification failed:', apiError);
+      } else {
         clearAuthData();
       }
     } catch (error) {
@@ -100,7 +99,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Helper to clear auth data
   const clearAuthData = () => {
     localStorage.removeItem('token');
-    localStorage.removeItem('user');
     setUser(null);
   };
 
@@ -138,9 +136,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       
       const data = await response.json();
       
-      // Store auth data in localStorage
+      // Store auth token in localStorage
       localStorage.setItem('token', data.token || '');
-      localStorage.setItem('user', JSON.stringify(data.user));
       
       setUser(data.user);
       return true;
@@ -172,9 +169,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       
       const data = await response.json();
       
-      // Store auth data in localStorage
+      // Store auth token in localStorage
       localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
       
       setUser(data.user);
       
@@ -215,7 +211,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
       
       // If user data has changed, update that too
       if (data.user) {
-        localStorage.setItem('user', JSON.stringify(data.user));
         setUser(data.user);
       }
       
@@ -233,6 +228,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       await fetch('/api/auth/logout', {
         method: 'POST',
         credentials: 'include',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
       }).catch(err => console.error('Logout API error:', err));
     } finally {
       // Always clear local storage regardless of API response
@@ -261,7 +259,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
     refreshToken,
     isAuthenticated: !!user,
     hasRole,
-    setUser
+    setUser,
+    updateUser: (userData: Partial<User>) => {
+      if (user) {
+        setUser({ ...user, ...userData });
+      }
+    }
   };
 
   return (
