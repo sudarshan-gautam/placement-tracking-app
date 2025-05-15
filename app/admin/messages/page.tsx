@@ -134,8 +134,9 @@ export default function AdminMessagesPage() {
         const directData = await directResponse.json();
         console.log('Direct user data received:', directData);
         
-        // Extract users array from the response
-        const usersData = directData.users || [];
+        // Extract users array from the response 
+        // Note: API now returns array directly, not wrapped in users property
+        const usersData = Array.isArray(directData) ? directData : [];
         
         if (usersData.length === 0) {
           console.warn('No users found in direct database response');

@@ -464,7 +464,7 @@ export default function QualificationsPage() {
                 <div className="relative w-full h-full flex items-center justify-center">
                   <div className="animate-pulse absolute inset-0 bg-gray-100 flex items-center justify-center" id="img-loading">
                     <span className="text-gray-500">Loading image...</span>
-                  </div>
+                </div>
                   <img
                     src={viewingCertificate}
                     alt="Certificate"
@@ -477,8 +477,8 @@ export default function QualificationsPage() {
                   />
                 </div>
               )
-            )}
-          </div>
+                      )}
+                    </div>
           <DialogFooter>
             <Button
               variant="outline"

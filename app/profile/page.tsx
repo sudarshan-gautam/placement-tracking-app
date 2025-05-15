@@ -603,7 +603,7 @@ export default function ProfilePage() {
               }
             }
           }
-        } catch (error) {
+          } catch (error) {
           console.error('Error saving skills data:', error);
           skillsUpdateSuccessful = false;
           if (!errorMessage) {
@@ -613,7 +613,7 @@ export default function ProfilePage() {
       }
       
       if (profileUpdateSuccessful && skillsUpdateSuccessful) {
-        toast({
+      toast({
           title: "Profile Updated",
           description: "Your profile has been successfully updated"
         });
@@ -1392,14 +1392,14 @@ export default function ProfilePage() {
             }}
           />
           <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-            <button
+                    <button 
               className="bg-white text-gray-800 font-bold py-2 px-4 rounded flex items-center"
               onClick={handleCoverImageClick}
-            >
+                    >
               <Camera className="h-4 w-4 mr-2" />
               Change Cover
-            </button>
-          </div>
+                    </button>
+              </div>
           <input 
             type="file" 
             ref={coverInputRef} 

@@ -290,8 +290,8 @@ export default function AdminVerificationsPage() {
     const currentPageNumber = currentPage[type];
     
     if (totalPages <= 1) return null;
-    
-    return (
+  
+  return (
       <div className="flex items-center justify-center space-x-2 mt-4">
         <Button
           variant="outline"
@@ -303,7 +303,7 @@ export default function AdminVerificationsPage() {
         </Button>
         <span className="text-sm">
           Page {currentPageNumber} of {totalPages}
-        </span>
+            </span>
         <Button
           variant="outline"
           size="sm"
@@ -324,9 +324,9 @@ export default function AdminVerificationsPage() {
           <p className="text-muted-foreground">
             Review and process verification requests across the platform
           </p>
-      </div>
-      </div>
-      
+                  </div>
+                </div>
+                
       {/* Status filter tabs */}
       <div className="mb-6">
         <Tabs value={statusFilter} onValueChange={setStatusFilter} className="mb-6">
@@ -337,8 +337,8 @@ export default function AdminVerificationsPage() {
             <TabsTrigger value="rejected">Rejected</TabsTrigger>
           </TabsList>
         </Tabs>
-                  </div>
-
+          </div>
+          
       {/* Filters and search */}
       <div className="flex flex-col sm:flex-row gap-4 mb-6">
         <div className="flex-1">
@@ -409,14 +409,14 @@ export default function AdminVerificationsPage() {
             <p className="text-xs text-muted-foreground">pending verifications</p>
           </CardContent>
         </Card>
-                </div>
-                
+          </div>
+          
       {/* Main content */}
       {isLoading ? (
         <div className="flex justify-center items-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <span className="ml-2">Loading verifications...</span>
-              </div>
+                        </div>
       ) : (
         <Tabs value={currentTab} onValueChange={setCurrentTab}>
           <TabsList className="w-full max-w-2xl mx-auto mb-6">
@@ -619,8 +619,8 @@ export default function AdminVerificationsPage() {
                           <TableCell>{renderStatusBadge(p.verification_status)}</TableCell>
                           <TableCell>{p.verified_by_name || "—"}</TableCell>
                         </TableRow>
-                      ))
-                    ) : (
+          ))
+        ) : (
                       <TableRow>
                         <TableCell colSpan={5} className="text-center py-4">
                           No profile verifications found matching your filters.
