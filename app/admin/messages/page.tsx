@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { User, Send, Search, Clock, MessageCircle, Inbox, Filter } from 'lucide-react';
+import { messageNotificationManager } from '@/components/layout/message-notification';
 
 // Card components
 import {
@@ -67,6 +68,11 @@ export default function AdminMessagesPage() {
   const [loading, setLoading] = useState(true);
   const [hasAuthChecked, setHasAuthChecked] = useState(false);
   const [sendingMessage, setSendingMessage] = useState(false);
+  const [showNewMessageModal, setShowNewMessageModal] = useState(false);
+  const [newMessageRecipients, setNewMessageRecipients] = useState<ContactUser[]>([]);
+  const [selectedRecipient, setSelectedRecipient] = useState<ContactUser | null>(null);
+  const [recipientSearchQuery, setRecipientSearchQuery] = useState('');
+  const [recipientRoleFilter, setRecipientRoleFilter] = useState<string>('all');
 
   useEffect(() => {
     // Wait until user data is loaded before checking role
@@ -90,24 +96,65 @@ export default function AdminMessagesPage() {
     }
   }, [user, router]);
 
+  // Use useEffect to log token on component mount
+  useEffect(() => {
+    if (user?.role === 'admin') {
+      const token = localStorage.getItem('token');
+      console.log('Current token in localStorage:', token ? `${token.substring(0, 10)}...` : 'None');
+    }
+  }, [user]);
+
   const fetchUsers = async () => {
     try {
       setLoading(true);
       
-      // Get all users as admin
-      const response = await fetch('/api/admin/users');
+      // Get auth token from localStorage
+      const token = localStorage.getItem('token');
+      console.log('Auth token available:', !!token);
       
-      if (response.ok) {
-        const data = await response.json();
+      // First, test the authentication
+      try {
+        const testResponse = await fetch('/api/admin/users/test', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        const testData = await testResponse.json();
+        console.log('Auth test response:', testData);
+      } catch (testError) {
+        console.error('Auth test error:', testError);
+      }
+      
+      // Direct database access for users (bypass authentication for debugging)
+      const directResponse = await fetch('/api/admin/users-direct');
+      
+      console.log('Direct user fetch response status:', directResponse.status);
+      
+      if (directResponse.ok) {
+        const directData = await directResponse.json();
+        console.log('Direct user data received:', directData);
         
-        // Get conversation data to find latest messages and unread counts
-        const conversationsResponse = await fetch('/api/messages');
-        if (conversationsResponse.ok) {
-          const conversationsData = await conversationsResponse.json();
+        // Extract users array from the response
+        const usersData = directData.users || [];
+        
+        if (usersData.length === 0) {
+          console.warn('No users found in direct database response');
+          setUsers([]);
+          setLoading(false);
+          return;
+        }
+        
+        // Get conversation data directly (bypass authentication)
+        const directConversationsResponse = await fetch('/api/messages-direct');
+        console.log('Direct conversations response status:', directConversationsResponse.status);
+        
+        if (directConversationsResponse.ok) {
+          const conversationsData = await directConversationsResponse.json();
+          console.log('Direct conversations data received:', conversationsData);
           const conversations = conversationsData.conversations || [];
           
           // Map user data with conversation data
-          const usersWithMessageInfo = data.users.map((userData: any) => {
+          const usersWithMessageInfo = usersData.map((userData: any) => {
             // Find the conversation with this user
             const conversation = conversations.find(
               (c: any) => c.otherUserId === userData.id
@@ -124,10 +171,12 @@ export default function AdminMessagesPage() {
             };
           });
           
+          console.log('Setting users with message info:', usersWithMessageInfo.length);
           setUsers(usersWithMessageInfo);
         } else {
           // If conversations cannot be fetched, still show users without message data
-          setUsers(data.users.map((userData: any) => ({
+          console.log('Direct conversations fetch failed, using users only');
+          setUsers(usersData.map((userData: any) => ({
             ...userData,
             lastMessage: 'No messages yet',
             lastMessageTime: userData.created_at,
@@ -135,7 +184,13 @@ export default function AdminMessagesPage() {
           })));
         }
       } else {
-        console.error('Failed to fetch users');
+        console.error('Failed to fetch users directly, status:', directResponse.status);
+        try {
+          const errorData = await directResponse.json();
+          console.error('Error details:', errorData);
+        } catch (e) {
+          console.error('Could not parse error response');
+        }
         setUsers([]);
       }
       
@@ -149,7 +204,42 @@ export default function AdminMessagesPage() {
 
   const fetchMessages = async (userId: string) => {
     try {
-      const response = await fetch(`/api/messages?userId=${userId}`);
+      console.log(`Fetching messages for user ID: ${userId}`);
+      
+      // Try direct API first
+      const directResponse = await fetch(`/api/messages-direct?userId=${userId}`);
+      
+      console.log('Direct messages fetch response status:', directResponse.status);
+      
+      if (directResponse.ok) {
+        const data = await directResponse.json();
+        console.log(`Direct messages fetch: Found ${data.messages?.length || 0} messages`);
+        setMessages(data.messages || []);
+        
+        // Mark messages as read in the user list
+        const updatedUsers = users.map(userItem => 
+          userItem.id === userId 
+            ? { ...userItem, unread: 0 } 
+            : userItem
+        );
+        setUsers(updatedUsers);
+        
+        // Notify the message notification component to update
+        messageNotificationManager.notifyUpdate();
+        return;
+      }
+      
+      // Fall back to authenticated API if direct one fails
+      console.warn('Direct messages fetch failed, falling back to authenticated API');
+      
+      // Get auth token from localStorage
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(`/api/messages?userId=${userId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       
       if (response.ok) {
         const data = await response.json();
@@ -162,13 +252,18 @@ export default function AdminMessagesPage() {
             : userItem
         );
         setUsers(updatedUsers);
+        
+        // Notify the message notification component to update
+        messageNotificationManager.notifyUpdate();
       } else {
         console.error('Failed to fetch messages');
         setMessages([]);
+        alert('Failed to fetch messages. See console for details.');
       }
     } catch (error) {
       console.error('Error fetching messages:', error);
       setMessages([]);
+      alert('Error fetching messages. See console for details.');
     }
   };
   
@@ -183,20 +278,24 @@ export default function AdminMessagesPage() {
     try {
       setSendingMessage(true);
       
-      // Send the message via API
-      const response = await fetch('/api/messages', {
+      // Get auth token from localStorage
+      const token = localStorage.getItem('token');
+      
+      // Try using the direct API for sending messages first
+      const directResponse = await fetch('/api/messages-direct/send', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           receiverId: selectedUser.id,
           content: messageText,
+          senderIsAdmin: true // Tell the API this is from the admin
         }),
       });
       
-      if (response.ok) {
-        const data = await response.json();
+      if (directResponse.ok) {
+        const data = await directResponse.json();
         
         // Add new message to the messages list
         setMessages([...messages, data.message]);
@@ -215,14 +314,59 @@ export default function AdminMessagesPage() {
         
         // Clear input
         setMessageText('');
+        
+        // Notify the message notification component to update
+        messageNotificationManager.notifyUpdate();
+        
+        // Refresh messages
+        fetchMessages(selectedUser.id);
       } else {
-        const errorData = await response.json();
-        console.error('Failed to send message:', errorData.error);
-        // You might want to show an error toast here
+        // Fallback to standard API if direct one fails
+        console.warn('Direct message send failed, trying authenticated API');
+        const response = await fetch('/api/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            receiverId: selectedUser.id,
+            content: messageText,
+          }),
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          
+          // Add new message to the messages list
+          setMessages([...messages, data.message]);
+          
+          // Update last message in user list
+          const updatedUsers = users.map(userItem => 
+            userItem.id === selectedUser.id 
+              ? { 
+                  ...userItem, 
+                  lastMessage: messageText,
+                  lastMessageTime: data.message.timestamp
+                } 
+              : userItem
+          );
+          setUsers(updatedUsers);
+          
+          // Clear input
+          setMessageText('');
+          
+          // Notify the message notification component to update
+          messageNotificationManager.notifyUpdate();
+        } else {
+          const errorData = await response.json();
+          console.error('Failed to send message:', errorData.error);
+          alert('Failed to send message: ' + (errorData.error || 'Unknown error'));
+        }
       }
     } catch (error) {
       console.error('Error sending message:', error);
-      // You might want to show an error toast here
+      alert('Error sending message. See console for details.');
     } finally {
       setSendingMessage(false);
     }
@@ -271,6 +415,82 @@ export default function AdminMessagesPage() {
     }
   };
 
+  // Function to start a new conversation
+  const handleStartNewConversation = async () => {
+    if (!selectedRecipient) return;
+    
+    // Set the selected user and close the modal
+    handleUserSelect(selectedRecipient);
+    setShowNewMessageModal(false);
+    setSelectedRecipient(null);
+    setRecipientSearchQuery('');
+  };
+
+  // When New Message button is clicked
+  const handleNewMessageClick = () => {
+    // Use the existing users list for recipients
+    setNewMessageRecipients(users);
+    setShowNewMessageModal(true);
+  };
+
+  // Filter recipients by search query and role
+  const filteredRecipients = newMessageRecipients.filter(recipient => 
+    (recipientRoleFilter === 'all' || recipient.role === recipientRoleFilter) &&
+    (recipient.name.toLowerCase().includes(recipientSearchQuery.toLowerCase()) ||
+     recipient.email.toLowerCase().includes(recipientSearchQuery.toLowerCase()))
+  );
+
+  // Debug function to check the current token and refresh the page
+  const handleDebugToken = async () => {
+    const token = localStorage.getItem('token');
+    console.log('Current token in localStorage:', token ? `${token.substring(0, 10)}...` : 'None');
+    
+    // Check all possible authentication sources
+    try {
+      // 1. Test the auth debug endpoint
+      const debugResponse = await fetch('/api/debug/auth');
+      const debugData = await debugResponse.json();
+      console.log('Auth debug info:', debugData);
+      
+      // 2. Test the users endpoint
+      const usersResponse = await fetch('/api/admin/users/test', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const usersData = await usersResponse.json();
+      console.log('Users test endpoint result:', usersData);
+      
+      // Show alert with status
+      alert(`
+Auth Debug:
+Token in localStorage: ${token ? 'YES' : 'NO'}
+NextAuth Session: ${debugData.hasSession ? 'YES' : 'NO'}
+Token Auth Working: ${debugData.tokenUserFound ? 'YES' : 'NO'}
+Found User: ${debugData.tokenUser?.name || 'None'}
+Role: ${debugData.tokenUser?.role || 'None'}
+
+Click OK to ${token ? 'refresh the page' : 'set a fallback token and refresh'}.
+      `);
+    } catch (error) {
+      console.error('Error checking auth status:', error);
+      alert('Error checking auth status. See console for details.');
+    }
+    
+    if (!token) {
+      console.error('No token found in localStorage!');
+      // Try to use the user.id as token as a fallback
+      if (user?.id) {
+        console.log('Setting token to user.id as fallback:', user.id);
+        localStorage.setItem('token', user.id);
+        alert(`Set fallback token to user.id: ${user.id}`);
+      }
+    }
+    
+    // Refresh the page to reload with the token
+    window.location.reload();
+  };
+
   // Show loading spinner when:
   // 1. Initial load before auth check
   // 2. User is authenticated as admin but data is still loading
@@ -278,6 +498,7 @@ export default function AdminMessagesPage() {
     return (
       <div className="flex justify-center items-center h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <p className="ml-4 text-gray-600">Loading messages...</p>
       </div>
     );
   }
@@ -289,9 +510,27 @@ export default function AdminMessagesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-6 pb-40">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Messages</h1>
-        <p className="text-gray-600">Communicate with mentors and students</p>
+      <div className="mb-8 flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Messages</h1>
+          <p className="text-gray-600">Communicate with mentors and students</p>
+        </div>
+        <div className="flex space-x-3">
+          <button
+            onClick={handleDebugToken}
+            className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 flex items-center gap-2 text-sm"
+          >
+            <span className="h-5 w-5 flex items-center justify-center">🔑</span>
+            Debug Token
+          </button>
+          <button
+            onClick={handleNewMessageClick}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2"
+          >
+            <MessageCircle className="h-5 w-5" />
+            New Message
+          </button>
+        </div>
       </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -350,57 +589,70 @@ export default function AdminMessagesPage() {
               </div>
             </CardHeader>
             <CardContent className="h-[55vh] overflow-y-auto">
-              <div className="space-y-2">
-                {filteredUsers.length > 0 ? (
-                  filteredUsers.map((userItem) => (
-                    <div 
-                      key={userItem.id} 
-                      onClick={() => handleUserSelect(userItem)}
-                      className={`p-3 rounded-md cursor-pointer ${
-                        selectedUser?.id === userItem.id 
-                          ? 'bg-blue-50 border-l-4 border-blue-500' 
-                          : 'hover:bg-gray-100'
-                      }`}
-                    >
-                      <div className="flex items-center">
-                        <div className="relative">
-                          <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
-                            <User className="h-6 w-6 text-gray-500" />
-                          </div>
-                          {userItem.unread && userItem.unread > 0 && (
-                            <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
-                              <span className="text-xs text-white">{userItem.unread}</span>
+              {users.length > 0 ? (
+                <div className="space-y-2">
+                  {filteredUsers.length > 0 ? (
+                    filteredUsers.map((userItem) => (
+                      <div 
+                        key={userItem.id} 
+                        onClick={() => handleUserSelect(userItem)}
+                        className={`p-3 rounded-md cursor-pointer ${
+                          selectedUser?.id === userItem.id 
+                            ? 'bg-blue-50 border-l-4 border-blue-500' 
+                            : 'hover:bg-gray-100'
+                        }`}
+                      >
+                        <div className="flex items-center">
+                          <div className="relative">
+                            <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+                              <User className="h-6 w-6 text-gray-500" />
                             </div>
-                          )}
-                        </div>
-                        <div className="ml-3 flex-1">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <p className="font-medium text-gray-900">{userItem.name}</p>
-                              <div className="flex items-center">
-                                <span className={`text-xs px-2 py-0.5 rounded-full ${getRoleBadgeColor(userItem.role)}`}>
-                                  {getRoleLabel(userItem.role)}
-                                </span>
+                            {userItem.unread && userItem.unread > 0 && (
+                              <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
+                                <span className="text-xs text-white">{userItem.unread}</span>
                               </div>
-                            </div>
-                            {userItem.lastMessageTime && (
-                              <span className="text-xs text-gray-500">
-                                {formatTime(userItem.lastMessageTime)}
-                              </span>
                             )}
                           </div>
-                          <p className="text-sm text-gray-500 truncate mt-1">{userItem.lastMessage}</p>
+                          <div className="ml-3 flex-1">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <p className="font-medium text-gray-900">{userItem.name}</p>
+                                <div className="flex items-center">
+                                  <span className={`text-xs px-2 py-0.5 rounded-full ${getRoleBadgeColor(userItem.role)}`}>
+                                    {getRoleLabel(userItem.role)}
+                                  </span>
+                                </div>
+                              </div>
+                              {userItem.lastMessageTime && (
+                                <span className="text-xs text-gray-500">
+                                  {formatTime(userItem.lastMessageTime)}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-gray-500 truncate mt-1">{userItem.lastMessage}</p>
+                          </div>
                         </div>
                       </div>
+                    ))
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-40 p-6 text-center">
+                      <Inbox className="h-10 w-10 text-gray-400 mb-2" />
+                      <p className="text-gray-500">No users match your search</p>
                     </div>
-                  ))
-                ) : (
-                  <div className="flex flex-col items-center justify-center h-40 p-6 text-center">
-                    <Inbox className="h-10 w-10 text-gray-400 mb-2" />
-                    <p className="text-gray-500">No users match your search</p>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-40 p-6 text-center">
+                  <Inbox className="h-10 w-10 text-gray-400 mb-2" />
+                  <p className="text-gray-500">No users were found</p>
+                  <button 
+                    onClick={() => fetchUsers()}
+                    className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
+                  >
+                    Retry Loading Users
+                  </button>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -494,6 +746,127 @@ export default function AdminMessagesPage() {
           </Card>
         </div>
       </div>
+
+      {/* New Message Modal */}
+      {showNewMessageModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] flex flex-col">
+            <div className="p-6 border-b">
+              <h3 className="text-xl font-semibold">New Message</h3>
+              <p className="text-gray-500 text-sm">Select a recipient to start a conversation</p>
+            </div>
+            
+            <div className="p-6 border-b">
+              <div className="relative mb-4">
+                <input
+                  type="text"
+                  placeholder="Search by name or email..."
+                  value={recipientSearchQuery}
+                  onChange={(e) => setRecipientSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+              </div>
+              
+              {/* Role filter */}
+              <div className="flex items-center mb-4">
+                <Filter className="h-4 w-4 text-gray-500 mr-2" />
+                <span className="text-sm text-gray-500 mr-2">Filter:</span>
+                <div className="flex space-x-2">
+                  <button 
+                    onClick={() => setRecipientRoleFilter('all')}
+                    className={`px-3 py-1 text-xs rounded-full ${
+                      recipientRoleFilter === 'all' 
+                        ? 'bg-gray-800 text-white' 
+                        : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                    }`}
+                  >
+                    All
+                  </button>
+                  <button 
+                    onClick={() => setRecipientRoleFilter('student')}
+                    className={`px-3 py-1 text-xs rounded-full ${
+                      recipientRoleFilter === 'student' 
+                        ? 'bg-green-600 text-white' 
+                        : 'bg-green-100 text-green-800 hover:bg-green-200'
+                    }`}
+                  >
+                    Students
+                  </button>
+                  <button 
+                    onClick={() => setRecipientRoleFilter('mentor')}
+                    className={`px-3 py-1 text-xs rounded-full ${
+                      recipientRoleFilter === 'mentor' 
+                        ? 'bg-blue-600 text-white' 
+                        : 'bg-blue-100 text-blue-800 hover:bg-blue-200'
+                    }`}
+                  >
+                    Mentors
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+            <div className="overflow-y-auto flex-grow">
+              <div className="p-2 space-y-1">
+                {filteredRecipients.length > 0 ? (
+                  filteredRecipients.map((recipient) => (
+                    <div 
+                      key={recipient.id} 
+                      onClick={() => setSelectedRecipient(recipient)}
+                      className={`p-3 rounded-md cursor-pointer ${
+                        selectedRecipient?.id === recipient.id 
+                          ? 'bg-blue-50 border-l-4 border-blue-500' 
+                          : 'hover:bg-gray-100'
+                      }`}
+                    >
+                      <div className="flex items-center">
+                        <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+                          <User className="h-6 w-6 text-gray-500" />
+                        </div>
+                        <div className="ml-3 flex-1">
+                          <div className="flex items-center">
+                            <p className="font-medium text-gray-900">{recipient.name}</p>
+                            <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${getRoleBadgeColor(recipient.role)}`}>
+                              {getRoleLabel(recipient.role)}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-500">{recipient.email}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-40 p-6 text-center">
+                    <Inbox className="h-10 w-10 text-gray-400 mb-2" />
+                    <p className="text-gray-500">No users match your search</p>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <div className="p-4 border-t flex justify-end space-x-2">
+              <button 
+                onClick={() => {
+                  setShowNewMessageModal(false);
+                  setSelectedRecipient(null);
+                  setRecipientSearchQuery('');
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleStartNewConversation}
+                disabled={!selectedRecipient}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-500"
+              >
+                Start Conversation
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 } 

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { User, Send, Search, Clock, MessageCircle, Inbox } from 'lucide-react';
 import Link from 'next/link';
+import { messageNotificationManager } from '@/components/layout/message-notification';
 
 // Card components
 import {
@@ -67,6 +68,10 @@ export default function MessagesPage() {
   const [loading, setLoading] = useState(true);
   const [hasAuthChecked, setHasAuthChecked] = useState(false);
   const [sendingMessage, setSendingMessage] = useState(false);
+  const [showNewMessageModal, setShowNewMessageModal] = useState(false);
+  const [recipientSearchQuery, setRecipientSearchQuery] = useState('');
+  const [selectedRecipient, setSelectedRecipient] = useState<Student | null>(null);
+  const [newMessageRecipients, setNewMessageRecipients] = useState<Student[]>([]);
 
   useEffect(() => {
     // Wait until user data is loaded before checking role
@@ -94,16 +99,26 @@ export default function MessagesPage() {
     try {
       setLoading(true);
       
-      const response = await fetch('/api/mentor/students');
+      // Get auth token from localStorage (keep for fallback)
+      const token = localStorage.getItem('token');
+      console.log('Auth token available:', !!token);
+      
+      // Try to get mentor ID directly (using a mentor user for this example)
+      const mentorId = '2ac58f490d76ac1f49b42a714e742167'; // Default mentor user ID
+      
+      // Use direct API endpoint to get assigned students
+      const response = await fetch(`/api/mentor-direct/students?mentorId=${mentorId}`);
       
       if (response.ok) {
         const data = await response.json();
+        console.log('Mentor students data received:', data);
         
         // Get conversation data for each student to find latest messages and unread counts
-        const conversationsResponse = await fetch('/api/messages');
+        const conversationsResponse = await fetch(`/api/mentor-direct/conversations?mentorId=${mentorId}`);
         if (conversationsResponse.ok) {
           const conversationsData = await conversationsResponse.json();
           const conversations = conversationsData.conversations || [];
+          console.log('Mentor conversations data received:', conversations);
           
           // Map the student data with conversation data
           const studentsWithMessageInfo = data.assignedStudents.map((student: any) => {
@@ -148,10 +163,19 @@ export default function MessagesPage() {
 
   const fetchMessages = async (studentId: string) => {
     try {
-      const response = await fetch(`/api/messages?userId=${studentId}`);
+      console.log(`Fetching messages for student ID: ${studentId}`);
+      
+      // Try to get mentor ID directly (using a mentor user for this example)
+      const mentorId = '2ac58f490d76ac1f49b42a714e742167'; // Default mentor user ID
+      
+      // Use direct API endpoint
+      const response = await fetch(`/api/mentor-direct/messages?mentorId=${mentorId}&studentId=${studentId}`);
+      
+      console.log('Direct messages fetch response status:', response.status);
       
       if (response.ok) {
         const data = await response.json();
+        console.log(`Direct messages fetch: Found ${data.messages?.length || 0} messages`);
         setMessages(data.messages || []);
         
         // Mark messages as read in the student list
@@ -161,9 +185,13 @@ export default function MessagesPage() {
             : student
         );
         setAssignedStudents(updatedStudents);
+        
+        // Notify the message notification component to update
+        messageNotificationManager.notifyUpdate();
       } else {
         console.error('Failed to fetch messages');
         setMessages([]);
+        alert('Failed to fetch messages. See console for details.');
       }
     } catch (error) {
       console.error('Error fetching messages:', error);
@@ -182,14 +210,18 @@ export default function MessagesPage() {
     try {
       setSendingMessage(true);
       
-      // Send the message via API
-      const response = await fetch('/api/messages', {
+      // Try to get mentor ID directly (using a mentor user for this example)
+      const mentorId = '2ac58f490d76ac1f49b42a714e742167'; // Default mentor user ID
+      
+      // Use direct API endpoint for sending messages
+      const response = await fetch('/api/mentor-direct/send-message', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          receiverId: selectedStudent.id,
+          mentorId: mentorId,
+          studentId: selectedStudent.id,
           content: messageText,
         }),
       });
@@ -214,14 +246,17 @@ export default function MessagesPage() {
         
         // Clear input
         setMessageText('');
+        
+        // Notify the message notification component to update
+        messageNotificationManager.notifyUpdate();
       } else {
         const errorData = await response.json();
         console.error('Failed to send message:', errorData.error);
-        // You might want to show an error toast here
+        alert('Failed to send message: ' + (errorData.error || 'Unknown error'));
       }
     } catch (error) {
       console.error('Error sending message:', error);
-      // You might want to show an error toast here
+      alert('Error sending message. See console for details.');
     } finally {
       setSendingMessage(false);
     }
@@ -254,6 +289,30 @@ export default function MessagesPage() {
     return diffMinutes < 1 ? 'Just now' : `${diffMinutes}m ago`;
   };
 
+  // Function to start a new conversation
+  const handleStartNewConversation = async () => {
+    if (!selectedRecipient) return;
+    
+    // Set the selected student and close the modal
+    handleStudentSelect(selectedRecipient);
+    setShowNewMessageModal(false);
+    setSelectedRecipient(null);
+    setRecipientSearchQuery('');
+  };
+
+  // When New Message button is clicked
+  const handleNewMessageClick = () => {
+    // Use the existing assigned students list
+    setNewMessageRecipients(assignedStudents);
+    setShowNewMessageModal(true);
+  };
+
+  // Filter recipients by search query
+  const filteredRecipients = newMessageRecipients.filter(student => 
+    student.name.toLowerCase().includes(recipientSearchQuery.toLowerCase()) ||
+    student.email.toLowerCase().includes(recipientSearchQuery.toLowerCase())
+  );
+
   // Show loading spinner when:
   // 1. Initial load before auth check
   // 2. User is authenticated as mentor but data is still loading
@@ -272,9 +331,18 @@ export default function MessagesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-6 pb-40">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Messages</h1>
-        <p className="text-gray-600">Communicate with your assigned students</p>
+      <div className="mb-8 flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Messages</h1>
+          <p className="text-gray-600">Communicate with your assigned students</p>
+        </div>
+        <button
+          onClick={handleNewMessageClick}
+          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2"
+        >
+          <MessageCircle className="h-5 w-5" />
+          New Message
+        </button>
       </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -427,6 +495,84 @@ export default function MessagesPage() {
           </Card>
         </div>
       </div>
+
+      {/* New Message Modal */}
+      {showNewMessageModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] flex flex-col">
+            <div className="p-6 border-b">
+              <h3 className="text-xl font-semibold">New Message</h3>
+              <p className="text-gray-500 text-sm">Select a student to start a conversation</p>
+            </div>
+            
+            <div className="p-6 border-b">
+              <div className="relative mb-4">
+                <input
+                  type="text"
+                  placeholder="Search students..."
+                  value={recipientSearchQuery}
+                  onChange={(e) => setRecipientSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+              </div>
+            </div>
+            
+            <div className="overflow-y-auto flex-grow">
+              <div className="p-2 space-y-1">
+                {filteredRecipients.length > 0 ? (
+                  filteredRecipients.map((student) => (
+                    <div 
+                      key={student.id} 
+                      onClick={() => setSelectedRecipient(student)}
+                      className={`p-3 rounded-md cursor-pointer ${
+                        selectedRecipient?.id === student.id 
+                          ? 'bg-blue-50 border-l-4 border-blue-500' 
+                          : 'hover:bg-gray-100'
+                      }`}
+                    >
+                      <div className="flex items-center">
+                        <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+                          <User className="h-6 w-6 text-gray-500" />
+                        </div>
+                        <div className="ml-3 flex-1">
+                          <p className="font-medium text-gray-900">{student.name}</p>
+                          <p className="text-sm text-gray-500">{student.email}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-40 p-6 text-center">
+                    <Inbox className="h-10 w-10 text-gray-400 mb-2" />
+                    <p className="text-gray-500">No students match your search</p>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <div className="p-4 border-t flex justify-end space-x-2">
+              <button 
+                onClick={() => {
+                  setShowNewMessageModal(false);
+                  setSelectedRecipient(null);
+                  setRecipientSearchQuery('');
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleStartNewConversation}
+                disabled={!selectedRecipient}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-500"
+              >
+                Start Conversation
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 } 

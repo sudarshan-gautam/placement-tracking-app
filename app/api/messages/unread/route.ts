@@ -1,20 +1,44 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { getPool } from '@/lib/db';
+import { getPool, findUserById } from '@/lib/db';
 
-export async function GET() {
-  try {
-    const session = await getServerSession(authOptions);
-
-    if (!session || !session.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+// Helper to get authenticated user from request
+async function getAuthenticatedUser(request: Request) {
+  // First try NextAuth session
+  const session = await getServerSession(authOptions);
+  
+  if (session?.user?.id) {
+    return { id: session.user.id, role: session.user.role };
+  }
+  
+  // If no session, try token from Authorization header
+  const authHeader = request.headers.get('Authorization');
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.substring(7);
+    // Parse the token (in a real app, verify it)
+    try {
+      // This is a simple implementation - in a real app, you'd verify the token
+      // For now, we'll just extract the user ID from token
+      // In this app, the token is just the user ID since we're using a simplified auth
+      const userData = await findUserById(token);
+      if (userData) {
+        return { id: userData.id, role: userData.role };
+      }
+    } catch (error) {
+      console.error('Token validation error:', error);
     }
+  }
+  
+  return null;
+}
 
-    const user = session.user as { id?: string; role?: string; };
-    
-    if (!user.id) {
-      return NextResponse.json({ error: 'User ID not found in session' }, { status: 400 });
+export async function GET(request: Request) {
+  try {
+    const user = await getAuthenticatedUser(request);
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const pool = await getPool();

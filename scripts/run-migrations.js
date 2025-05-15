@@ -11,7 +11,9 @@ console.log('Starting database migrations...');
 const migrations = [
   '../migrations/create-mentor-students.js',
   '../migrations/create-verification-tables.js',
-  '../migrations/add-feedback-to-qualifications.js'
+  '../migrations/add-feedback-to-qualifications.js',
+  '../migrations/create-messages-table.js',
+  '../migrations/drop-mentor-students.js'
 ];
 
 // Run migrations sequentially

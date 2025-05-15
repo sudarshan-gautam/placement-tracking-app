@@ -59,6 +59,12 @@ export function QuickActionsModal({ isOpen, onClose }: QuickActionsModalProps) {
       icon: Folder,
       label: 'Activities',
       bgColor: 'bg-teal-600 hover:bg-teal-700'
+    },
+    {
+      href: '/admin/cv-templates',
+      icon: FileText,
+      label: 'CV Templates',
+      bgColor: 'bg-sky-600 hover:bg-sky-700'
     }
   ];
 
@@ -149,7 +155,7 @@ export function QuickActionsModal({ isOpen, onClose }: QuickActionsModalProps) {
     {
       href: '/documents',
       icon: FileText,
-      label: 'Generate CV',
+      label: 'CV & Documents',
       bgColor: 'bg-indigo-600 hover:bg-indigo-700'
     },
     {

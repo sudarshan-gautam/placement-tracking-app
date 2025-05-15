@@ -162,10 +162,15 @@ export default function ProfilePage() {
   const videoInputRef = useRef<HTMLInputElement>(null);
   const verificationDocRef = useRef<HTMLInputElement>(null);
 
+  // Debug: Log cover image changes
+  useEffect(() => {
+    console.log('Cover image state updated:', coverImage);
+  }, [coverImage]);
+
   // Initialize personal details with user data when available
   useEffect(() => {
     if (user) {
-      // Load verification status on component mount
+      // Log verification status on component mount
       const savedVerificationStatus = localStorage.getItem(`verificationStatus-${user.email}`);
       if (savedVerificationStatus) {
         setVerificationStatus(savedVerificationStatus as VerificationStatus);
@@ -174,6 +179,10 @@ export default function ProfilePage() {
         setVerificationStatus('verified');
         localStorage.setItem(`verificationStatus-${user.email}`, 'verified');
       }
+      
+      // For debugging: log the current profile and cover image URLs
+      console.log('Profile image URL:', profileImage);
+      console.log('Cover image URL:', coverImage);
       
       // Load rejection details if available
       const savedRejectionDetails = localStorage.getItem(`rejectionDetails-${user.email}`);
@@ -291,7 +300,9 @@ export default function ProfilePage() {
             }
             
             // Load cover image if available
-            if (profileData.cover_image) {
+            if (profileData.coverImage) {
+              setCoverImage(profileData.coverImage);
+            } else if (profileData.cover_image) {
               setCoverImage(profileData.cover_image);
             }
           } else {
@@ -1258,7 +1269,13 @@ export default function ProfilePage() {
   const handleCoverImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && user) {
-      // Similar to profile image upload but for cover image
+      // Show loading state
+      toast({
+        title: "Uploading cover image",
+        description: "Please wait while your cover image is being uploaded...",
+      });
+      
+      // Create a local preview of the image
       const reader = new FileReader();
       reader.onload = (e) => {
         if (e.target?.result) {
@@ -1268,11 +1285,81 @@ export default function ProfilePage() {
       };
       reader.readAsDataURL(file);
       
-      // Here you would implement the API call to save the cover image
-      // For now just showing the preview
-      toast({
-        title: "Cover image updated",
-        description: "Your cover image has been updated"
+      // Upload to server
+      const formData = new FormData();
+      formData.append('image', file);
+      
+      // Get stored token
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast({
+          title: "Error",
+          description: "Authentication token is missing. Please log in again.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Call the appropriate API endpoint based on user role
+      const uploadUrl = `/api/${user.role}/${user.id}/cover-image`;
+      console.log("Uploading cover image to:", uploadUrl);
+      
+      fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      })
+      .then(response => {
+        if (!response.ok) {
+          return response.text().then(text => {
+            console.error('Server response:', response.status, text);
+            throw new Error(`Failed to upload cover image: ${response.status} ${text}`);
+          });
+        }
+        return response.json();
+      })
+      .then(data => {
+        console.log("Cover image upload response:", data);
+        
+        // Update the cover image in the UI with the URL from the server
+        setCoverImage(data.imageUrl);
+        
+        // After uploading the cover image, fetch the updated profile data
+        fetch(`/api/${user.role}/${user.id}/profile`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
+        .then(response => response.json())
+        .then(profileData => {
+          console.log("Updated profile data after cover image upload:", profileData);
+          
+          // Ensure we update the cover image from the profile data
+          if (profileData.coverImage) {
+            setCoverImage(profileData.coverImage);
+          }
+        })
+        .catch(error => {
+          console.error("Error fetching updated profile data:", error);
+        });
+        
+        toast({
+          title: "Cover image updated",
+          description: "Your cover image has been updated successfully"
+        });
+      })
+      .catch(error => {
+        console.error('Error uploading cover image:', error);
+        toast({
+          title: "Error",
+          description: error.message || "Failed to upload cover image",
+          variant: "destructive"
+        });
+        
+        // Restore previous image if upload fails
+        setCoverImage('/placeholder-cover.jpg');
       });
     }
   };
@@ -1292,20 +1379,27 @@ export default function ProfilePage() {
         <div className="relative h-64 w-full bg-gray-200 rounded-lg overflow-hidden">
           <Image 
             src={coverImage} 
-            alt="Cover" 
+            alt="Cover"
             width={1200} 
             height={300}
             className="object-cover w-full h-full"
+            priority={true}
+            onError={(e) => {
+              console.error('Error loading cover image:', coverImage);
+              // If image fails to load, fall back to placeholder
+              const target = e.target as HTMLImageElement;
+              target.src = '/placeholder-cover.jpg';
+            }}
           />
           <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                    <button
+            <button
               className="bg-white text-gray-800 font-bold py-2 px-4 rounded flex items-center"
               onClick={handleCoverImageClick}
             >
               <Camera className="h-4 w-4 mr-2" />
               Change Cover
-                    </button>
-              </div>
+            </button>
+          </div>
           <input 
             type="file" 
             ref={coverInputRef} 

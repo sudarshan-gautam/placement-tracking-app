@@ -19,14 +19,26 @@ export default function UserSwitcher() {
   useEffect(() => {
     if (typeof window !== 'undefined' && !originalUser) {
       // Check if we're in impersonation mode
-      const storedOriginalUser = localStorage.getItem('original_user');
-      if (storedOriginalUser) {
+      const storedOriginalUserInfo = localStorage.getItem('original_user_info');
+      if (storedOriginalUserInfo) {
         try {
-          setOriginalUser(JSON.parse(storedOriginalUser));
-          setMode('user');
+          // Fetch original user info from API
+          const info = JSON.parse(storedOriginalUserInfo);
+          if (info && info.id && info.role) {
+            // Set temporary original user with the basic info we have
+            setOriginalUser({
+              id: info.id,
+              name: info.name || 'Original User',
+              email: info.email || '',
+              role: info.role,
+              status: 'active',
+              profileImage: info.profileImage || '/placeholder-profile.jpg'
+            });
+            setMode('user');
+          }
         } catch (error) {
-          console.error('Error parsing original user:', error);
-          localStorage.removeItem('original_user');
+          console.error('Error parsing original user info:', error);
+          localStorage.removeItem('original_user_info');
         }
       }
     }
@@ -38,7 +50,7 @@ export default function UserSwitcher() {
   }
   
   // Also exit if we're already impersonating - this component is only for initial user switching
-  if (typeof window !== 'undefined' && localStorage.getItem('original_user')) {
+  if (typeof window !== 'undefined' && localStorage.getItem('original_user_info')) {
     return null;
   }
   
@@ -110,9 +122,15 @@ export default function UserSwitcher() {
     if (user?.role === selectedRole) return;
     
     // Store original user for returning later
-    if (!originalUser) {
+    if (!originalUser && user) {
       setOriginalUser(user);
-      localStorage.setItem('original_user', JSON.stringify(user));
+      // Only store minimal info needed to identify the original user
+      localStorage.setItem('original_user_info', JSON.stringify({
+        id: user.id,
+        name: user.name,
+        role: user.role,
+        profileImage: user.profileImage
+      }));
     }
     
     // Find a default user with the selected role
@@ -200,9 +218,15 @@ export default function UserSwitcher() {
     if (!selectedProfile) return;
     
     // Store original user for returning later if not already set
-    if (!originalUser) {
+    if (!originalUser && user) {
       setOriginalUser(user);
-      localStorage.setItem('original_user', JSON.stringify(user));
+      // Only store minimal info needed to identify the original user
+      localStorage.setItem('original_user_info', JSON.stringify({
+        id: user.id,
+        name: user.name,
+        role: user.role,
+        profileImage: user.profileImage
+      }));
     }
     
     // Convert user profile to the User type expected by auth context
@@ -237,10 +261,9 @@ export default function UserSwitcher() {
     
     // Restore original user
     setUser(originalUser);
-    localStorage.setItem('user', JSON.stringify(originalUser));
     
     // Clear temporary flags
-    localStorage.removeItem('original_user');
+    localStorage.removeItem('original_user_info');
     localStorage.removeItem('is_temporary_user');
     
     // Reset state

@@ -256,9 +256,184 @@ async function initializeDatabase() {
       console.log('User_experience table already exists');
     }
     
+    // ===== CV TEMPLATES TABLE =====
+    console.log('\n=== Checking cv_templates table ===');
+    const cvTemplatesTableCheck = await db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='cv_templates'");
+    
+    if (!cvTemplatesTableCheck) {
+      console.log('Creating cv_templates table...');
+      await db.run(`
+        CREATE TABLE cv_templates (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          description TEXT,
+          category TEXT DEFAULT 'General',
+          structure TEXT NOT NULL,
+          preview_image TEXT,
+          creator_id TEXT NOT NULL,
+          is_active BOOLEAN DEFAULT 1,
+          created_at TEXT DEFAULT (datetime('now')),
+          updated_at TEXT DEFAULT (datetime('now')),
+          FOREIGN KEY (creator_id) REFERENCES users(id)
+        )
+      `);
+      console.log('Successfully created cv_templates table');
+      
+      // Add sample CV templates
+      console.log('Adding sample CV templates...');
+      
+      // Get admin user ID
+      const admin = await db.get("SELECT id FROM users WHERE role = 'admin' LIMIT 1");
+      
+      if (admin) {
+        const templates = [
+          {
+            name: "Modern Professional",
+            description: "A clean and contemporary CV template suitable for most professional fields",
+            category: "General",
+            structure: JSON.stringify({
+              sections: ["header", "summary", "skills", "experience", "education", "certifications"],
+              layout: "standard",
+              style: "modern"
+            })
+          },
+          {
+            name: "Technical Specialist",
+            description: "Optimized for technical roles with focus on skills and projects",
+            category: "IT/Technology",
+            structure: JSON.stringify({
+              sections: ["header", "technical_summary", "skills", "technical_projects", "experience", "education", "certifications"],
+              layout: "technical",
+              style: "professional"
+            })
+          },
+          {
+            name: "Creative Portfolio",
+            description: "Visually appealing template for creative professionals",
+            category: "Creative",
+            structure: JSON.stringify({
+              sections: ["header", "portfolio_highlights", "skills", "experience", "education", "portfolio_links"],
+              layout: "creative",
+              style: "modern"
+            })
+          },
+          {
+            name: "Academic Research",
+            description: "Structured template for academic and research positions",
+            category: "Academic",
+            structure: JSON.stringify({
+              sections: ["header", "research_interests", "education", "publications", "research_experience", "teaching_experience", "grants", "conferences"],
+              layout: "academic",
+              style: "formal"
+            })
+          },
+          {
+            name: "Entry Level Graduate",
+            description: "Optimized for recent graduates with limited work experience",
+            category: "Entry Level",
+            structure: JSON.stringify({
+              sections: ["header", "summary", "education", "skills", "projects", "internships", "extracurricular"],
+              layout: "graduate",
+              style: "professional"
+            })
+          }
+        ];
+        
+        for (const template of templates) {
+          await db.run(`
+            INSERT INTO cv_templates (name, description, category, structure, creator_id, is_active)
+            VALUES (?, ?, ?, ?, ?, 1)
+          `, template.name, template.description, template.category, template.structure, admin.id);
+        }
+        
+        console.log('Added sample CV templates');
+      }
+    } else {
+      console.log('CV_templates table already exists');
+    }
+    
+    // ===== COVER LETTER TEMPLATES TABLE =====
+    console.log('\n=== Checking cover_letter_templates table ===');
+    const coverLetterTemplatesTableCheck = await db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='cover_letter_templates'");
+    
+    if (!coverLetterTemplatesTableCheck) {
+      console.log('Creating cover_letter_templates table...');
+      await db.run(`
+        CREATE TABLE cover_letter_templates (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          description TEXT,
+          category TEXT DEFAULT 'General',
+          structure TEXT NOT NULL,
+          preview_image TEXT,
+          creator_id TEXT NOT NULL,
+          is_active BOOLEAN DEFAULT 1,
+          created_at TEXT DEFAULT (datetime('now')),
+          updated_at TEXT DEFAULT (datetime('now')),
+          FOREIGN KEY (creator_id) REFERENCES users(id)
+        )
+      `);
+      console.log('Successfully created cover_letter_templates table');
+    } else {
+      console.log('Cover_letter_templates table already exists');
+    }
+    
+    // ===== STUDENT CVS TABLE =====
+    console.log('\n=== Checking student_cvs table ===');
+    const studentCvsTableCheck = await db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='student_cvs'");
+    
+    if (!studentCvsTableCheck) {
+      console.log('Creating student_cvs table...');
+      await db.run(`
+        CREATE TABLE student_cvs (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          student_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          template_id INTEGER,
+          content TEXT NOT NULL,
+          html_content TEXT,
+          ats_score INTEGER DEFAULT 0,
+          is_draft INTEGER DEFAULT 1,
+          created_at TEXT DEFAULT (datetime('now')),
+          updated_at TEXT DEFAULT (datetime('now')),
+          last_generated_at TEXT,
+          FOREIGN KEY (student_id) REFERENCES users(id),
+          FOREIGN KEY (template_id) REFERENCES cv_templates(id)
+        )
+      `);
+      console.log('Successfully created student_cvs table');
+    } else {
+      console.log('Student_cvs table already exists');
+    }
+    
+    // ===== STUDENT COVER LETTERS TABLE =====
+    console.log('\n=== Checking student_cover_letters table ===');
+    const studentCoverLettersTableCheck = await db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='student_cover_letters'");
+    
+    if (!studentCoverLettersTableCheck) {
+      console.log('Creating student_cover_letters table...');
+      await db.run(`
+        CREATE TABLE student_cover_letters (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          student_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          template_id INTEGER,
+          content TEXT NOT NULL,
+          html_content TEXT,
+          created_at TEXT DEFAULT (datetime('now')),
+          updated_at TEXT DEFAULT (datetime('now')),
+          FOREIGN KEY (student_id) REFERENCES users(id),
+          FOREIGN KEY (template_id) REFERENCES cover_letter_templates(id)
+        )
+      `);
+      console.log('Successfully created student_cover_letters table');
+    } else {
+      console.log('Student_cover_letters table already exists');
+    }
+    
     // Check for any other tables and drop them if not in the allowed list
     console.log('\n=== Cleaning up unnecessary tables ===');
-    const tables = await db.all("SELECT name FROM sqlite_master WHERE type='table' AND name NOT IN ('users', 'jobs', 'user_skills', 'user_profiles', 'saved_jobs', 'job_applications', 'job_skills', 'mentor_student_assignments', 'sqlite_sequence', 'user_education', 'user_experience', 'qualifications', 'sessions', 'activities', 'competencies', 'student_competencies', 'session_verifications', 'activity_verifications', 'competency_verifications', 'profile_verifications')");
+    const tables = await db.all("SELECT name FROM sqlite_master WHERE type='table' AND name NOT IN ('users', 'jobs', 'user_skills', 'user_profiles', 'saved_jobs', 'job_applications', 'job_skills', 'mentor_student_assignments', 'sqlite_sequence', 'user_education', 'user_experience', 'qualifications', 'sessions', 'activities', 'competencies', 'student_competencies', 'session_verifications', 'activity_verifications', 'competency_verifications', 'profile_verifications', 'cv_templates', 'cover_letter_templates', 'student_cvs', 'student_cover_letters')");
     
     for (const table of tables) {
       console.log(`Dropping unnecessary table: ${table.name}`);

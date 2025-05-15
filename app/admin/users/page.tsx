@@ -175,18 +175,39 @@ export default function AdminUsersPage() {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/users');
+      
+      // First try the standard endpoint
+      let response = await fetch('/api/admin/users');
+      let usersData = [];
       
       if (!response.ok) {
-        throw new Error('Failed to fetch users');
+        console.warn('Standard API failed, trying direct endpoint');
+        // Fallback to direct endpoint if standard endpoint fails
+        response = await fetch('/api/admin/users-direct');
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch users from both endpoints');
+        }
       }
       
       const data = await response.json();
-      // Handle the response which directly returns the users array
-      setUsers(Array.isArray(data) ? data : []);
+      
+      // Handle the response which may have users in a nested property or directly as array
+      if (data && Array.isArray(data)) {
+        // Direct array response
+        usersData = data;
+      } else if (data && data.users && Array.isArray(data.users)) {
+        // Nested users property
+        usersData = data.users;
+      } else {
+        console.warn('Unexpected users data format:', data);
+        usersData = [];
+      }
+      
+      setUsers(usersData);
       
       // After fetching users, load mentor-student assignments
-      if (Array.isArray(data) && data.length > 0) {
+      if (usersData.length > 0) {
         fetchMentorStudentAssignments();
       }
     } catch (error) {

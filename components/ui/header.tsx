@@ -11,21 +11,22 @@ import UserSwitcher from '@/components/user-switcher';
 
 // Client-side only component for the return button
 function ClientSideReturnButton() {
-  const [originalUser, setOriginalUser] = useState<any>(null);
+  const [originalUserInfo, setOriginalUserInfo] = useState<{name: string, role: string, id: string} | null>(null);
   const [mounted, setMounted] = useState(false);
+  const { setUser } = useAuth();
   
   // Only run after component is mounted in the browser
   useEffect(() => {
     setMounted(true);
     
     try {
-      const storedOriginalUser = localStorage.getItem('original_user');
-      if (storedOriginalUser) {
-        const parsedUser = JSON.parse(storedOriginalUser);
-        setOriginalUser(parsedUser);
+      const storedOriginalUserInfo = localStorage.getItem('original_user_info');
+      if (storedOriginalUserInfo) {
+        const parsedInfo = JSON.parse(storedOriginalUserInfo);
+        setOriginalUserInfo(parsedInfo);
       }
     } catch (error) {
-      console.error('Error parsing original user:', error);
+      console.error('Error parsing original user info:', error);
     }
   }, []);
   
@@ -33,26 +34,48 @@ function ClientSideReturnButton() {
   if (!mounted) return null;
   
   // Don't render if there's no original user
-  if (!localStorage.getItem('original_user')) return null;
+  if (!localStorage.getItem('original_user_info')) return null;
   
-  const handleReturnToOriginal = () => {
+  const handleReturnToOriginal = async () => {
     try {
-      const storedOriginalUser = localStorage.getItem('original_user');
-      if (!storedOriginalUser) {
+      const storedOriginalUserInfo = localStorage.getItem('original_user_info');
+      if (!storedOriginalUserInfo) {
         return;
       }
       
-      const originalUser = JSON.parse(storedOriginalUser);
+      const originalInfo = JSON.parse(storedOriginalUserInfo);
       
-      // Restore original user
-      localStorage.setItem('user', JSON.stringify(originalUser));
+      // Clear impersonation flags
+      localStorage.removeItem('original_user_info');
+      localStorage.removeItem('is_impersonating');
       
-      // Clear temporary flags
-      localStorage.removeItem('original_user');
-      localStorage.removeItem('is_temporary_user');
+      // Fetch the original user's full profile data
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          const response = await fetch(`/api/${originalInfo.role}/${originalInfo.id}/profile`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          
+          if (response.ok) {
+            const userData = await response.json();
+            setUser({
+              id: originalInfo.id,
+              name: originalInfo.name,
+              email: userData.email,
+              role: originalInfo.role,
+              profileImage: userData.profileImage
+            });
+          }
+        } catch (error) {
+          console.error('Error fetching original user profile:', error);
+        }
+      }
       
       // Redirect to appropriate dashboard based on the original user's role
-      if (originalUser.role === 'admin') {
+      if (originalInfo.role === 'admin') {
         // If the admin was in the user management section, return there
         const currentPath = window.location.pathname;
         if (currentPath.includes('/admin/users')) {
@@ -60,7 +83,7 @@ function ClientSideReturnButton() {
         } else {
           window.location.href = '/admin';
         }
-      } else if (originalUser.role === 'mentor') {
+      } else if (originalInfo.role === 'mentor') {
         window.location.href = '/mentor';
       } else {
         window.location.href = '/dashboard';
@@ -78,7 +101,7 @@ function ClientSideReturnButton() {
         className="flex w-full items-center px-4 py-2 text-sm text-blue-600 hover:bg-blue-50"
       >
         <ArrowLeft className="mr-2 h-4 w-4" />
-        Return to {originalUser?.name || 'Original User'}
+        Return to {originalUserInfo?.name || 'Original User'}
       </button>
     </>
   );
@@ -133,7 +156,7 @@ export function Header() {
   ]);
   const [unreadCount, setUnreadCount] = useState(0);
   const pathname = usePathname();
-  const { user, logout, isAuthenticated } = useAuth();
+  const { user, logout, isAuthenticated, setUser } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   
   const searchRef = useRef<HTMLDivElement>(null);
@@ -203,65 +226,11 @@ export function Header() {
     }
   }, [user]);
 
-  // Force refresh when localStorage changes
-  useEffect(() => {
-    // Create a function to refresh user data from localStorage
-    const handleStorageChange = () => {
-      const storedUser = localStorage.getItem('user');
-      if (storedUser && isAuthenticated) {
-        try {
-          const userData = JSON.parse(storedUser);
-          // Update user state if there are changes
-          if (JSON.stringify(userData) !== JSON.stringify(user)) {
-            console.log('User data changed in localStorage, refreshing...');
-            window.location.reload(); // Force page reload to update all components
-          }
-        } catch (error) {
-          console.error('Error parsing stored user:', error);
-        }
-      }
-    };
-
-    // Set up storage event listener
-    window.addEventListener('storage', handleStorageChange);
-    
-    // Clean up
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
-  }, [user, isAuthenticated]);
-  
-  // Listen for user-updated event
-  useEffect(() => {
-    const handleUserUpdate = () => {
-      console.log('User updated event received in header');
-      // Simply force re-render by getting the latest user data
-      const storedUser = localStorage.getItem('user');
-      if (storedUser && isAuthenticated) {
-        try {
-          const userData = JSON.parse(storedUser);
-          // No need to check if different, we know it was updated
-          window.location.reload(); // Force page reload to update all components
-        } catch (error) {
-          console.error('Error parsing stored user:', error);
-        }
-      }
-    };
-
-    // Add event listener
-    window.addEventListener('user-updated', handleUserUpdate);
-    
-    // Clean up
-    return () => {
-      window.removeEventListener('user-updated', handleUserUpdate);
-    };
-  }, [isAuthenticated]);
-
   // Check if the user is impersonating another user
   useEffect(() => {
     const checkImpersonating = () => {
       if (typeof window !== 'undefined') {
-        const hasOriginalUser = localStorage.getItem('original_user') !== null;
+        const hasOriginalUser = localStorage.getItem('original_user_info') !== null;
         setIsImpersonating(hasOriginalUser);
       }
     };
@@ -308,21 +277,18 @@ export function Header() {
   // Add a function to handle logout properly
   const handleLogout = () => {
     // Check if user is impersonating someone
-    if (typeof window !== 'undefined' && localStorage.getItem('original_user')) {
+    if (typeof window !== 'undefined' && localStorage.getItem('original_user_info')) {
       // If impersonating, restore the original user instead of logging out completely
-      const originalUser = JSON.parse(localStorage.getItem('original_user') || '{}');
+      const originalInfo = JSON.parse(localStorage.getItem('original_user_info') || '{}');
       
       // Restore original user
-      localStorage.setItem('user', JSON.stringify(originalUser));
-      
-      // Clear temporary flags
-      localStorage.removeItem('original_user');
-      localStorage.removeItem('is_temporary_user');
+      localStorage.removeItem('original_user_info');
+      localStorage.removeItem('is_impersonating');
       
       // Redirect to appropriate dashboard based on role
-      if (originalUser.role === 'admin') {
+      if (originalInfo.role === 'admin') {
         window.location.href = '/admin';
-      } else if (originalUser.role === 'mentor') {
+      } else if (originalInfo.role === 'mentor') {
         window.location.href = '/mentor';
       } else {
         window.location.href = '/dashboard';
@@ -543,9 +509,9 @@ export function Header() {
                 className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-200 disabled:pointer-events-none disabled:opacity-50 hover:bg-gray-100 h-9 px-2 py-2"
               >
                 <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
-                  {user && 'profileImage' in user && user.profileImage ? (
+                  {user?.profileImage ? (
                     <Image
-                      src={(user as any).profileImage}
+                      src={user.profileImage}
                       alt="Profile"
                       width={32}
                       height={32}
@@ -771,6 +737,26 @@ export function Header() {
                         Jobs
                       </Link>
                     )}
+
+                    {/* CV and Documents links */}
+                    {user?.role === 'admin' ? (
+                      <Link
+                        href="/admin/cv-templates"
+                        className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
+                      >
+                        <FileText className="mr-2 h-4 w-4" />
+                        CV Templates
+                      </Link>
+                    ) : user?.role === 'student' ? (
+                      <Link
+                        href="/documents"
+                        className="flex items-center px-4 py-2 text-sm hover:bg-gray-100"
+                      >
+                        <FileText className="mr-2 h-4 w-4" />
+                        CV & Documents
+                      </Link>
+                    ) : null}
+                    
                     {user?.role === 'admin' ? (
                       <Link
                         href="/admin/settings"

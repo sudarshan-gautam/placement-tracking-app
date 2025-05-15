@@ -4,6 +4,7 @@ const next = require('next');
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const { Pool } = require('pg');
 
 // Check if we want to force clear all auth data (more secure)
 const CLEAR_AUTH_ON_RESTART = process.env.CLEAR_AUTH_ON_RESTART === 'true' || true;

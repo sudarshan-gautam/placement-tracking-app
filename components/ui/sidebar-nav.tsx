@@ -67,6 +67,20 @@ const studentNav: NavItem[] = [
     title: "Documents",
     href: "/documents",
     icon: <FileText className="h-5 w-5" />,
+    children: [
+      {
+        title: "CV Management",
+        href: "/documents?tab=cv",
+      },
+      {
+        title: "Cover Letters",
+        href: "/documents?tab=cover-letter",
+      },
+      {
+        title: "Upload Documents",
+        href: "/documents/upload",
+      }
+    ]
   },
   {
     title: "Messages",
@@ -182,6 +196,21 @@ const adminNav: NavItem[] = [
     title: "Jobs",
     href: "/admin/jobs",
     icon: <Briefcase className="h-5 w-5" />,
+  },
+  {
+    title: "CV Templates",
+    href: "/admin/cv-templates",
+    icon: <FileText className="h-5 w-5" />,
+    children: [
+      {
+        title: "CV Templates",
+        href: "/admin/cv-templates",
+      },
+      {
+        title: "Cover Letter Templates",
+        href: "/admin/cover-letter-templates",
+      }
+    ]
   },
   {
     title: "Messages",
