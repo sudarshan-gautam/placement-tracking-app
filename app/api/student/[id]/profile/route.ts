@@ -10,7 +10,7 @@ export async function GET(
     // Get updated user data with profile information
     const pool = await getPool();
     const [userData] = await pool.query(
-      'SELECT u.*, p.biography as bio, p.education, p.graduation_year, p.preferred_job_type, p.preferred_location, p.phone, p.secondary_email, p.social_media, p.profileImage FROM users u LEFT JOIN user_profiles p ON u.id = p.user_id WHERE u.id = ?',
+      'SELECT u.*, p.biography as bio, p.education, p.graduation_year, p.preferred_job_type, p.preferred_location, p.phone, p.secondary_email, p.social_media, p.profileImage, p.coverImage FROM users u LEFT JOIN user_profiles p ON u.id = p.user_id WHERE u.id = ?',
       [params.id]
     );
 
@@ -168,7 +168,7 @@ export async function PATCH(
       // Update existing profile
       console.log('Updating existing user profile');
       await runQuery(
-        'UPDATE user_profiles SET biography = ?, education = ?, graduation_year = ?, preferred_job_type = ?, preferred_location = ?, phone = ?, secondary_email = ?, social_media = ?, profileImage = ? WHERE user_id = ?',
+        'UPDATE user_profiles SET biography = ?, education = ?, graduation_year = ?, preferred_job_type = ?, preferred_location = ?, phone = ?, secondary_email = ?, social_media = ?, profileImage = ?, coverImage = ? WHERE user_id = ?',
         [
           bio || null, // Store bio content in biography field
           education || null,
@@ -179,6 +179,7 @@ export async function PATCH(
           secondary_email || null,
           socialMediaStr,
           profileImage || null,
+          requestBody.coverImage || null,
           params.id
         ]
       );
@@ -186,7 +187,7 @@ export async function PATCH(
       // Create new profile
       console.log('Creating new user profile');
       await runQuery(
-        'INSERT INTO user_profiles (user_id, biography, education, graduation_year, preferred_job_type, preferred_location, phone, secondary_email, social_media, profileImage) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO user_profiles (user_id, biography, education, graduation_year, preferred_job_type, preferred_location, phone, secondary_email, social_media, profileImage, coverImage) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         [
           params.id,
           bio || null, // Store bio content in biography field
@@ -197,7 +198,8 @@ export async function PATCH(
           phone || null,
           secondary_email || null,
           socialMediaStr,
-          profileImage || null
+          profileImage || null,
+          requestBody.coverImage || null
         ]
       );
     }
@@ -205,7 +207,7 @@ export async function PATCH(
     // Get updated user data
     console.log('Fetching updated user data');
     const [updatedUser] = await pool.query(
-      'SELECT u.*, p.biography as bio, p.education, p.graduation_year, p.preferred_job_type, p.preferred_location, p.phone, p.secondary_email, p.social_media, p.profileImage FROM users u LEFT JOIN user_profiles p ON u.id = p.user_id WHERE u.id = ?',
+      'SELECT u.*, p.biography as bio, p.education, p.graduation_year, p.preferred_job_type, p.preferred_location, p.phone, p.secondary_email, p.social_media, p.profileImage, p.coverImage FROM users u LEFT JOIN user_profiles p ON u.id = p.user_id WHERE u.id = ?',
       [params.id]
     );
     console.log('Updated user data fetched successfully');
